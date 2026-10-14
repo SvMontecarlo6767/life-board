@@ -25,6 +25,11 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 #bk .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 #bkMsg{font-size:13.5px;color:var(--mu);margin-top:8px}
 #bkMsg.warn{color:var(--bad)}
+#wh{margin-top:18px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
+#wh b{display:block;font-size:16px;margin-bottom:2px}
+#wh .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#whMsg{font-size:13.5px;color:var(--mu);margin-top:8px;white-space:pre-line}
+#whMsg.warn{color:var(--bad)}#whMsg.good{color:var(--ac)}
 #err{color:var(--bad);margin-top:12px;font-size:14px}
 [hidden]{display:none!important}
 </style></head><body><main>
@@ -42,6 +47,17 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
     <div class="tile off"><div style="font-size:28px">💚</div><b>Recovery</b><span>Schlaf, HRV, Strain von Whoop</span><br><span class="tag">kommt später</span></div>
     <div class="tile off"><div style="font-size:28px">✅</div><b>Gewohnheiten</b><span>Streaks und Tagesroutine</span><br><span class="tag">kommt später</span></div>
     <div class="tile off"><div style="font-size:28px">📚</div><b>Lernen</b><span>Latein und mehr</span><br><span class="tag">kommt später</span></div>
+  </div>
+  <div id="wh">
+    <b>💚 Whoop</b>
+    <span id="whState" style="color:var(--mu);font-size:13.5px">Status wird geladen …</span>
+    <div class="row">
+      <button class="primary" id="whConnect">Mit Whoop verbinden</button>
+      <button id="whCheck">Verbindung prüfen</button>
+      <button id="whSync">Letzte 60 Tage holen</button>
+      <button id="whHist">Mehr Verlauf laden (1 Jahr)</button>
+    </div>
+    <div id="whMsg"></div>
   </div>
   <div id="bk">
     <b>💾 Alles sichern</b>
@@ -117,5 +133,67 @@ $('bkCopy').onclick=async()=>{
   }catch(e){m.className='warn';m.textContent='Kopieren fehlgeschlagen: '+(e.code||e.message)}
 };
 bkStatus();
+
+// ---- Whoop ----
+const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
+async function wfetch(path,opts={}){
+  const u=auth.currentUser;if(!u)throw new Error('nicht angemeldet');
+  const tok=await u.getIdToken();
+  const r=await fetch(WORKER+path,{...opts,headers:{...(opts.headers||{}),Authorization:'Bearer '+tok,'Content-Type':'application/json'}});
+  let d=null;try{d=await r.json()}catch(e){}
+  if(!r.ok){const e=new Error((d&&d.error)||('Fehler '+r.status));e.code=d&&d.code;e.status=r.status;throw e}
+  return d;
+}
+function wmsg(t,c){const m=$('whMsg');m.textContent=t;m.className=c||''}
+const fmtT=ts=>new Date(ts).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
+async function whStatus(){
+  try{
+    const s=await wfetch('/status');
+    const st=$('whState');
+    if(!s.connected){st.textContent='Noch nicht verbunden.';$('whConnect').textContent='Mit Whoop verbinden'}
+    else{
+      st.textContent=(s.needs_reconnect?'⚠️ Verbindung abgelaufen, bitte neu verbinden. ':'✓ Verbunden. ')+(s.last_sync?'Letzter Abruf: '+fmtT(s.last_sync.at)+' ('+s.last_sync.counts.cycles+' Tage, '+s.last_sync.counts.sleeps+' Schlaf-Einträge).':'Noch keine Daten geholt.');
+      $('whConnect').textContent=s.needs_reconnect?'Neu verbinden':'Neu verbinden';
+    }
+  }catch(e){$('whState').textContent='Worker nicht erreichbar: '+e.message;}
+}
+$('whConnect').onclick=async()=>{
+  wmsg('Leite zu Whoop weiter …');
+  try{const d=await wfetch('/start',{method:'POST'});location.href=d.url}
+  catch(e){wmsg('Verbinden fehlgeschlagen: '+e.message,'warn')}
+};
+$('whCheck').onclick=async()=>{
+  wmsg('Prüfe …');
+  try{const d=await wfetch('/check');wmsg('✓ Verbindung zu Whoop funktioniert'+(d.first_name?' (Konto von '+d.first_name+')':'')+'.','good')}
+  catch(e){wmsg('Prüfung fehlgeschlagen: '+e.message+(e.code?' ['+e.code+']':''),'warn')}
+};
+$('whSync').onclick=async()=>{
+  wmsg('Hole die letzten 60 Tage …');
+  try{const d=await wfetch('/sync',{method:'POST',body:JSON.stringify({days:60})});
+    wmsg('✓ Fertig: '+d.counts.cycles+' Tage, '+d.counts.recoveries+' Erholungswerte, '+d.counts.sleeps+' Schlaf-Einträge, '+d.counts.workouts+' Workouts.','good');whStatus()}
+  catch(e){wmsg('Abruf fehlgeschlagen: '+e.message+(e.code?' ['+e.code+']':''),'warn')}
+};
+$('whHist').onclick=async()=>{
+  const dstr=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
+  let lines=[];
+  try{
+    for(let i=0;i<6;i++){
+      const to=dstr(60*i),from=dstr(60*i+59);
+      wmsg(lines.join('\n')+(lines.length?'\n':'')+'Hole '+from+' bis '+to+' …');
+      const d=await wfetch('/sync',{method:'POST',body:JSON.stringify({from,to})});
+      lines.push(from+' bis '+to+': '+d.counts.cycles+' Tage');
+    }
+    wmsg(lines.join('\n')+'\n✓ Fertig.','good');whStatus();
+  }catch(e){wmsg(lines.join('\n')+'\nAbbruch: '+e.message+(e.code?' ['+e.code+']':''),'warn')}
+};
+// Rückmeldung nach der Whoop-Anmeldung
+(function(){
+  const q=new URLSearchParams(location.search).get('whoop');
+  if(!q)return;
+  const t={connected:['✓ Whoop ist verbunden. Als Nächstes „Letzte 60 Tage holen“ tippen.','good'],error:['Whoop-Anmeldung abgebrochen.','warn'],badstate:['Anmeldung ungültig oder abgelaufen. Bitte neu starten.','warn'],tokenfail:['Whoop hat den Login nicht bestätigt (Client-ID, Secret oder Redirect-URL prüfen).','warn']}[q];
+  if(t)setTimeout(()=>wmsg(t[0],t[1]),50);
+  history.replaceState(null,'',location.pathname);
+})();
+auth.onAuthStateChanged(u=>{if(u)whStatus()});
 </script>
 </main></body></html>
