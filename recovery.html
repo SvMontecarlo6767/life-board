@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Recovery</title>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
+  --grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);
+  --series-1:#2a78d6;--good:#006300;--bad:#d03b3b;--ok:#0ca30c;--mid:#fab219;--low:#d03b3b;
+}
+@media (prefers-color-scheme:dark){:root{
+  color-scheme:dark;
+  --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;
+  --grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);
+  --series-1:#3987e5;--good:#0ca30c;--bad:#d03b3b;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:clamp(14px,4vw,32px)}
+main{max-width:860px;margin:0 auto}
+a.back{color:var(--muted);text-decoration:none;font-size:13.5px}
+h1{font-size:22px;margin:6px 0 14px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters button{font:inherit;font-size:14px;color:var(--ink2);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 13px;cursor:pointer}
+.filters button[aria-pressed=true]{color:var(--ink);font-weight:700;border-color:var(--ink2)}
+.filters button:hover{background:color-mix(in srgb,var(--ink) 6%,var(--surface))}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:14px;transition:opacity .2s}
+.card h2{font-size:15px;margin:0 0 2px}
+.card .sub{color:var(--muted);font-size:12.5px;margin-bottom:8px}
+.hero{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.hero .big{font-size:56px;font-weight:800;line-height:1}
+.hero .big small{font-size:24px;font-weight:600;color:var(--ink2)}
+.zone{display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:700}
+.zone i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.hint{color:var(--muted);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px}
+.tile .l{color:var(--ink2);font-size:13px}
+.tile .v{font-size:26px;font-weight:700;margin:2px 0}
+.tile .v small{font-size:14px;font-weight:600;color:var(--ink2);margin-left:2px}
+.tile .d{font-size:12.5px;color:var(--muted)}
+.tile .d.good{color:var(--good)}.tile .d.bad{color:var(--bad)}
+svg.ch{width:100%;height:auto;display:block;touch-action:pan-y;overflow:visible}
+svg text{font:11px system-ui,sans-serif;fill:var(--muted)}
+svg .lbl{fill:var(--ink);font-weight:700;font-size:12px}
+.tip{position:fixed;z-index:50;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:12.5px;box-shadow:0 6px 20px rgba(0,0,0,.18);display:none;max-width:240px}
+.tip .t{color:var(--ink2);margin-bottom:3px}
+.tip .v{font-weight:700;font-size:15px}
+.tip .k{display:inline-block;width:14px;height:2px;background:var(--series-1);vertical-align:middle;margin-right:6px}
+.tip .x{color:var(--ink2);margin-top:2px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--grid);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600}
+.scroll{overflow:auto;max-height:420px}
+button.link{font:inherit;font-size:13.5px;color:var(--ink2);background:none;border:1px solid var(--border);border-radius:10px;padding:8px 12px;cursor:pointer}
+pre{white-space:pre-wrap;word-break:break-all;font:12px/1.45 ui-monospace,Menlo,monospace;color:var(--ink2)}
+#msg{color:var(--ink2);margin:12px 0}
+#msg.err{color:var(--bad)}
+[hidden]{display:none!important}
+</style></head><body><main>
+<a class="back" href="index.html">← Life Board</a>
+<h1>💚 Recovery</h1>
+<div class="filters" id="filters" role="group" aria-label="Zeitraum">
+  <button data-d="7">7 Tage</button><button data-d="30" aria-pressed="true">30 Tage</button><button data-d="90">90 Tage</button><button data-d="365">1 Jahr</button>
+</div>
+<div id="msg">Lade Daten …</div>
+<div id="content" hidden>
+  <div class="card" id="heroCard"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="card"><h2>Recovery</h2><div class="sub">Erholungswert in Prozent pro Tag</div><div id="c-rec"></div></div>
+  <div class="card"><h2>HRV</h2><div class="sub">Herzratenvariabilität (RMSSD) in Millisekunden. Höher bedeutet meist besser erholt.</div><div id="c-hrv"></div></div>
+  <div class="card"><h2>Ruhepuls</h2><div class="sub">Schläge pro Minute. Niedriger bedeutet meist besser erholt.</div><div id="c-rhr"></div></div>
+  <div class="card"><h2>Schlafdauer</h2><div class="sub">Stunden tatsächlich geschlafen (ohne Wachzeit) pro Nacht</div><div id="c-sleep"></div></div>
+  <div class="card"><h2>Schlafqualität</h2><div class="sub">Schlaf-Performance in Prozent: wie viel vom Schlafbedarf du gedeckt hast</div><div id="c-perf"></div></div>
+  <div class="card"><h2>Strain</h2><div class="sub">Tagesbelastung auf der Whoop-Skala von 0 bis 21</div><div id="c-strain"></div></div>
+  <div class="card">
+    <button class="link" id="tblBtn" aria-expanded="false">Tabelle anzeigen</button>
+    <div id="tbl" hidden style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <button class="link" id="dbgBtn" aria-expanded="false">Datenprüfung anzeigen</button>
+    <div id="dbg" hidden style="margin-top:10px"></div>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="fb.js"></script>
+<script>
+const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
+const $=id=>document.getElementById(id);
+const fmtN=(v,d=1)=>v==null?'–':v.toLocaleString('de-DE',{maximumFractionDigits:d});
+const fmtD=s=>{const p=s.split('-');return p[2]+'.'+p[1]+'.'};
+const fmtLong=s=>new Date(s+'T12:00:00').toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'});
+const isoDay=t=>new Date(t).toISOString().slice(0,10);
+const num=v=>typeof v==='number'&&isFinite(v)?v:null;
+const mean=a=>{const b=a.filter(v=>v!=null);return b.length?b.reduce((x,y)=>x+y,0)/b.length:null};
+
+let ALL=[],RANGE=30,RAW={};
+
+async function wfetch(path){
+  const u=await requireUser();
+  const r=await fetch(WORKER+path,{headers:{Authorization:'Bearer '+await u.getIdToken()}});
+  let d=null;try{d=await r.json()}catch(e){}
+  if(!r.ok)throw new Error((d&&d.error)||('Fehler '+r.status));
+  return d;
+}
+
+// ---- Daten in flache Tageszeilen umwandeln (alle Felder defensiv, fehlende Werte bleiben null) ----
+function toRows(days){
+  return Object.keys(days).sort().map(date=>{
+    const d=days[date]||{};
+    const r=d.recovery&&d.recovery.score||null, s=d.sleep&&d.sleep.score||null, c=d.cycle&&d.cycle.score||null;
+    const st=s&&s.stage_summary||{};
+    const L=num(st.total_light_sleep_time_milli),S=num(st.total_slow_wave_sleep_time_milli),R=num(st.total_rem_sleep_time_milli);
+    const asleep=(L!=null&&S!=null&&R!=null)?(L+S+R)/3.6e6:null;
+    return {date,
+      rec:num(r&&r.recovery_score),hrv:num(r&&r.hrv_rmssd_milli),rhr:num(r&&r.resting_heart_rate),
+      perf:num(s&&s.sleep_performance_percentage),asleep,
+      light:L!=null?L/3.6e6:null,sws:S!=null?S/3.6e6:null,rem:R!=null?R/3.6e6:null,
+      awake:num(st.total_awake_time_milli)!=null?st.total_awake_time_milli/3.6e6:null,
+      strain:num(c&&c.strain),workouts:(d.workouts||[]).length};
+  });
+}
+function dateList(from,to){const out=[];for(let t=Date.parse(from+'T12:00:00Z');t<=Date.parse(to+'T12:00:00Z');t+=864e5)out.push(isoDay(t));return out}
+
+// ---- Diagramm: Linie oder Säulen, ein Wert pro Tag, mit Fadenkreuz und Tooltip ----
+function niceTicks(min,max,n){
+  if(max===min){max=min+1}
+  const raw=(max-min)/n,mag=Math.pow(10,Math.floor(Math.log10(raw))),f=raw/mag;
+  const step=(f<1.5?1:f<3?2:f<7?5:10)*mag;
+  const lo=Math.floor(min/step)*step,hi=Math.ceil(max/step)*step,t=[];
+  for(let v=lo;v<=hi+step/2;v+=step)t.push(+v.toFixed(10));
+  return t;
+}
+const tip=$('tip');
+function showTip(ev,html){
+  tip.replaceChildren(...html);tip.style.display='block';
+  const w=tip.offsetWidth,h=tip.offsetHeight;
+  let x=ev.clientX+14,y=ev.clientY-h-10;
+  if(x+w>innerWidth-8)x=ev.clientX-w-14;
+  if(y<8)y=ev.clientY+16;
+  tip.style.left=Math.max(8,x)+'px';tip.style.top=y+'px';
+}
+const hideTip=()=>{tip.style.display='none'};
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+
+function chart(host,o){
+  // o: {dates, values, kind:'line'|'bar', fixed:[min,max]|null, unit, digits, extra(i)->[string]}
+  const W=Math.max(300,host.clientWidth||640),H=190,m={l:38,r:14,t:12,b:24},iw=W-m.l-m.r,ih=H-m.t-m.b;
+  const vals=o.values,have=vals.filter(v=>v!=null);
+  host.replaceChildren();
+  if(!have.length){host.appendChild(el('div','hint','Keine Daten in diesem Zeitraum.'));return}
+  let lo=Math.min(...have),hi=Math.max(...have);
+  if(o.kind==='bar')lo=0;
+  let ticks=niceTicks(o.fixed?o.fixed[0]:lo,o.fixed?o.fixed[1]:hi,4);
+  const y0=ticks[0],y1=ticks[ticks.length-1];
+  const n=o.dates.length,step=n>1?iw/(n-1):iw;
+  const bandW=iw/n;
+  const X=i=>o.kind==='bar'?m.l+bandW*(i+.5):m.l+(n>1?step*i:iw/2);
+  const Y=v=>m.t+ih-(v-y0)/(y1-y0)*ih;
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('class','ch');
+  svg.setAttribute('role','img');svg.setAttribute('aria-label',o.label||'Diagramm');
+  const add=(tag,attrs,text)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;svg.appendChild(e);return e};
+  // Raster und Beschriftung (zurückhaltend, durchgezogene Haarlinien)
+  ticks.forEach(t=>{
+    add('line',{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),stroke:t===y0?'var(--axis)':'var(--grid)','stroke-width':1});
+    add('text',{x:m.l-6,y:Y(t)+4,'text-anchor':'end'},fmtN(t,o.digits||0));
+  });
+  const nl=Math.min(5,n);
+  for(let k=0;k<nl;k++){const i=nl===1?0:Math.round(k*(n-1)/(nl-1));add('text',{x:X(i),y:H-6,'text-anchor':k===0?'start':k===nl-1?'end':'middle'},fmtD(o.dates[i]))}
+  const color='var(--series-1)';
+  if(o.kind==='bar'){
+    const bw=Math.min(24,Math.max(1,bandW-(bandW>6?2:0)));
+    vals.forEach((v,i)=>{if(v==null)return;const yy=Y(v),h=Math.max(1,Y(y0)-yy),r=Math.min(4,bw/2,h);
+      const x=X(i)-bw/2,b=Y(y0);
+      add('path',{d:`M${x},${b} V${yy+r} Q${x},${yy} ${x+r},${yy} H${x+bw-r} Q${x+bw},${yy} ${x+bw},${yy+r} V${b} Z`,fill:color})});
+  }else{
+    let d='',prev=false;
+    vals.forEach((v,i)=>{if(v==null){prev=false;return}d+=(prev?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);prev=true});
+    add('path',{d,fill:'none',stroke:color,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'});
+  }
+  // Endpunkt mit 2px Ring in Flächenfarbe und Wert (einziges Direktlabel)
+  let last=-1;for(let i=n-1;i>=0;i--)if(vals[i]!=null){last=i;break}
+  if(o.kind==='line'&&last>=0){
+    add('circle',{cx:X(last),cy:Y(vals[last]),r:6,fill:'var(--surface)'});
+    add('circle',{cx:X(last),cy:Y(vals[last]),r:4,fill:color});
+    const tx=Math.min(X(last),W-m.r-4);
+    add('text',{x:tx,y:Y(vals[last])-10,'text-anchor':'end',class:'lbl'},fmtN(vals[last],o.digits||0)+(o.unit||''));
+  }
+  // Fadenkreuz + Tooltip
+  const cross=add('line',{x1:0,x2:0,y1:m.t,y2:m.t+ih,stroke:'var(--axis)','stroke-width':1,visibility:'hidden'});
+  const dot=add('circle',{r:5,fill:color,stroke:'var(--surface)','stroke-width':2,visibility:'hidden'});
+  const hit=add('rect',{x:m.l,y:m.t,width:iw,height:ih,fill:'transparent',tabindex:0});
+  const at=ev=>{
+    const rc=svg.getBoundingClientRect(),sx=(ev.clientX-rc.left)*(W/(rc.width||W));
+    let i=o.kind==='bar'?Math.floor((sx-m.l)/bandW):Math.round((sx-m.l)/(step||1));
+    i=Math.max(0,Math.min(n-1,i));
+    // auf nächsten Tag mit Wert springen
+    if(vals[i]==null){let best=-1,bd=1e9;vals.forEach((v,j)=>{if(v!=null&&Math.abs(j-i)<bd){bd=Math.abs(j-i);best=j}});if(best<0)return;i=best}
+    cross.setAttribute('x1',X(i));cross.setAttribute('x2',X(i));cross.setAttribute('visibility','visible');
+    dot.setAttribute('cx',X(i));dot.setAttribute('cy',Y(vals[i]));dot.setAttribute('visibility',o.kind==='line'?'visible':'hidden');
+    const t=el('div','t',fmtLong(o.dates[i]));
+    const v=el('div','v');const k=el('span','k');v.append(k,document.createTextNode(fmtN(vals[i],o.digits||0)+(o.unit||'')));
+    const parts=[t,v];(o.extra?o.extra(i):[]).forEach(s=>parts.push(el('div','x',s)));
+    showTip(ev,parts);
+  };
+  hit.addEventListener('pointermove',at);hit.addEventListener('pointerdown',at);
+  hit.addEventListener('pointerleave',()=>{hideTip();cross.setAttribute('visibility','hidden');dot.setAttribute('visibility','hidden')});
+  host.appendChild(svg);
+}
+
+// ---- Seite zeichnen ----
+function slice(){
+  const to=isoDay(Date.now()),from=isoDay(Date.now()-(RANGE-1)*864e5);
+  const dates=dateList(from,to),map=Object.fromEntries(ALL.map(r=>[r.date,r]));
+  return {dates,rows:dates.map(d=>map[d]||null)};
+}
+const colOf=(rows,k)=>rows.map(r=>r&&r[k]!=null?r[k]:null);
+
+function zoneOf(v){return v>=67?['Hoch','var(--ok)']:v>=34?['Mittel','var(--mid)']:['Niedrig','var(--low)']}
+function avgBetween(key,fromDaysAgo,toDaysAgo){
+  const a=isoDay(Date.now()-fromDaysAgo*864e5),b=isoDay(Date.now()-toDaysAgo*864e5);
+  return mean(ALL.filter(r=>r.date>=a&&r.date<=b).map(r=>r[key]));
+}
+function renderTop(){
+  const sc=ALL.filter(r=>r.rec!=null),lastRec=sc[sc.length-1];
+  const hero=$('heroCard');hero.replaceChildren();
+  if(lastRec){
+    const row=el('div','hero');
+    const big=el('div','big');big.append(document.createTextNode(fmtN(lastRec.rec,0)),el('small',null,' %'));
+    const side=el('div');const z=zoneOf(lastRec.rec);
+    const zone=el('div','zone');const dotE=el('i');dotE.style.background=z[1];zone.append(dotE,document.createTextNode('Recovery '+z[0]));
+    side.append(zone,el('div','hint','Letzter bewerteter Tag: '+fmtLong(lastRec.date)));
+    row.append(big,side);hero.append(row);
+  }else hero.append(el('div','hint','Noch kein bewerteter Recovery-Wert vorhanden.'));
+  const defs=[['hrv','HRV','ms',1,true],['rhr','Ruhepuls','bpm',0,false],['perf','Schlaf-Performance','%',0,true],['strain','Strain','',1,null]];
+  const tiles=$('tiles');tiles.replaceChildren();
+  defs.forEach(([k,label,unit,dg,upGood])=>{
+    const withV=ALL.filter(r=>r[k]!=null),lastV=withV[withV.length-1];
+    const t=el('div','tile');t.append(el('div','l',label));
+    const v=el('div','v');v.append(document.createTextNode(lastV?fmtN(lastV[k],dg):'–'));if(lastV&&unit)v.append(el('small',null,unit));t.append(v);
+    const a7=avgBetween(k,6,0),a30=avgBetween(k,29,0);
+    let d=el('div','d','Zu wenig Daten für Vergleich');
+    if(a7!=null&&a30!=null){
+      const diff=a7-a30,arrow=Math.abs(diff)<0.05?'●':diff>0?'▲':'▼';
+      const good=upGood==null||Math.abs(diff)<0.05?null:(diff>0)===upGood;
+      d=el('div','d'+(good===true?' good':good===false?' bad':''),arrow+' '+(diff>0?'+':'')+fmtN(diff,dg)+' (Ø 7 Tage vs. Ø 30 Tage)');
+    }
+    t.append(d);tiles.append(t);
+  });
+}
+function renderCharts(){
+  const {dates,rows}=slice();
+  chart($('c-rec'),{dates,values:colOf(rows,'rec'),kind:'line',fixed:[0,100],unit:' %',label:'Recovery pro Tag',
+    extra:i=>{const r=rows[i];return r?[zoneOf(r.rec)[0]+' (Zone)']:[]}});
+  chart($('c-hrv'),{dates,values:colOf(rows,'hrv'),kind:'line',unit:' ms',digits:0,label:'HRV pro Tag'});
+  chart($('c-rhr'),{dates,values:colOf(rows,'rhr'),kind:'line',unit:' bpm',digits:0,label:'Ruhepuls pro Tag'});
+  chart($('c-sleep'),{dates,values:colOf(rows,'asleep'),kind:'bar',unit:' h',digits:1,label:'Schlafdauer pro Nacht',
+    extra:i=>{const r=rows[i];if(!r||r.light==null)return[];return['Leicht '+fmtN(r.light)+' h · Tief '+fmtN(r.sws)+' h · REM '+fmtN(r.rem)+' h','Wach im Bett '+fmtN(r.awake)+' h']}});
+  chart($('c-perf'),{dates,values:colOf(rows,'perf'),kind:'line',fixed:[0,100],unit:' %',label:'Schlaf-Performance pro Nacht'});
+  chart($('c-strain'),{dates,values:colOf(rows,'strain'),kind:'bar',fixed:[0,21],unit:'',digits:1,label:'Strain pro Tag',
+    extra:i=>{const r=rows[i];return r&&r.workouts?[r.workouts+' Workout'+(r.workouts>1?'s':'')]:[]}});
+}
+function renderTable(){
+  const {rows}=slice(),box=$('tbl');box.replaceChildren();
+  const cols=[['date','Datum'],['rec','Recovery %'],['hrv','HRV ms'],['rhr','Ruhepuls'],['asleep','Schlaf h'],['perf','Schlaf %'],['strain','Strain']];
+  const tb=document.createElement('table'),th=tb.createTHead().insertRow();
+  cols.forEach(c=>{const e=document.createElement('th');e.textContent=c[1];th.appendChild(e)});
+  const body=tb.createTBody();
+  rows.filter(Boolean).reverse().forEach(r=>{const tr=body.insertRow();cols.forEach(c=>{const td=tr.insertCell();td.textContent=c[0]==='date'?fmtD(r.date)+r.date.slice(0,4):fmtN(r[c[0]],c[0]==='rec'||c[0]==='rhr'||c[0]==='perf'?0:1)})});
+  const sc=el('div','scroll');sc.append(tb);box.append(sc);
+}
+function renderDebug(){
+  const box=$('dbg');box.replaceChildren();
+  const cnt=k=>ALL.filter(r=>r[k]!=null).length;
+  box.append(el('div','hint','Tage insgesamt: '+ALL.length+' · mit Recovery: '+cnt('rec')+' · mit HRV: '+cnt('hrv')+' · mit Schlaf: '+cnt('asleep')+' · mit Strain: '+cnt('strain')+(ALL.length?' · von '+ALL[0].date+' bis '+ALL[ALL.length-1].date:'')));
+  const keys=Object.keys(RAW).sort(),sample=keys.length?RAW[keys[keys.length-2]||keys[0]]:null;
+  if(sample){box.append(el('div','hint','Beispiel eines Tages (Rohdaten, zum Prüfen der Felder):'));box.append(el('pre',null,JSON.stringify(sample,null,1)))}
+}
+function renderAll(){renderTop();renderCharts();if(!$('tbl').hidden)renderTable()}
+
+$('filters').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-d]');if(!b)return;
+  RANGE=+b.dataset.d;[...$('filters').children].forEach(x=>x.setAttribute('aria-pressed',x===b));
+  const c=$('content');c.style.opacity=.6;renderCharts();if(!$('tbl').hidden)renderTable();c.style.opacity=1;
+});
+$('tblBtn').onclick=()=>{const h=$('tbl').hidden;$('tbl').hidden=!h;$('tblBtn').setAttribute('aria-expanded',h);$('tblBtn').textContent=h?'Tabelle ausblenden':'Tabelle anzeigen';if(h)renderTable()};
+$('dbgBtn').onclick=()=>{const h=$('dbg').hidden;$('dbg').hidden=!h;$('dbgBtn').setAttribute('aria-expanded',h);$('dbgBtn').textContent=h?'Datenprüfung ausblenden':'Datenprüfung anzeigen';if(h)renderDebug()};
+let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL.length)renderCharts()},150)});
+
+(async()=>{
+  try{
+    const to=isoDay(Date.now()),from=isoDay(Date.now()-364*864e5);
+    const d=await wfetch('/data?from='+from+'&to='+to);
+    RAW=d.days||{};ALL=toRows(RAW);
+    if(!ALL.length){$('msg').textContent='Noch keine Whoop-Daten. Öffne das Life Board und tippe auf „Letzte 60 Tage holen“.';return}
+    $('msg').hidden=true;$('content').hidden=false;renderAll();
+  }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
+})();
+</script>
+</main></body></html>
