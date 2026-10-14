@@ -39,6 +39,11 @@ $('file').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
   try{
     DATA=JSON.parse(await f.text());
+    if(DATA.collections){ // Format der Hub-Sicherung (v2): nur das Puzzle-Modul wird hier eingespielt
+      const pz=DATA.collections.puzzle||{},days={},docs={};
+      Object.entries(pz).forEach(([id,v])=>(id.startsWith('__')?docs:days)[id]=v);
+      DATA={v:1,days,docs};
+    }
     const days=Object.keys(DATA.days||{}).length,extra=Object.keys(DATA.docs||{});
     if(!days)throw new Error('keine Tage in der Datei');
     $('log').textContent='';delete $('log').dataset.f;

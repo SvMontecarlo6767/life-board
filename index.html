@@ -20,6 +20,11 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 .tile .tag{display:inline-block;font-size:11px;font-weight:700;background:var(--bd);color:var(--mu);border-radius:999px;padding:2px 8px;margin-top:8px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .top button{padding:8px 12px;font-size:13px}
+#bk{margin-top:18px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
+#bk b{display:block;font-size:16px;margin-bottom:2px}
+#bk .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#bkMsg{font-size:13.5px;color:var(--mu);margin-top:8px}
+#bkMsg.warn{color:var(--bad)}
 #err{color:var(--bad);margin-top:12px;font-size:14px}
 [hidden]{display:none!important}
 </style></head><body><main>
@@ -37,6 +42,12 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
     <div class="tile off"><div style="font-size:28px">💚</div><b>Recovery</b><span>Schlaf, HRV, Strain von Whoop</span><br><span class="tag">kommt später</span></div>
     <div class="tile off"><div style="font-size:28px">✅</div><b>Gewohnheiten</b><span>Streaks und Tagesroutine</span><br><span class="tag">kommt später</span></div>
     <div class="tile off"><div style="font-size:28px">📚</div><b>Lernen</b><span>Latein und mehr</span><br><span class="tag">kommt später</span></div>
+  </div>
+  <div id="bk">
+    <b>💾 Alles sichern</b>
+    <span style="color:var(--mu);font-size:13.5px">Lädt alle deine Daten als Datei herunter, unabhängig von Firebase. Am besten einmal pro Woche und die Datei zusätzlich in iCloud oder Google Drive ablegen.</span>
+    <div class="row"><button class="primary" id="bkDl">Sicherung herunterladen</button><button id="bkCopy">In Zwischenablage kopieren</button></div>
+    <div id="bkMsg"></div>
   </div>
 </section>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -61,5 +72,50 @@ $('loginBtn').onclick=async()=>{
   }
 };
 $('logoutBtn').onclick=()=>auth.signOut();
+
+// ---- Sicherung ----
+// Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
+const MODULES=['puzzle','whoop','habits','learn'];
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function bkStatus(){
+  let last=null;try{last=localStorage.getItem('lb-last-backup')}catch(e){}
+  const m=$('bkMsg');
+  if(!last){m.textContent='Noch keine Sicherung gemacht.';m.className='warn';return}
+  const days=Math.floor((Date.now()-new Date(last+'T12:00:00'))/864e5);
+  m.textContent='Letzte Sicherung: '+last+(days>=7?' (vor '+days+' Tagen, Zeit für eine neue)':'');
+  m.className=days>=7?'warn':'';
+}
+async function collect(){
+  const u=auth.currentUser;if(!u)throw new Error('nicht angemeldet');
+  const out={v:2,app:'life-board',exported:new Date().toISOString(),collections:{}};
+  for(const name of MODULES){
+    const snap=await fs.collection('users/'+u.uid+'/'+name).get({source:'server'});
+    if(snap.empty)continue;
+    out.collections[name]={};snap.docs.forEach(d=>out.collections[name][d.id]=d.data());
+  }
+  return out;
+}
+function summary(o){return Object.entries(o.collections).map(([k,v])=>k+': '+Object.keys(v).length+' Dokumente').join(', ')||'keine Daten'}
+$('bkDl').onclick=async()=>{
+  const m=$('bkMsg');m.className='';m.textContent='Lese Daten …';
+  try{
+    const o=await collect(),txt=JSON.stringify(o,null,1);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));
+    a.download='life-board-sicherung-'+iso(new Date())+'.json';
+    document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
+    try{localStorage.setItem('lb-last-backup',iso(new Date()))}catch(e){}
+    bkStatus();m.textContent+=' · Heruntergeladen ('+summary(o)+')';
+  }catch(e){m.className='warn';m.textContent='Sicherung fehlgeschlagen: '+(e.code||e.message)}
+};
+$('bkCopy').onclick=async()=>{
+  const m=$('bkMsg');m.className='';m.textContent='Lese Daten …';
+  try{
+    const o=await collect();await navigator.clipboard.writeText(JSON.stringify(o));
+    try{localStorage.setItem('lb-last-backup',iso(new Date()))}catch(e){}
+    bkStatus();m.textContent+=' · Kopiert ('+summary(o)+')';
+  }catch(e){m.className='warn';m.textContent='Kopieren fehlgeschlagen: '+(e.code||e.message)}
+};
+bkStatus();
 </script>
 </main></body></html>
