@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Life Board</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--bd:#e2e0d8;--ac:#2f6f4f;--ac2:#e8f2ec;--bad:#b3413a}
+@media (prefers-color-scheme:dark){:root{--bg:#161715;--card:#20211f;--tx:#eeede8;--mu:#a09f97;--bd:#34352f;--ac:#6fbf94;--ac2:#243128;--bad:#e07a72}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;padding:clamp(14px,4vw,32px)}
+main{max-width:760px;margin:0 auto}
+h1{font-size:26px;margin:6px 0 4px}
+.sub{color:var(--mu);margin:0 0 20px}
+button,.btn{font:inherit;color:var(--tx);background:var(--ac2);border:1px solid var(--bd);border-radius:12px;padding:12px 16px;cursor:pointer;text-decoration:none;display:inline-block}
+button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.tile{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;text-decoration:none;color:inherit;display:block}
+.tile b{display:block;font-size:17px;margin:4px 0}
+.tile span{color:var(--mu);font-size:13.5px}
+.tile.off{opacity:.55;pointer-events:none}
+.tile .tag{display:inline-block;font-size:11px;font-weight:700;background:var(--bd);color:var(--mu);border-radius:999px;padding:2px 8px;margin-top:8px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.top button{padding:8px 12px;font-size:13px}
+#err{color:var(--bad);margin-top:12px;font-size:14px}
+[hidden]{display:none!important}
+</style></head><body><main>
+<section id="login" hidden>
+  <h1>Life Board</h1>
+  <p class="sub">Dein persönliches Board. Bitte anmelden.</p>
+  <button class="primary" id="loginBtn">Mit Google anmelden</button>
+  <div id="err"></div>
+</section>
+<section id="hub" hidden>
+  <div class="top"><div><h1>Life Board</h1><p class="sub" id="who"></p></div><button id="logoutBtn">Abmelden</button></div>
+  <div class="grid">
+    <a class="tile" href="puzzle.html"><div style="font-size:28px">🧩</div><b>Puzzle-Tracker</b><span>Tägliche Puzzles, Rating, Meilensteine, Berichte</span></a>
+    <a class="tile" href="import.html"><div style="font-size:28px">📥</div><b>Daten importieren</b><span>Einmalig: alte Puzzle-Daten einspielen</span></a>
+    <div class="tile off"><div style="font-size:28px">💚</div><b>Recovery</b><span>Schlaf, HRV, Strain von Whoop</span><br><span class="tag">kommt später</span></div>
+    <div class="tile off"><div style="font-size:28px">✅</div><b>Gewohnheiten</b><span>Streaks und Tagesroutine</span><br><span class="tag">kommt später</span></div>
+    <div class="tile off"><div style="font-size:28px">📚</div><b>Lernen</b><span>Latein und mehr</span><br><span class="tag">kommt später</span></div>
+  </div>
+</section>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="fb.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+auth.onAuthStateChanged(u=>{
+  $('login').hidden=!!u; $('hub').hidden=!u;
+  if(u) $('who').textContent='Angemeldet als '+(u.displayName||u.email);
+});
+$('loginBtn').onclick=async()=>{
+  $('err').textContent='';
+  try{ await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); }
+  catch(e){
+    if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'){
+      auth.signInWithRedirect(new firebase.auth.GoogleAuthProvider());
+    } else if(e.code==='auth/unauthorized-domain'){
+      $('err').textContent='Diese Domain ist in Firebase nicht freigegeben (Authentication → Einstellungen → Autorisierte Domains).';
+    } else { $('err').textContent='Anmeldung fehlgeschlagen: '+(e.code||e.message); }
+  }
+};
+$('logoutBtn').onclick=()=>auth.signOut();
+</script>
+</main></body></html>
