@@ -21,7 +21,7 @@ function token(over = {}) {
 // --- Netzwerk-Attrappe ---
 let calls = [], refreshCount = 0;
 const cycles = [{ id: 11, start: '2026-10-13T05:10:00.000Z', end: '2026-10-14T05:00:00.000Z', timezone_offset: '+02:00', score_state: 'SCORED', score: { strain: 12.3 } }, { id: 12, start: '2026-10-14T05:00:00.000Z', timezone_offset: '+02:00', score_state: 'PENDING_SCORE' }];
-const recoveries = [{ cycle_id: 11, score_state: 'SCORED', score: { recovery_score: 71, hrv_rmssd_milli: 64.2, resting_heart_rate: 51 } }];
+const recoveries = [{ cycle_id: 11, sleep_id: 's1', score_state: 'SCORED', score: { recovery_score: 71, hrv_rmssd_milli: 64.2, resting_heart_rate: 51 } }];
 const sleeps = [{ id: 's1', start: '2026-10-12T21:00:00.000Z', end: '2026-10-13T05:10:00.000Z', timezone_offset: '+02:00', nap: false, score_state: 'SCORED', score: { sleep_performance_percentage: 88 } }, { id: 's2', start: '2026-10-13T11:00:00.000Z', end: '2026-10-13T11:30:00.000Z', timezone_offset: '+02:00', nap: true, score_state: 'SCORED', score: {} }];
 const workouts = [{ id: 'w1', sport_name: 'running', start: '2026-10-13T16:00:00.000Z', end: '2026-10-13T17:00:00.000Z', timezone_offset: '+02:00', score_state: 'SCORED', score: { strain: 9 } }];
 globalThis.fetch = async (url, opts = {}) => {
@@ -101,4 +101,35 @@ console.log('✓ Token-Erneuerung und Wiederverbinden');
 // 5) Zeitraum-Schutz
 assert.equal((await call('/sync', { method: 'POST', body: { from: '2020-01-01', to: '2026-10-14' } })).status, 400);
 console.log('✓ Zeitraum-Schutz');
+
+// 6) Regression: Einschlafen vor/nach Mitternacht darf keine Lücken erzeugen
+{
+  const env2 = { ...env, WB: kv() };
+  env2.WB.m.set('tokens', JSON.stringify({ access: 'A9', refresh: 'R9', expires_at: Date.now() + 3e6 }));
+  const C = [], R = [], S = [];
+  for (let n = 0; n < 7; n++) {
+    const wake = Date.parse('2026-10-0' + (n + 1) + 'T05:00:00Z');           // 07:00 Ortszeit (+02:00)
+    const onset = n % 2 === 0 ? wake - 8.5 * 3600e3 : wake - 6.5 * 3600e3;    // 22:30 oder 00:30 Ortszeit
+    C.push({ id: 100 + n, start: new Date(onset).toISOString(), timezone_offset: '+02:00', score_state: 'SCORED', score: { strain: 10 + n } });
+    S.push({ id: 'x' + n, start: new Date(onset).toISOString(), end: new Date(wake).toISOString(), timezone_offset: '+02:00', nap: false, score_state: 'SCORED', score: { sleep_performance_percentage: 80 + n } });
+    R.push({ cycle_id: 100 + n, sleep_id: 'x' + n, score_state: 'SCORED', score: { recovery_score: 50 + n } });
+  }
+  cycles.splice(0, cycles.length, ...C); recoveries.splice(0, recoveries.length, ...R); sleeps.splice(0, sleeps.length, ...S); workouts.splice(0, workouts.length);
+  // Veralteter Eintrag aus einer früheren Zuordnung muss beim Neuabruf verschwinden
+  env2.WB.m.set('m:2026-10', JSON.stringify({ '2026-10-04': { workouts: [], recovery: { score: { recovery_score: 1 } } }, '2026-09-30': { workouts: [], recovery: { score: { recovery_score: 2 } } } }));
+  const call2 = async (path, o = {}) => { const r = await worker.fetch(req(path, o), env2); return { status: r.status, body: await r.json() } };
+  const sy = await call2('/sync', { method: 'POST', body: { from: '2026-10-01', to: '2026-10-07' } });
+  assert.equal(sy.status, 200, JSON.stringify(sy.body));
+  const dd = (await call2('/data?from=2026-09-29&to=2026-10-08')).body.days;
+  for (let n = 0; n < 7; n++) {
+    const d = dd['2026-10-0' + (n + 1)];
+    assert.ok(d, 'Tag fehlt: ' + (n + 1));
+    assert.equal(d.recovery.score.recovery_score, 50 + n, 'Recovery am falschen Tag: ' + (n + 1));
+    assert.equal(d.sleep.id, 'x' + n);
+    assert.equal(d.cycle.score.strain, 10 + n, 'Strain am falschen Tag: ' + (n + 1));
+  }
+  assert.equal(dd['2026-10-04'].recovery.score.recovery_score, 53, 'veralteter Eintrag wurde ersetzt');
+  assert.equal(dd['2026-09-30'].recovery.score.recovery_score, 2, 'Tage außerhalb des Zeitraums bleiben unberührt');
+  console.log('✓ Keine Lücken bei wechselnder Schlafenszeit, veraltete Einträge werden ersetzt');
+}
 console.log('Alle Tests bestanden');

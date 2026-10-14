@@ -140,19 +140,35 @@ async function fetchAll(env, access, path, startIso, endIso) {
   return out;
 }
 // Ordnet Zyklen, Erholung, Schlaf und Workouts einem lokalen Tag zu. Rohdaten der Werte bleiben unverändert erhalten.
+// Wichtig: Ein Whoop-Zyklus beginnt nicht mit dem Aufwachen. Je nachdem, ob man vor oder nach Mitternacht einschläft,
+// läge sein Startdatum mal auf dem Vortag und mal auf dem Aufwachtag. Deshalb zählt für Erholung, Schlaf und Belastung
+// einheitlich der Tag des Aufwachens (Ende des Hauptschlafs). Die Erholung verweist per sleep_id direkt auf ihren Schlaf.
 function buildDays(cycles, recoveries, sleeps, workouts) {
   const days = {}; const cycleDate = {};
   const day = d => (days[d] = days[d] || { workouts: [] });
+  const wakeDate = s => localDate(s.end, s.timezone_offset);
+  const sleepById = {}; sleeps.forEach(s => { sleepById[s.id] = s; });
+  const mains = sleeps.filter(s => !s.nap);
+  const recByCycle = {}; recoveries.forEach(r => { recByCycle[r.cycle_id] = r; });
   cycles.forEach(c => {
-    const d = localDate(c.start, c.timezone_offset); cycleDate[c.id] = d;
+    let d = null;
+    const r = recByCycle[c.id];
+    if (r && sleepById[r.sleep_id]) d = wakeDate(sleepById[r.sleep_id]);
+    if (!d) { // kein Recovery (z. B. laufender Zyklus): Hauptschlaf suchen, der etwa beim Zyklusbeginn startet
+      let best = null, bd = 6 * 3600e3;
+      mains.forEach(s => { const diff = Math.abs(Date.parse(s.start) - Date.parse(c.start)); if (diff < bd) { bd = diff; best = s; } });
+      if (best) d = wakeDate(best);
+    }
+    if (!d) d = localDate(c.start, c.timezone_offset);
+    cycleDate[c.id] = d;
     day(d).cycle = { id: c.id, start: c.start, end: c.end || null, tz: c.timezone_offset, state: c.score_state, score: c.score || null, steps: c.step_count ?? null };
   });
   recoveries.forEach(r => {
-    const d = cycleDate[r.cycle_id] || (r.created_at && r.created_at.slice(0, 10)); if (!d) return;
-    day(d).recovery = { cycle_id: r.cycle_id, state: r.score_state, score: r.score || null };
+    const d = (sleepById[r.sleep_id] && wakeDate(sleepById[r.sleep_id])) || cycleDate[r.cycle_id] || (r.created_at && r.created_at.slice(0, 10)); if (!d) return;
+    day(d).recovery = { cycle_id: r.cycle_id, sleep_id: r.sleep_id || null, state: r.score_state, score: r.score || null };
   });
   sleeps.forEach(s => {
-    const d = localDate(s.end, s.timezone_offset);
+    const d = wakeDate(s);
     const rec = { id: s.id, start: s.start, end: s.end, tz: s.timezone_offset, nap: !!s.nap, state: s.score_state, score: s.score || null };
     if (s.nap) (day(d).naps = day(d).naps || []).push(rec);
     else { const cur = day(d).sleep; if (!cur || Date.parse(rec.end) > Date.parse(cur.end)) day(d).sleep = rec; }
@@ -163,12 +179,16 @@ function buildDays(cycles, recoveries, sleeps, workouts) {
   });
   return days;
 }
-async function mergeIntoKv(env, days) {
-  const byMonth = {};
-  Object.keys(days).forEach(d => (byMonth[d.slice(0, 7)] = byMonth[d.slice(0, 7)] || []).push(d));
-  for (const [mk, list] of Object.entries(byMonth)) {
+// Ersetzt alle Tage im Zeitraum [fromDate, toDate] durch den neu berechneten Stand (veraltete Zuordnungen verschwinden dabei).
+async function mergeIntoKv(env, days, fromDate, toDate) {
+  const inRange = d => d >= fromDate && d <= toDate;
+  const fresh = {}; Object.keys(days).filter(inRange).forEach(d => { fresh[d] = days[d]; });
+  const months = new Set();
+  for (let t = Date.parse(fromDate + 'T00:00:00Z'); t <= Date.parse(toDate + 'T00:00:00Z'); t += 86400e3) months.add(new Date(t).toISOString().slice(0, 7));
+  for (const mk of months) {
     const cur = JSON.parse((await env.WB.get('m:' + mk)) || '{}');
-    list.forEach(d => { cur[d] = days[d]; });
+    Object.keys(cur).forEach(d => { if (inRange(d)) delete cur[d]; });
+    Object.keys(fresh).forEach(d => { if (d.slice(0, 7) === mk) cur[d] = fresh[d]; });
     await env.WB.put('m:' + mk, JSON.stringify(cur));
   }
 }
@@ -186,7 +206,7 @@ async function syncRange(env, fromDate, toDate) {
     await fetchAll(env, access, '/v2/activity/workout', s, e)
   ];
   const days = buildDays(cycles, recoveries, sleeps, workouts);
-  await mergeIntoKv(env, days);
+  await mergeIntoKv(env, days, fromDate, toDate);
   const meta = { at: Date.now(), from: fromDate, to: toDate, counts: { cycles: cycles.length, recoveries: recoveries.length, sleeps: sleeps.length, workouts: workouts.length } };
   await env.WB.put('last_sync', JSON.stringify(meta));
   await env.WB.delete('needs_reconnect');
