@@ -92,7 +92,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=6"></script>
+<script src="assistant.js?v=7"></script>
 <script>
 const $=id=>document.getElementById(id);
 auth.onAuthStateChanged(u=>{
@@ -122,7 +122,7 @@ try{
 
 // ---- Sicherung ----
 // Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
-const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages','chats','training'];
+const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages','chats','training','sleepcards','sleepcfg'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function bkStatus(){
   let last=null;try{last=localStorage.getItem('lb-last-backup')}catch(e){}
@@ -274,5 +274,5 @@ async function dopStatus(u){
 auth.onAuthStateChanged(u=>{if(u)dopStatus(u)});
 </script>
 </main><script src="theme.js?v=8"></script>
-<script src="jarvis.js?v=8"></script>
+<script src="jarvis.js?v=9"></script>
 </body></html>

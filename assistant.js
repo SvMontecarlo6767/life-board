@@ -6,7 +6,7 @@ const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
 const SITE=`SEITENÜBERSICHT DES LIFE BOARDS
 - Startseite (index.html): Hub mit Dopamin-Konto, Kacheln, Whoop-Verbindung, Datensicherung.
 - Heute (heute.html): Tagesseite. Aktionen antippen (28 Knöpfe in Sport, Lernen, Alltag), Whoop-Werte zählen automatisch (Schlaf, Recovery, HRV, Strain, Workouts), Puzzle-Tracker-Wert (PUZ-01), Tagesabschluss. Punkte ergeben das Dopamin-Konto (Summe aller Tage), Rang pro Tag (S/A/B/C) und Level. Tageswechsel um 04:00 Uhr (Europa/Berlin). Regelwerk v2 (Punkte aus v1, Obergrenzen pro Aktion, nur die höchste Stufe einer Gruppe zählt).
-- Recovery (recovery.html): Whoop-Dashboard mit Recovery, HRV, Ruhepuls, Schlaf, Strain, Workouts, Wochentage, Tabellen.
+- Recovery (recovery.html): Whoop-Dashboard mit Recovery, HRV, Ruhepuls, Schlaf, Strain, Workouts, Wochentage, Tabellen und der Schlaf-Hebel-Karte (fest berechnet, sechs Verdächtige; steht unter SCHLAF-HEBEL in den Daten). Heute hat „Letzte große Mahlzeit“ und „Krank“.
 - Lernen (learn.html): Wiederholungsrunden mit 5 Fragen aus den Notion-Seiten (Abschnitt Active Recall / Mini-Wiederholung), Selbstbewertung richtig/fast/falsch, Stufen 1/7/30/90 Tage, bis zu 3 Runden pro Tag mit Punkten (WDH-01 575 Punkte, Mischrunde WDH-13), Active Recall bestanden (LRN-07).
 - Training (training.html): Allround-Training für alle Sportarten (Kraft, Fußball, Laufen, Rad …): Einheiten per Hand eintragen oder aus Strava/CSV, Wochenziel in Einheiten, Form (Fitness/Ermüdung), Belastung, Sportarten-Verteilung, Rekorde, Logbuch. Zweite Ansicht „Läufer“ mit VDOT, Rennprognosen und Race Day.
 - Puzzle-Tracker (puzzle.html): tägliche Puzzle-Spiele mit eigener Dopamin-Wertung, fließt als PUZ-01 in Heute ein.
@@ -78,6 +78,8 @@ async function snapshot(force){
   if(ls){const rows=ls.docs.map(x=>({k:x.id,...x.data()})).sort((a,b)=>a.k<b.k?1:-1).slice(0,14);
     if(rows.length)L.push('LERNRUNDEN: '+rows.map(d=>d.k+' '+(d.rounds||[]).length+' Runde(n)').join('; '))}
   try{const tr=await fs.doc(base+'/training/summary').get();if(tr.exists&&tr.data().text)L.push(tr.data().text)}catch(e){}
+  try{const sc=await get('sleepcards');if(sc&&sc.docs.length){const c=sc.docs.map(x=>x.data()).filter(x=>x&&x.stand).sort((a,b)=>a.stand<b.stand?1:-1)[0];
+    if(c)L.push('SCHLAF-HEBEL (gespeicherte Schlaf-Karte vom '+c.stand+'. Nur vorlesen und erklären, NIE neu rechnen, keine Zahlen ändern, bei Widerspruch gilt die Karte. Keine ärztliche Beratung. Nie raten, abends weniger zu essen, kürzer zu schlafen oder später ins Bett zu gehen.): Zeitraum '+(c.zeitraum?c.zeitraum.von+' bis '+c.zeitraum.bis+', '+c.zeitraum.naechte+' auswertbare Nächte':'–')+'; '+c.geraet+'; Hebel: '+c.hebel+'; Handlung: '+(c.handlung||'noch keine')+'; geprüft ohne Befund: '+((c.geprueftOhneBefund||[]).join(' | ')||'–')+'; Angaben: Alkohol '+(c.angaben&&c.angaben.alkohol)+', spätes Essen '+(c.angaben&&c.angaben.spaetesEssen)+'; Schnarchen/Tagesmüdigkeit: '+c.schnarchenTagesmuedigkeit+'; offen: '+((c.offen||[]).join(' | ')||'–'))}}catch(e){}
   const qs=await get('questions');
   if(qs){const q=qs.docs.map(x=>x.data());const st={n:q.length,nw:0,due:0,s:[0,0,0,0,0]};q.forEach(x=>{if(!x.reps){st.nw++;return}st.s[x.stage||1]++;if(x.due<=today)st.due++});
     L.push('FRAGEN: '+st.n+' insgesamt, '+st.nw+' neu, '+st.due+' fällig; Stufe 1: '+st.s[1]+', Stufe 2: '+st.s[2]+', Stufe 3: '+st.s[3]+', Stufe 4 (gelernt): '+st.s[4]);

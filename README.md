@@ -57,3 +57,14 @@ Performance-Modus (schwächt 3D, Unschärfe, Animationen ab – nur per Schalter
 
 ## Hinweis zu Versionsnummern
 Die Seiten hängen `?v=N` an Skripte und Links, damit Safari nach Änderungen neu lädt. Bei Änderungen an einer Datei die Nummer erhöhen.
+
+## Schlaf-Hebel (Recovery-Reiter)
+
+Die Karte „😴 Schlaf-Hebel“ im Recovery-Reiter beantwortet eine Frage: Was beeinflusst Schlaf und Erholung am stärksten, und was ändere ich deshalb? Ergebnis ist genau **ein** Hebel mit Zahlen, oder „Die Daten geben das noch nicht her“.
+
+- **Rechnet fest nach Regeln** in `sleep-lever.js` (kein Gemini, gleiche Daten = gleiches Ergebnis, Tests: `node tools/test-sleep.mjs`). Jarvis liest nur die gespeicherte Karte vor.
+- **Sechs Verdächtige:** späte harte Einheit, unregelmäßige Bettzeit, kurze Nächte, Trainingssprung, Alkohol am Abend, späte große Mahlzeit. Verglichen wird der Median des Wirkungswerts (Standard HRV) mit/ohne Merkmal, je Gruppe mindestens 5 Nächte, Schwelle nach Gruppengröße, dazu die „strengste Probe“.
+- **Daten:** Whoop (Schlaf, HRV, Ruhepuls, Workouts) plus Heute-Einträge: Alkohol, neu **„Letzte große Mahlzeit“** und **„Krank“** (Heute → Schlaf-Daten). Fehlende Angaben sind „unbekannt“, nie „nein“. Unter 14 Nächten wird nicht geprüft, stattdessen gibt es den Zwei-Wochen-Zettel.
+- **Sicherheitsfrage** (Schnarchen, Atemaussetzer, massive Tagesmüdigkeit): wird nie angenommen. „Ja“ stellt eine ärztliche Abklärung vor jeden Hebel. Keine Diagnose, keine Empfehlung für Melatonin, Schlafmittel oder Supplemente.
+- **Schlaf-Karte** wird in `users/{uid}/sleepcards/{Datum}` gespeichert (Verlauf), Einstellungen in `sleepcfg/main`. Beides ist in der Sicherung enthalten.
+- **Jarvis:** „Was ist mein Schlaf-Hebel?“, „Letzte Mahlzeit war um 21:15“ (mit Rückfrage), Antwort auf die Sicherheitsfrage.

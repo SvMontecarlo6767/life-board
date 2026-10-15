@@ -135,6 +135,15 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
   <div class="card puz" id="lrnCard" style="margin:12px 0"></div>
   <div id="grid"></div>
 
+  <section class="cat" id="schlafdaten">
+    <h2>Schlaf-Daten <small>für die Schlaf-Hebel-Analyse im Recovery-Reiter</small></h2>
+    <div class="card">
+      <div class="row" style="margin-top:0"><label for="meal">Letzte große Mahlzeit um:</label><input type="time" id="meal"><button id="mealLast" hidden></button><button id="mealClr" hidden>Löschen</button></div>
+      <div class="row"><label><input type="checkbox" id="sickBox"> Krank (diese Nacht zählt nicht für die Auswertung)</label></div>
+      <div class="mu" id="mealInfo" style="margin-top:6px">Alkohol steht oben bei den Aktionen. Ohne Eintrag gilt eine Angabe als „unbekannt“, nie als „nein“.</div>
+    </div>
+  </section>
+
   <section class="cat" id="abschluss">
     <h2>Tagesabschluss <small>Fokus für morgen, dann Tag abschließen</small></h2>
     <div class="card">
@@ -159,7 +168,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=6"></script>
+<script src="assistant.js?v=7"></script>
 <script src="engine.js"></script>
 <script src="puzzle-dop.js"></script>
 <script src="whoop-auto.js"></script>
@@ -344,6 +353,16 @@ window.JarvisHandlers.set_habit=async function(args){
   }catch(e){if(e instanceof ReferenceError)return{wait:true};return{err:'Das hat nicht geklappt: '+(e.message||e)}}
 };
 
+window.JarvisHandlers.set_meal=async function(args){
+  try{
+    const t=String((args&&args.time)||''),m=/^(\d{2}):(\d{2})$/.exec(t);
+    if(!m||+m[1]>23||+m[2]>59)return{err:'Diese Uhrzeit verstehe ich nicht.'};
+    if(!cur)return{wait:true};
+    persist({meal:t});render();
+    return{say:'Eingetragen: letzte große Mahlzeit um '+t+'.'};
+  }catch(e){if(e instanceof ReferenceError)return{wait:true};return{err:'Das hat nicht geklappt: '+(e.message||e)}}
+};
+
 /* ---------- Anzeige ---------- */
 function ring(frac,lvl){
   const r=19,c=2*Math.PI*r;
@@ -380,6 +399,10 @@ function renderSummary(c){
   $('yFocus').hidden=!yf;if(yf)$('yFocus').innerHTML='<b>Fokus von gestern Abend:</b> '+esc(yf);
   const d=DAYS[cur]||{};
   if(document.activeElement!==$('focus'))$('focus').value=d.focus||'';
+  if(document.activeElement!==$('meal'))$('meal').value=d.meal||'';
+  $('sickBox').checked=!!d.sick;
+  {const ks=Object.keys(DAYS).filter(k=>k<=cur&&DAYS[k].meal).sort(),lm=ks.length?DAYS[ks[ks.length-1]].meal:null,b=$('mealLast');
+   b.hidden=!lm||!!d.meal;b.textContent='Wie zuletzt ('+lm+')';b.dataset.v=lm||'';$('mealClr').hidden=!d.meal}
   $('closeBtn').textContent=d.closed?'Wieder öffnen':'Tag abschließen';
   $('closeInfo').textContent=d.closed?'Tag abgeschlossen'+(d.closedAt?' um '+new Date(d.closedAt).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):''):'Setzt „Tagesabschluss ausgefüllt“ (+ „Fokus gesetzt“) und rechnet alle Strain- und Schritt-Punkte ein.';
   $('legacy').hidden=!c.legacy;
@@ -520,6 +543,10 @@ $('grid').addEventListener('click',e=>{
   const c=e.target.closest('.chip[data-b]');if(c)tap(c.dataset.b);
 });
 $('grid').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('.chip[data-b]')){e.preventDefault();tap(e.target.dataset.b)}});
+$('meal').addEventListener('change',()=>{persist({meal:$('meal').value||null});render()});
+$('mealLast').addEventListener('click',e=>{const v=e.currentTarget.dataset.v;if(v){persist({meal:v});render()}});
+$('mealClr').addEventListener('click',()=>{persist({meal:null});render()});
+$('sickBox').addEventListener('change',()=>{persist({sick:$('sickBox').checked});render()});
 $('focus').addEventListener('input',()=>{if(DAYS[cur]&&DAYS[cur].closed)return;persist({focus:$('focus').value});renderSummary(calc(cur))});
 $('closeBtn').addEventListener('click',closeDay);
 $('exportBtn').addEventListener('click',doExport);
@@ -639,5 +666,5 @@ boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText
 })();
 </script>
 <script src="theme.js?v=8"></script>
-<script src="jarvis.js?v=8"></script>
+<script src="jarvis.js?v=9"></script>
 </body></html>

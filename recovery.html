@@ -74,6 +74,17 @@ pre{white-space:pre-wrap;word-break:break-all;font:12px/1.45 ui-monospace,Menlo,
 .zbar i{display:block;height:100%}
 td.hm{text-align:center;font-weight:600}
 h2.sec{font-size:17px;margin:22px 0 10px}
+#sleepLever .slLine{font-size:18px;font-weight:700;line-height:1.35;margin:10px 0 6px;padding:10px 12px;border-left:3px solid var(--series-7);background:color-mix(in srgb,var(--series-7) 10%,transparent);border-radius:8px}
+#sleepLever .slBeleg{font-size:13.5px;margin:6px 0;color:var(--ink2)}
+#sleepLever .slLesart{font-size:12.5px;color:var(--muted);margin:6px 0}
+#sleepLever .slAct{font-size:15.5px;margin:10px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--border)}
+#sleepLever .slBlock{margin:12px 0;font-size:13.5px}#sleepLever .slBlock ul{margin:6px 0 0;padding-left:18px}#sleepLever li{margin:3px 0}
+#sleepLever .slSafe{margin:10px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--bad);font-size:14px}
+#sleepLever .slAsk{margin:10px 0;padding:10px 12px;border-radius:10px;border:1px dashed var(--axis);font-size:13.5px}
+#sleepLever .slBtns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+#sleepLever button,#sleepLever input[type=number]{font:inherit;font-size:14px;color:var(--ink);background:var(--page);border:1px solid var(--border);border-radius:10px;padding:8px 12px;min-height:40px}
+#sleepLever input[type=number]{width:72px}#sleepLever label{font-size:13px;color:var(--ink2)}
+#sleepLever pre.slPre{white-space:pre-wrap;font:12.5px/1.45 ui-monospace,monospace;background:var(--page);border:1px solid var(--border);border-radius:10px;padding:10px;margin:8px 0 0;overflow-wrap:anywhere}
 </style><link rel="stylesheet" href="theme.css?v=7">
 </head><body><main>
 <a class="back" href="index.html">← Life Board</a>
@@ -86,6 +97,7 @@ h2.sec{font-size:17px;margin:22px 0 10px}
   <div class="card hv-hero" id="hudHero"><div class="hv-grid"><div id="hvRings"></div><div id="hvPulse"></div><div class="hv-side"><div class="hv-st"><span>Recovery · letzte 14 Tage</span><div id="hvS1"></div></div><div class="hv-st"><span>HRV · letzte 14 Tage</span><div id="hvS2"></div></div><div class="hv-st"><span>Schlafdauer · letzte 14 Tage</span><div id="hvS3"></div></div></div></div></div>
   <div class="card" id="heroCard"></div>
   <div class="tiles" id="tiles"></div>
+  <div class="card" id="sleepLever"></div>
   <div class="card"><h2>Recovery</h2><div class="sub">Erholungswert in Prozent pro Tag</div><div id="c-rec"></div></div>
   <div class="card"><h2>HRV</h2><div class="sub">Herzratenvariabilität (RMSSD) in Millisekunden. Höher bedeutet meist besser erholt.</div><div id="c-hrv"></div></div>
   <div class="card"><h2>Ruhepuls</h2><div class="sub">Schläge pro Minute. Niedriger bedeutet meist besser erholt.</div><div id="c-rhr"></div></div>
@@ -124,7 +136,9 @@ h2.sec{font-size:17px;margin:22px 0 10px}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=6"></script>
+<script src="assistant.js?v=7"></script>
+<script src="sleep-lever.js?v=1"></script>
+<script src="sleep-card.js?v=1"></script>
 <script>
 const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
 const $=id=>document.getElementById(id);
@@ -511,10 +525,11 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL
     RAW=d.days||{};ALL=toRows(RAW);
     if(!ALL.length){$('msg').textContent='Noch keine Whoop-Daten. Öffne das Life Board und tippe auf „Letzte 60 Tage holen“.';return}
     $('msg').hidden=true;$('content').hidden=false;renderAll();
+    try{SleepCard.init({raw:RAW,today:new Date().toLocaleDateString('sv-SE')})}catch(e){}
   }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
 })();
 </script>
 </main><script src="theme.js?v=8"></script>
 <script src="hud-viz.js?v=1"></script>
-<script src="jarvis.js?v=8"></script>
+<script src="jarvis.js?v=9"></script>
 </body></html>
