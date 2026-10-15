@@ -284,6 +284,36 @@ async function notionQuestions(env, id) {
   return { id, title: title ? title.title.map(t => t.plain_text).join('') : '', edited: meta.last_edited_time, ...parseLearnBlocks(blocks) };
 }
 
+// ---------- KI-Assistent (Gemini, kostenloses Kontingent) ----------
+const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
+const AI_SYSTEM = 'Du bist der persönliche Assistent im "Life Board" einer einzelnen Person (Whoop-Daten, Dopamin-Punkte-System, Lernen mit Wiederholungen, Puzzle-Tracker). ' +
+  'Antworte auf Deutsch, knapp und konkret, ohne Floskeln. Stütze dich auf die mitgelieferten Daten und die Seitenbeschreibung; erfinde keine Zahlen. ' +
+  'Wenn Daten fehlen, sag das. Gib keine medizinischen Diagnosen. Bei Bewertungen von Lernantworten: nenne einen Vorschlag (richtig / fast / falsch) mit kurzer Begründung; die Person entscheidet selbst.';
+async function askGemini(env, body) {
+  if (!env.GEMINI_KEY) { const e = new Error('GEMINI_KEY fehlt'); e.code = 'NO_AI'; throw e; }
+  const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
+  if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
+  const ctx = String(body.context || '').slice(0, 30000);
+  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 60;
+  const dk = new Date().toISOString().slice(0, 10), key = 'ai:' + dk;
+  const used = parseInt((await env.WB.get(key)) || '0', 10);
+  if (used >= limit) { const e = new Error('Tageslimit für KI-Fragen erreicht (' + limit + ')'); e.code = 'AI_LIMIT'; throw e; }
+  await env.WB.put(key, String(used + 1), { expirationTtl: 172800 });
+  const contents = msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content || '').slice(0, 4000) }] }));
+  const model = String(env.GEMINI_MODEL || 'gemini-2.5-flash').replace(/[^a-z0-9.\-]/gi, '');
+  const r = await fetch(GEMINI_API + model + ':generateContent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
+    body: JSON.stringify({ systemInstruction: { parts: [{ text: AI_SYSTEM + '\n\n' + ctx }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: 1200 } })
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(r.status === 429 ? 'Gemini-Kontingent gerade aufgebraucht, später erneut versuchen' : 'Gemini ' + r.status); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
+  const text = (((d.candidates || [])[0] || {}).content || {}).parts;
+  const out = text ? text.map(p => p.text || '').join('') : '';
+  if (!out) { const e = new Error('Keine Antwort erhalten (evtl. blockiert)'); e.code = 'AI'; throw e; }
+  return { answer: out, used: used + 1, limit };
+}
+
 // ---------- Routen ----------
 export default {
   async fetch(request, env) {
@@ -348,6 +378,10 @@ export default {
         if (!ok) return json(env, { error: 'Seite gehört nicht zu den Lernzusammenfassungen' }, 403);
         return json(env, await notionQuestions(env, id));
       }
+      if (url.pathname === '/ask' && request.method === 'POST') {
+        const b = await request.json().catch(() => ({}));
+        return json(env, await askGemini(env, b));
+      }
       if (url.pathname === '/disconnect' && request.method === 'POST') {
         await env.WB.delete('tokens');
         return json(env, { ok: true });
@@ -355,7 +389,7 @@ export default {
       return json(env, { error: 'unbekannt' }, 404);
     } catch (e) {
       const code = e.code || 'ERROR';
-      return json(env, { error: e.message, code }, code === 'NOT_CONNECTED' || code === 'RECONNECT' || code === 'NO_NOTION' ? 409 : code === 'RANGE' ? 400 : 502);
+      return json(env, { error: e.message, code }, code === 'NOT_CONNECTED' || code === 'RECONNECT' || code === 'NO_NOTION' || code === 'NO_AI' ? 409 : code === 'AI_LIMIT' ? 429 : code === 'RANGE' ? 400 : 502);
     }
   },
 

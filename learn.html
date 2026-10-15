@@ -51,6 +51,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
+<script src="assistant.js?v=1"></script>
 <script src="engine.js"></script>
 <script src="learn-core.js"></script>
 <script>
@@ -118,9 +119,17 @@ function drawRound(){
   const q=R.items[R.i],pg=PAGES[q.pageId]||{};
   el.innerHTML='<h3>Frage '+(R.i+1)+' von '+R.items.length+' · '+esc(q.pageTitle)+'</h3><div class="prog"><i style="width:'+(R.i/R.items.length*100)+'%"></i></div><div class="q">'+esc(q.text)+'</div>'
    +'<textarea id="ans" placeholder="Antwort für dich eintippen (bleibt nur hier, wird nicht gespeichert)"'+(R.shown?' readonly':'')+'></textarea>'
-   +(R.shown?'<details open><summary>Nachschlagen: Zusammenfassung der Seite</summary><div class="ref">'+esc(pg.ref||'(Keine Zusammenfassung gespeichert)')+'</div>'+(pg.url?'<div class="mu"><a href="'+esc(pg.url)+'" target="_blank" rel="noopener">In Notion öffnen</a></div>':'')+'</details><div class="row"><button class="ok" data-r="ok">richtig</button><button class="fast" data-r="fast">fast</button><button class="bad" data-r="bad">falsch</button></div>'
+   +(R.shown?'<details open><summary>Nachschlagen: Zusammenfassung der Seite</summary><div class="ref">'+esc(pg.ref||'(Keine Zusammenfassung gespeichert)')+'</div>'+(pg.url?'<div class="mu"><a href="'+esc(pg.url)+'" target="_blank" rel="noopener">In Notion öffnen</a></div>':'')+'</details><div class="row"><button class="ok" data-r="ok">richtig</button><button class="fast" data-r="fast">fast</button><button class="bad" data-r="bad">falsch</button><button id="aiHint">KI-Vorschlag</button></div><div id="aiOut" class="ref" hidden></div>'
     :'<div class="row" style="margin-top:10px"><button class="primary" id="show">Antwort prüfen</button><button id="abort">Abbrechen</button></div>');
-  if(!R.shown){$('show').onclick=()=>{const v=$('ans').value;R.shown=true;drawRound();$('ans').value=v};$('abort').onclick=abort}
+  if(!R.shown){$('show').onclick=()=>{const v=$('ans').value;R.ans=v;R.shown=true;drawRound();$('ans').value=v};$('abort').onclick=abort}
+  if(R.shown&&$('aiHint'))$('aiHint').onclick=async()=>{
+    const o=$('aiOut');o.hidden=false;o.textContent='Die KI prüft …';$('aiHint').disabled=true;
+    try{
+      const r=await window.Assistant.ask('Bewerte meine Antwort auf diese Lernfrage. Frage: "'+q.text+'". Meine Antwort: "'+(R.ans||'(nichts eingetippt)')+'". Nutze die Zusammenfassung der Seite unten als Grundlage. Gib einen Vorschlag (richtig / fast / falsch) mit kurzer Begründung und nenne, was gefehlt hat.','SEITENZUSAMMENFASSUNG ("'+q.pageTitle+'"):\n'+(pg.ref||'(keine)'));
+      o.textContent=r.answer;
+    }catch(e){o.textContent='KI nicht verfügbar: '+e.message}
+    $('aiHint').disabled=false;
+  };
   el.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>rate(b.dataset.r));
 }
 function abort(){R=null;$('round').hidden=true;$('start').hidden=false;$('topics').hidden=false;render()}

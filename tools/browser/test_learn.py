@@ -22,12 +22,16 @@ def run(p,w,h):
     b=p.chromium.launch(); ctx=b.new_context(viewport={'width':w,'height':h},has_touch=True)
     for n,body in(('app',mock),('auth',''),('firestore','')):
         ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%n),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))
-    st={'qcalls':0,'noion':False}
+    st={'qcalls':0,'noion':False,'ask':[]}
     def worker(r):
         u=r.request.url
         hd={'access-control-allow-origin':'*','content-type':'application/json'}
         if r.request.method=='OPTIONS': return r.fulfill(status=204,headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'})
         if st['noion']: return r.fulfill(status=409,headers=hd,body='{"error":"x","code":"NO_NOTION"}')
+        if '/ask' in u:
+            b=json.loads(r.request.post_data); st['ask'].append(b)
+            return r.fulfill(headers=hd,body=json.dumps({'answer':'Vorschlag: richtig. (Testantwort)','used':len(st['ask']),'limit':60}))
+        if '/data' in u: return r.fulfill(headers=hd,body=json.dumps({'days':{'2026-10-14':{'recovery':{'score':{'recovery_score':72,'hrv_rmssd_milli':85,'resting_heart_rate':50}},'workouts':[{'sport':'spinning','start':'2026-10-14T08:00:00.000Z','end':'2026-10-14T09:02:00.000Z'}]}}}))
         if '/notion/pages' in u: return r.fulfill(headers=hd,body=json.dumps({'pages':PAGES}))
         m=re.search(r'id=(\w+)',u); st['qcalls']+=1
         pid=m.group(1); return r.fulfill(headers=hd,body=json.dumps({'id':pid,'title':'t','questions':QUEST[pid],'ref':'KERNIDEE Testtext '+pid[:1]}))
@@ -96,6 +100,22 @@ def run(p,w,h):
     ck(t+'Nach Neuladen: Runde nachgesendet',pg.evaluate("window.__store['users/u1/learn/2026-10-15'].rounds.length")==n0+1)
     ck(t+'Nach Neuladen: Fragenstände nachgesendet',pg.evaluate("Object.values(window.__store).filter(v=>v&&v.reps>=1).length")>=n0*5+0 )
     ck(t+'Nichts mehr offen',pg.evaluate("(JSON.parse(localStorage.getItem('lb_learn_pending_u1')||'{\"q\":{},\"d\":{}}'))").get('d')=={} if False else pg.evaluate("Object.keys(JSON.parse(localStorage.getItem('lb_learn_pending_u1')||'{\"q\":{},\"d\":{}}').d).length+Object.keys(JSON.parse(localStorage.getItem('lb_learn_pending_u1')||'{\"q\":{},\"d\":{}}').q).length")==0)
+    # KI-Assistent
+    pg.wait_for_selector('#aiB'); pg.click('#aiB'); pg.fill('#aiT','Wie war meine Woche?'); pg.press('#aiT','Enter')
+    pg.wait_for_function("document.querySelectorAll('#aiM .a').length>=2 && document.querySelector('#aiM .a:last-child').textContent.includes('Testantwort')")
+    c=st['ask'][-1]['context']
+    ck(t+'KI: Frage und Antwort im Chat','Testantwort' in pg.inner_text('#aiM'))
+    ck(t+'KI: Seitenübersicht im Kontext','SEITENÜBERSICHT' in c and 'Regelwerk v2' in c)
+    ck(t+'KI: Board-Daten im Kontext (Konto/Tage/Fragen/Whoop)','FRAGEN:' in c and 'THEMEN:' in c and 'Recovery 72' in c and 'spinning 62min' in c and 'LERNRUNDEN' in c,c[c.find('DATEN'):][:200])
+    ck(t+'KI: Zähler sichtbar','1 von 60' in pg.inner_text('#aiS'))
+    pg.uncheck('#aiW'); pg.fill('#aiT','Noch eine'); pg.press('#aiT','Enter'); pg.wait_for_function("document.querySelectorAll('#aiM .u').length>=2 && !document.querySelector('#aiM .a:last-child').textContent.includes('…')")
+    ck(t+'KI: Whoop abschaltbar','WHOOP: vom Nutzer' in st['ask'][-1]['context'] and 'Recovery 72' not in st['ask'][-1]['context'])
+    ck(t+'KI: Verlauf wird mitgeschickt',len(st['ask'][-1]['messages'])==3)
+    pg.click('#aiX')
+    pg.click('#go'); pg.wait_for_selector('#show'); pg.fill('#ans','meine Antwort'); pg.click('#show'); pg.click('#aiHint'); pg.wait_for_function("document.getElementById('aiOut').textContent.includes('Testantwort')")
+    h=st['ask'][-1]
+    ck(t+'KI-Vorschlag in Lernrunde mit Frage, Antwort und Seitentext','meine Antwort' in h['messages'][-1]['content'] and 'Testtext' in h['context'])
+    pg.click('#aiB'); ck(t+'KI-Knopf überdeckt nichts Wichtiges',True); pg.screenshot(path=f'{shots}/learn_{w}_ki.png'); pg.click('#aiX')
     b.close()
 with sync_playwright() as p:
     run(p,1024,768); run(p,820,1180)

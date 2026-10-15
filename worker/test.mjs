@@ -33,6 +33,12 @@ globalThis.fetch = async (url, opts = {}) => {
     if (body.get('grant_type') === 'refresh_token') { refreshCount++; if (body.get('refresh_token') !== 'R' + refreshCount) return new Response('{"error":"invalid_grant"}', { status: 400 }); return ok({ access_token: 'A' + (refreshCount + 1), refresh_token: 'R' + (refreshCount + 1), expires_in: 3600 }); }
     return ok({ access_token: 'A1', refresh_token: 'R1', expires_in: 3600 });
   }
+  if (url.startsWith('https://generativelanguage.googleapis.com/')) {
+    if (opts.headers?.['x-goog-api-key'] !== 'GK') return new Response('{}', { status: 403 });
+    const b = JSON.parse(opts.body); globalThis.__gem = b;
+    if (b.contents[0].parts[0].text === '429') return new Response('{}', { status: 429 });
+    return ok({ candidates: [{ content: { parts: [{ text: 'Antwort ' + b.contents.length }] } }] });
+  }
   if (url.startsWith('https://api.notion.com/')) {
     if (opts.headers?.Authorization !== 'Bearer NT' || !opts.headers['Notion-Version']) return new Response('{}', { status: 401 });
     const p = url.replace('https://api.notion.com/v1', '');
@@ -158,5 +164,25 @@ console.log('✓ Zeitraum-Schutz');
   assert.equal((await c('/notion/questions?id=xyz')).status, 400);
   assert.equal((await worker.fetch(req('/notion/pages', { tok: 'abc' }), nenv)).status, 401);
   console.log('✓ Notion-Endpunkte');
+}
+
+// 8) KI-Assistent
+{
+  const aenv = { ...env, WB: kv(), AI_DAILY_LIMIT: '2' };
+  const post = async (body, e = aenv, tok) => { const r = await worker.fetch(req('/ask', { method: 'POST', body, tok }), e); return { status: r.status, body: await r.json() } };
+  assert.equal((await post({ messages: [{ role: 'user', content: 'hi' }] })).body.code, 'NO_AI');
+  aenv.GEMINI_KEY = 'GK';
+  const a1 = await post({ messages: [{ role: 'user', content: 'Wie war meine Woche?' }], context: 'DATEN: Level 3' });
+  assert.equal(a1.status, 200, JSON.stringify(a1.body)); assert.equal(a1.body.answer, 'Antwort 1');
+  assert.ok(globalThis.__gem.systemInstruction.parts[0].text.includes('DATEN: Level 3'), 'Kontext wird mitgeschickt');
+  assert.equal(globalThis.__gem.contents[0].role, 'user');
+  const a2 = await post({ messages: [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }, { role: 'user', content: 'c' }] });
+  assert.equal(a2.body.answer, 'Antwort 3'); assert.equal(globalThis.__gem.contents[1].role, 'model');
+  const a3 = await post({ messages: [{ role: 'user', content: 'x' }] });
+  assert.equal(a3.status, 429); assert.equal(a3.body.code, 'AI_LIMIT');
+  assert.equal((await post({ messages: [] }, { ...aenv, WB: kv() })).status, 400);
+  assert.equal((await post({ messages: [{ role: 'user', content: 'x' }] }, aenv, 'abc')).status, 401, 'nur angemeldet');
+  assert.equal((await post({ messages: [{ role: 'user', content: '429' }] }, { ...aenv, WB: kv() })).body.code, 'AI_LIMIT');
+  console.log('✓ KI-Assistent');
 }
 console.log('Alle Tests bestanden');
