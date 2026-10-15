@@ -121,6 +121,18 @@ def run(p,w,h):
     ck(t+'Lesen verboten: klare Meldung','Tage konnten nicht geladen werden' in pg.inner_text('#msg'))
     pg.evaluate("localStorage.removeItem('__failreads')"); pg.reload(); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'")
     ck(t+'Zielzeit nach Reload noch da (Server)',pg.input_value('#bt')=='22:15')
+    # Zurückkehren nach App-Wechsel: Seite startet sauber neu, nichts geht verloren
+    pg.evaluate("window.__marker=1; window.scrollTo(0,700)"); before_net=pg.inner_text('#netTop'); before_acc=pg.inner_text('#hAcc')
+    pg.evaluate("Object.defineProperty(document,'hidden',{configurable:true,get:()=>true}); document.dispatchEvent(new Event('visibilitychange'))")
+    pg.clock.set_fixed_time('2026-10-14T12:01:00+02:00')
+    pg.evaluate("Object.defineProperty(document,'hidden',{configurable:true,get:()=>false}); document.dispatchEvent(new Event('visibilitychange'))")
+    pg.wait_for_function("window.__marker===undefined"); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'")
+    ck(t+'Rückkehr nach Pause: Neustart, gleiche Punkte und gleiches Konto',pg.inner_text('#netTop')==before_net and pg.inner_text('#hAcc')==before_acc,(before_net,pg.inner_text('#netTop')))
+    ck(t+'Rückkehr nach Pause: Scrollposition wiederhergestellt',pg.evaluate('window.scrollY')>300,pg.evaluate('window.scrollY'))
+    pg.evaluate("document.getElementById('grid').innerHTML=''"); pg.evaluate("window.__marker=2")
+    pg.evaluate("document.dispatchEvent(new Event('visibilitychange'))")
+    pg.wait_for_function("window.__marker===undefined"); pg.wait_for_selector('.chip[data-b]')
+    ck(t+'Leere Seite wird beim Zurückkehren selbst repariert',pg.locator('.chip[data-b]').count()==28)
     # Startseite zeigt das Konto
     hub=ctx.new_page(); hub.goto(URL.replace('heute.html','index.html')); hub.wait_for_function("document.getElementById('dopTxt').textContent.includes('Dopamin insgesamt')",timeout=8000)
     ck(t+'Startseite zeigt Konto + Level + heute',all(x in hub.inner_text('#dopTxt') for x in('Level 3','Heute (14.10.)','Rang')),hub.inner_text('#dopTxt').replace('\n',' '))

@@ -574,7 +574,22 @@ async function boot(){
   if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&versionOf(cur)>=2&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
   saveCache();render();writeState();
 }
-boot().catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
+
+/* ---------- Rückkehr in die Seite (iPad: App-Wechsel, Sperren, Tab im Hintergrund) ---------- */
+let hiddenAt=0;
+function keepScroll(){try{sessionStorage.setItem('lb_scroll',String(window.scrollY))}catch(e){}}
+function restoreScroll(){try{const y=+sessionStorage.getItem('lb_scroll');if(y){window.scrollTo(0,y);sessionStorage.removeItem('lb_scroll')}}catch(e){}}
+function resumeCheck(){
+  const away=hiddenAt?Date.now()-hiddenAt:0;hiddenAt=0;
+  const broken=!$('grid').querySelector('.chip');
+  // Nach längerer Abwesenheit oder leerer Seite: sauber neu starten. Eingaben sind lokal gesichert und werden beim Start erneut gesendet.
+  if(broken||away>20000){keepScroll();location.reload()}
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else resumeCheck()});
+window.addEventListener('pageshow',e=>{if(e.persisted)resumeCheck()});
+window.addEventListener('error',e=>{showMsg('Fehler auf der Seite: '+esc(e.message||'unbekannt')+' – <a href="" onclick="location.reload();return false">neu laden</a>',true)});
+window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehler: '+esc((r&&r.message)||String(r))+' – <a href="" onclick="location.reload();return false">neu laden</a>',true)});
+boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
 </body></html>
