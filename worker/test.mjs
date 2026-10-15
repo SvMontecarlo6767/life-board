@@ -28,6 +28,20 @@ globalThis.fetch = async (url, opts = {}) => {
   url = String(url); calls.push(url);
   const ok = d => new Response(JSON.stringify(d), { status: 200 });
   if (url.includes('securetoken')) return ok({ keys: [jwk] });
+  if (url === 'https://www.strava.com/oauth/token') {
+    const body = new URLSearchParams(opts.body); globalThis.__stravaTok = (globalThis.__stravaTok || 0) + 1;
+    if (body.get('client_id') !== 'SID' || body.get('client_secret') !== 'SSEC') return new Response('{}', { status: 401 });
+    return ok({ access_token: 'SA' + globalThis.__stravaTok, refresh_token: 'SR' + globalThis.__stravaTok, expires_at: Math.floor(Date.now() / 1000) + (globalThis.__stravaShort ? 10 : 21600), athlete: { id: 7, firstname: 'Max', lastname: 'M' } });
+  }
+  if (url.startsWith('https://www.strava.com/api/v3/')) {
+    if (!/^Bearer SA/.test(opts.headers?.Authorization || '')) return new Response('{}', { status: 401 });
+    if (url.includes('/athlete/activities')) {
+      const pg = new URL(url).searchParams.get('page');
+      if (pg === '9') return new Response('{}', { status: 429 });
+      return ok([{ id: 1, start_date: '2026-10-01T05:00:00Z', name: 'Lauf', sport_type: 'Run', distance: 10000, moving_time: 3000, elapsed_time: 3100, average_heartrate: 150, max_heartrate: 170, total_elevation_gain: 40, average_cadence: 84, gear_id: 'g1' }, { id: 2, start_date: '2026-10-02T05:00:00Z', name: 'Kraft', type: 'WeightTraining', distance: 0, moving_time: 3000, elapsed_time: 3000 }]);
+    }
+    if (url.includes('/gear/g1')) return ok({ brand_name: 'Nike', model_name: 'Pegasus' });
+  }
   if (url.endsWith('/oauth2/token')) {
     const body = new URLSearchParams(opts.body);
     if (body.get('grant_type') === 'refresh_token') { refreshCount++; if (body.get('refresh_token') !== 'R' + refreshCount) return new Response('{"error":"invalid_grant"}', { status: 400 }); return ok({ access_token: 'A' + (refreshCount + 1), refresh_token: 'R' + (refreshCount + 1), expires_in: 3600 }); }
@@ -240,5 +254,35 @@ console.log('✓ Zeitraum-Schutz');
   const v = await post('/ask', { messages: [{ role: 'user', content: 'hi' }], voice: true }); assert.equal(v.status, 200);
   assert.ok(globalThis.__gem.systemInstruction.parts[0].text.includes('VORGELESEN') && globalThis.__gem.systemInstruction.parts[0].text.includes('J.A.R.V.I.S'));
   console.log('✓ Sprache (STT/TTS)');
+}
+{ // Strava
+  const senv = { ...env, WB: kv(), STRAVA_CLIENT_ID: 'SID', STRAVA_CLIENT_SECRET: 'SSEC' };
+  const sreq = (path, body, tok) => new Request('https://w.example' + path, { method: body === undefined ? 'GET' : 'POST', headers: { Authorization: 'Bearer ' + (tok || token()), 'Content-Type': 'application/json', Origin: 'https://x.github.io' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const sc = async (path, body, e = senv) => { const r = await worker.fetch(sreq(path, body), e); return { status: r.status, body: await r.json().catch(() => null) } };
+  assert.equal((await worker.fetch(new Request('https://w.example/strava/status'), senv)).status, 401, 'Strava-Status nur mit Login');
+  assert.equal((await sc('/strava/start', {}, { ...senv, STRAVA_CLIENT_ID: undefined })).status, 409, 'ohne Einrichtung: klare Meldung');
+  assert.equal((await sc('/strava/status')).body.connected, false);
+  const s1 = await sc('/strava/start', {}); const su = new URL(s1.body.url);
+  assert.equal(su.origin + su.pathname, 'https://www.strava.com/oauth/authorize');
+  assert.equal(su.searchParams.get('redirect_uri'), 'https://w.example/strava/callback');
+  assert.ok(su.searchParams.get('scope').includes('activity:read_all'));
+  assert.ok(!s1.body.url.includes('SSEC'), 'Secret nie in der Adresse');
+  let r1 = await worker.fetch(new Request('https://w.example/strava/callback?code=c&state=falsch'), senv);
+  assert.ok(r1.headers.get('location').endsWith('training.html?strava=badstate'));
+  r1 = await worker.fetch(new Request('https://w.example/strava/callback?code=c&state=' + su.searchParams.get('state')), senv);
+  assert.equal(r1.headers.get('location'), 'https://x.github.io/life-board/training.html?strava=connected');
+  r1 = await worker.fetch(new Request('https://w.example/strava/callback?code=c&state=' + su.searchParams.get('state')), senv);
+  assert.ok(r1.headers.get('location').endsWith('strava=badstate'), 'state nur einmal');
+  const ss = await sc('/strava/status'); assert.equal(ss.body.connected, true); assert.equal(ss.body.athlete.name, 'Max M');
+  const ac = await sc('/strava/activities', { page: 1, after: 0 });
+  assert.equal(ac.status, 200); assert.equal(ac.body.acts.length, 2); assert.equal(ac.body.more, false);
+  assert.equal(ac.body.acts[0].gear, 'Nike Pegasus'); assert.equal(ac.body.acts[0].t, Date.parse('2026-10-01T05:00:00Z')); assert.equal(ac.body.acts[0].avg_hr, 150);
+  assert.equal(ac.body.acts[1].sport_type, 'WeightTraining'); assert.equal(ac.body.acts[1].avg_hr, null);
+  assert.equal((await sc('/strava/activities', { page: 9 })).status, 429, 'Strava-Limit wird gemeldet');
+  // Erneuerung bei abgelaufenem Token
+  const raw = JSON.parse(senv.WB.m.get('strava:tokens')); raw.expires_at = Date.now() - 1000; senv.WB.m.set('strava:tokens', JSON.stringify(raw));
+  const before = globalThis.__stravaTok; const ac2 = await sc('/strava/activities', { page: 1 }); assert.equal(ac2.status, 200); assert.equal(globalThis.__stravaTok, before + 1, 'Token erneuert');
+  assert.equal((await sc('/strava/disconnect', {})).status, 200); assert.equal((await sc('/strava/activities', {})).status, 409, 'nach Trennen: nicht verbunden');
+  console.log('✓ Strava');
 }
 console.log('Alle Tests bestanden');

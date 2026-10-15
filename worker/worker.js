@@ -9,6 +9,7 @@
 // Benötigte Einstellungen in Cloudflare (siehe worker/README.md):
 //  Secrets:   WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET, OWNER_EMAIL
 //  Variablen: FIREBASE_PROJECT_ID, ALLOWED_ORIGIN, BOARD_URL
+//  Strava (optional, Training-Reiter): Secrets STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET
 //  Optional:  WHOOP_API_BASE (Standard: https://api.prod.whoop.com/developer)
 //  KV-Binding: WB
 
@@ -394,6 +395,57 @@ async function ttsGemini(env, body) {
   const e = new Error('Sprachausgabe nicht verfügbar (' + errs.join('; ').slice(0, 300) + ')'); e.code = 'AI'; throw e;
 }
 
+// ---------- Strava (Training-Reiter) ----------
+// Secrets: STRAVA_CLIENT_ID, STRAVA_CLIENT_SECRET. Tokens liegen in KV unter "strava:tokens".
+const STRAVA_AUTH = 'https://www.strava.com/oauth/authorize';
+const STRAVA_TOKEN = 'https://www.strava.com/oauth/token';
+const STRAVA_API = 'https://www.strava.com/api/v3';
+async function stravaTokenReq(env, params) {
+  const body = new URLSearchParams({ client_id: env.STRAVA_CLIENT_ID, client_secret: env.STRAVA_CLIENT_SECRET, ...params });
+  const r = await fetch(STRAVA_TOKEN, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error('Strava-Token ' + r.status); e.status = r.status; throw e; }
+  return d;
+}
+async function stravaSave(env, t, prev) {
+  const rec = { access: t.access_token, refresh: t.refresh_token || (prev && prev.refresh) || null, expires_at: (t.expires_at ? t.expires_at * 1000 : Date.now() + (t.expires_in || 21600) * 1000), athlete: (t.athlete && { id: t.athlete.id, name: [t.athlete.firstname, t.athlete.lastname].filter(Boolean).join(' ') }) || (prev && prev.athlete) || null, saved_at: Date.now() };
+  await env.WB.put('strava:tokens', JSON.stringify(rec));
+  return rec;
+}
+async function stravaAccess(env) {
+  if (!env.STRAVA_CLIENT_ID || !env.STRAVA_CLIENT_SECRET) { const e = new Error('Strava ist im Worker noch nicht eingerichtet (STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET fehlen)'); e.code = 'NO_STRAVA'; throw e; }
+  let rec = JSON.parse((await env.WB.get('strava:tokens')) || 'null');
+  if (!rec) { const e = new Error('Strava nicht verbunden'); e.code = 'NOT_CONNECTED'; throw e; }
+  if (rec.expires_at - 120e3 > Date.now()) return rec.access;
+  if (!rec.refresh) { const e = new Error('kein Refresh-Token'); e.code = 'RECONNECT'; throw e; }
+  try { rec = await stravaSave(env, await stravaTokenReq(env, { grant_type: 'refresh_token', refresh_token: rec.refresh }), rec); return rec.access; }
+  catch (e) { if (e.status === 400 || e.status === 401) e.code = 'RECONNECT'; throw e; }
+}
+async function stravaGet(env, access, path) {
+  const r = await fetch(STRAVA_API + path, { headers: { Authorization: 'Bearer ' + access } });
+  if (r.status === 429) { const e = new Error('Strava-Limit erreicht (100 Anfragen je 15 Minuten) – gleich nochmal versuchen'); e.code = 'RATE'; throw e; }
+  if (r.status === 401) { const e = new Error('Strava-Zugriff abgelehnt'); e.code = 'RECONNECT'; throw e; }
+  if (!r.ok) { const e = new Error('Strava ' + r.status + ' bei ' + path.split('?')[0]); e.status = r.status; throw e; }
+  return r.json();
+}
+// Eine Seite Aktivitäten (200), vereinheitlicht; Schuhnamen werden einmalig nachgeladen und in KV gemerkt.
+async function stravaActivities(env, b) {
+  const access = await stravaAccess(env);
+  const page = Math.max(1, Math.min(parseInt(b.page, 10) || 1, 50));
+  const after = Math.max(0, parseInt(b.after, 10) || 0);
+  const list = await stravaGet(env, access, '/athlete/activities?per_page=200&page=' + page + (after ? '&after=' + after : ''));
+  const gearIds = [...new Set(list.map(a => a.gear_id).filter(Boolean))];
+  const gear = {};
+  for (const id of gearIds.slice(0, 20)) {
+    let n = await env.WB.get('sgear:' + id);
+    if (!n) { try { const g = await stravaGet(env, access, '/gear/' + encodeURIComponent(id)); n = [g.brand_name, g.model_name].filter(Boolean).join(' ') || g.name || id; await env.WB.put('sgear:' + id, n); } catch (e) { n = id; } }
+    gear[id] = n;
+  }
+  const acts = list.map(a => ({ id: a.id, t: Date.parse(a.start_date), name: a.name || '', sport_type: a.sport_type || a.type || '', distance: a.distance, moving_time: a.moving_time, elapsed_time: a.elapsed_time, avg_hr: a.average_heartrate || null, max_hr: a.max_heartrate || null, elev: a.total_elevation_gain != null ? a.total_elevation_gain : null, cad: a.average_cadence || null, gear: a.gear_id ? gear[a.gear_id] : null }));
+  await env.WB.put('strava:last_sync', JSON.stringify({ at: Date.now(), n: acts.length }));
+  return { acts, more: list.length >= 200, page };
+}
+
 // ---------- Routen ----------
 export default {
   async fetch(request, env) {
@@ -413,6 +465,18 @@ export default {
         await env.WB.delete('needs_reconnect');
         return back('whoop=connected');
       } catch (e) { return back('whoop=tokenfail'); }
+    }
+
+    // Rückkehr von Strava nach dem Login
+    if (url.pathname === '/strava/callback') {
+      let ret = env.BOARD_URL; try { ret = new URL('training.html', env.BOARD_URL).href } catch (e) {}
+      const back = (q) => Response.redirect(ret + (ret.includes('?') ? '&' : '?') + q, 302);
+      const state = url.searchParams.get('state'), code = url.searchParams.get('code');
+      if (url.searchParams.get('error')) return back('strava=error');
+      if (!state || !code || !(await env.WB.get('sstate:' + state))) return back('strava=badstate');
+      await env.WB.delete('sstate:' + state);
+      try { await stravaSave(env, await stravaTokenReq(env, { grant_type: 'authorization_code', code }), null); return back('strava=connected'); }
+      catch (e) { return back('strava=tokenfail'); }
     }
 
     const me = await requireOwner(request, env);
@@ -449,6 +513,19 @@ export default {
         const from = validDate(url.searchParams.get('from')) ? url.searchParams.get('from') : daysAgo(30);
         return json(env, { days: await readRange(env, from, to) });
       }
+      if (url.pathname === '/strava/start' && request.method === 'POST') {
+        if (!env.STRAVA_CLIENT_ID || !env.STRAVA_CLIENT_SECRET) return json(env, { error: 'Strava ist im Worker noch nicht eingerichtet (STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET fehlen)', code: 'NO_STRAVA' }, 409);
+        const state = randomId();
+        await env.WB.put('sstate:' + state, '1', { expirationTtl: 600 });
+        const q = new URLSearchParams({ client_id: env.STRAVA_CLIENT_ID, response_type: 'code', redirect_uri: url.origin + '/strava/callback', approval_prompt: 'auto', scope: 'read,activity:read_all', state });
+        return json(env, { url: STRAVA_AUTH + '?' + q });
+      }
+      if (url.pathname === '/strava/status') {
+        const rec = JSON.parse((await env.WB.get('strava:tokens')) || 'null');
+        return json(env, { configured: !!(env.STRAVA_CLIENT_ID && env.STRAVA_CLIENT_SECRET), connected: !!rec, athlete: rec && rec.athlete, last_sync: JSON.parse((await env.WB.get('strava:last_sync')) || 'null') });
+      }
+      if (url.pathname === '/strava/activities' && request.method === 'POST') return json(env, await stravaActivities(env, await request.json().catch(() => ({}))));
+      if (url.pathname === '/strava/disconnect' && request.method === 'POST') { await env.WB.delete('strava:tokens'); return json(env, { ok: true }); }
       if (url.pathname === '/notion/pages') return json(env, { pages: await notionPages(env) });
       if (url.pathname === '/notion/questions') {
         const id = notionId(url.searchParams.get('id'));
@@ -471,7 +548,7 @@ export default {
       return json(env, { error: 'unbekannt' }, 404);
     } catch (e) {
       const code = e.code || 'ERROR';
-      return json(env, { error: e.message, code }, code === 'NOT_CONNECTED' || code === 'RECONNECT' || code === 'NO_NOTION' || code === 'NO_AI' ? 409 : code === 'AI_LIMIT' ? 429 : code === 'RANGE' ? 400 : 502);
+      return json(env, { error: e.message, code }, code === 'NOT_CONNECTED' || code === 'RECONNECT' || code === 'NO_NOTION' || code === 'NO_AI' || code === 'NO_STRAVA' ? 409 : code === 'AI_LIMIT' || code === 'RATE' ? 429 : code === 'RANGE' ? 400 : 502);
     }
   },
 

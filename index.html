@@ -32,7 +32,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 #whMsg.warn{color:var(--bad)}#whMsg.good{color:var(--ac)}
 #err{color:var(--bad);margin-top:12px;font-size:14px}
 [hidden]{display:none!important}
-</style><link rel="stylesheet" href="theme.css?v=4">
+</style><link rel="stylesheet" href="theme.css?v=5">
 </head><body><main>
 <section id="login" hidden>
   <h1>Life Board</h1>
@@ -45,6 +45,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
   <a class="tile" href="heute.html?v=5" id="dop" style="margin-bottom:12px"><b>🎯 Dopamin-Konto</b><span id="dopTxt">wird geladen …</span></a>
   <div class="grid">
     <a class="tile" href="heute.html?v=5"><div style="font-size:28px">🎯</div><b>Heute</b><span>Aktionen antippen, Dopamin-Konto, Rang und Level</span></a>
+    <a class="tile" href="training.html?v=1"><div style="font-size:28px">🏃</div><b>Training</b><span>Laufanalyse aus Strava: Form, VDOT, Prognosen, Race Day</span></a>
     <a class="tile" href="puzzle.html?v=3"><div style="font-size:28px">🧩</div><b>Puzzle-Tracker</b><span>Tägliche Puzzles, Rating, Meilensteine, Berichte</span></a>
     <a class="tile" href="import.html?v=2"><div style="font-size:28px">📥</div><b>Daten importieren</b><span>Einmalig: alte Puzzle-Daten einspielen</span></a>
     <a class="tile" href="recovery.html?v=4"><div style="font-size:28px">💚</div><b>Recovery</b><span>Erholung, HRV, Schlaf und Strain von Whoop</span></a>
@@ -73,7 +74,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=3"></script>
+<script src="assistant.js?v=4"></script>
 <script>
 const $=id=>document.getElementById(id);
 auth.onAuthStateChanged(u=>{
@@ -95,7 +96,7 @@ $('logoutBtn').onclick=()=>auth.signOut();
 
 // ---- Sicherung ----
 // Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
-const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages','chats'];
+const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages','chats','training'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function bkStatus(){
   let last=null;try{last=localStorage.getItem('lb-last-backup')}catch(e){}
@@ -210,6 +211,6 @@ async function dopStatus(u){
 }
 auth.onAuthStateChanged(u=>{if(u)dopStatus(u)});
 </script>
-</main><script src="theme.js?v=5"></script>
-<script src="jarvis.js?v=6"></script>
+</main><script src="theme.js?v=6"></script>
+<script src="jarvis.js?v=7"></script>
 </body></html>

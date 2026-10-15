@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="de" data-hud><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Training</title>
+<style>
+:root{--ink:#e6f1fb;--ink2:#b4c7da;--muted:#8fa6bd;--grid:rgba(150,200,255,.12);--border:rgba(150,200,255,.16);--surface:rgba(10,20,34,.58);--page:transparent;--series-1:#ff5460}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:clamp(14px,4vw,32px)}
+main{max-width:1180px;margin:0 auto}
+[hidden]{display:none!important}
+a.back{color:var(--muted);text-decoration:none;font-size:13.5px}
+h1{font-size:22px;margin:6px 0 10px}
+h2.sec{font-size:15px;margin:34px 0 4px;scroll-margin-top:120px}
+.secsub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.card h2{font-size:13px;margin:0 0 2px;font-family:var(--font-ui);letter-spacing:.14em;text-transform:uppercase;color:rgb(var(--acc)/.9)}
+.card .sub{color:var(--muted);font-size:12.5px;margin-bottom:8px}
+.card{padding:16px;min-width:0}
+.mu{color:var(--muted)}
+.g{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:14px}
+.g>*{min-width:0}
+.s12{grid-column:span 12}.s8{grid-column:span 8}.s7{grid-column:span 7}.s6{grid-column:span 6}.s5{grid-column:span 5}.s4{grid-column:span 4}.s3{grid-column:span 3}
+@media(max-width:1100px){.s8,.s7,.s6,.s5{grid-column:span 12}.s4,.s3{grid-column:span 6}}
+@media(max-width:640px){.s4,.s3{grid-column:span 12}}
+/* Reiter-Leiste */
+#trNav{background:linear-gradient(rgba(4,8,15,.92),rgba(4,8,15,.8) 70%,rgba(4,8,15,0));position:sticky;top:calc(var(--navh,56px) + 2px);z-index:30;display:flex;gap:8px;align-items:center;padding:8px 0;margin:0 0 6px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#trNav::-webkit-scrollbar{display:none}
+#trNav a,#trNav button{flex:none;font:inherit;font-size:13px;font-weight:600;color:var(--ink2);text-decoration:none;white-space:nowrap;padding:0 14px;min-height:36px;display:inline-flex;align-items:center;border-radius:99px;background:rgba(12,24,40,.72);border:1px solid var(--border);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+#trNav a.on{color:#03111a;background:rgb(var(--acc));border-color:rgb(var(--acc))}
+#trNav .sp{flex:1}
+.seg{display:inline-flex;background:rgba(150,200,255,.1);border-radius:99px;padding:3px;gap:2px}
+.seg button{min-height:32px!important;padding:0 13px!important;border-radius:99px!important;border:0!important;background:transparent!important;color:var(--muted)!important;font-size:12.5px!important;box-shadow:none!important}
+.seg button[aria-pressed=true]{background:rgb(var(--acc))!important;color:#03111a!important}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;min-height:28px;padding:0 11px;border-radius:99px;background:rgba(150,200,255,.1);border:1px solid var(--border);font-size:12.5px;color:var(--ink2)}
+.chip.a{background:rgb(var(--acc)/.18);border-color:rgb(var(--acc)/.6);color:var(--ink)}
+.chip.on{background:rgb(var(--acc));color:#03111a;border-color:rgb(var(--acc))}
+.chip.w{background:rgba(255,160,90,.16);border-color:rgba(255,160,90,.55);color:#ffc89a}
+html[data-hud] button.chip{background:rgba(150,200,255,.1);border:1px solid var(--border);color:var(--ink2);box-shadow:none;letter-spacing:0;font-weight:500;text-transform:none}
+html[data-hud] button.chip.on{background:rgb(var(--acc));border-color:rgb(var(--acc));color:#03111a;font-weight:700}
+button.chip{cursor:pointer;font:inherit;font-size:12.5px;min-height:34px}
+/* Übersicht */
+.hello{font-family:var(--font-hud);font-size:clamp(26px,4.2vw,42px);line-height:1.08;letter-spacing:.02em;margin:6px 0 10px;text-shadow:0 0 18px rgb(var(--acc)/.4)}
+.hello i{font-style:normal;color:rgb(var(--acc))}
+.avatar{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;font-size:34px;background:linear-gradient(145deg,rgb(var(--acc)/.35),rgb(var(--acc)/.08));border:1px solid rgb(var(--acc)/.5);position:relative;margin-bottom:6px}
+.avatar b{position:absolute;right:-3px;bottom:-3px;width:14px;height:14px;border-radius:50%;background:#d8ff4f;border:3px solid #04080f}
+.sentence{font-size:15.5px;color:var(--ink2);margin:0 0 12px}
+.year{background:linear-gradient(150deg,rgb(var(--acc)/.34),rgba(10,20,34,.7) 70%)!important;overflow:hidden}
+.year .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.bignum{font-family:var(--font-hud);font-size:clamp(44px,8vw,68px);line-height:1;font-variant-numeric:tabular-nums;margin:10px 0 4px}
+.bignum small{font-size:.32em;color:var(--muted);margin-left:6px;letter-spacing:.06em}
+.trio{display:flex;gap:22px;flex-wrap:wrap;color:var(--ink2);font-size:13.5px}
+.trio b{display:block;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums}
+#sky{margin-top:6px}
+svg{display:block;max-width:100%;overflow:visible}
+svg text{font:11px system-ui,-apple-system,sans-serif;fill:#8fa6bd}
+svg text.v{fill:#e6f1fb;font-weight:700;font-size:12px}
+svg text.acc{fill:#ff8a94;font-weight:700}
+.formval{font-family:var(--font-hud);font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.formval small{font-family:system-ui;font-size:14px;color:var(--ink2);margin-left:8px;letter-spacing:0}
+.pills{display:flex;gap:4px;margin:14px 0 4px;position:relative}
+.pills i{flex:1;height:10px;border-radius:99px;background:rgba(150,200,255,.12)}
+.pills i.on{background:rgb(var(--acc)/.55)}
+.pills u{position:absolute;top:-3px;width:16px;height:16px;border-radius:50%;background:rgb(var(--acc));border:3px solid #04080f;transform:translateX(-50%);box-shadow:0 0 10px rgb(var(--acc)/.8)}
+.pillends{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-top:12px}
+.mini>div{background:rgba(150,200,255,.07);border:1px solid var(--border);border-radius:14px;padding:10px 12px}
+.mini span{display:block;font-size:11.5px;color:var(--muted)}
+.mini b{font-size:19px;font-variant-numeric:tabular-nums}
+.mini small{display:block;font-size:11.5px;color:var(--muted);margin-top:1px}
+.days{font-family:var(--font-hud);font-size:48px;line-height:1;margin:6px 0;font-variant-numeric:tabular-nums}
+.bar{height:8px;background:rgba(150,200,255,.12);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,rgb(var(--acc)),rgb(var(--acc2)));border-radius:99px}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:3px 0}
+.kv b{font-variant-numeric:tabular-nums}
+/* Insights */
+.reveal{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+@media(max-width:900px){.reveal{grid-template-columns:1fr}}
+.reveal h3{font-family:var(--font-hud);font-size:clamp(22px,3.4vw,34px);line-height:1.12;margin:10px 0 8px;letter-spacing:.01em;text-transform:none}
+.reveal h3 em{font-style:normal;color:rgb(var(--acc));white-space:nowrap;text-shadow:0 0 16px rgb(var(--acc)/.5)}
+.nums3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:14px 0}
+.nums3 b{display:block;font-family:var(--font-hud);font-size:clamp(18px,2.6vw,26px);font-variant-numeric:tabular-nums}
+.nums3 span{font-size:12px;color:var(--muted)}
+details.way summary{cursor:pointer;color:rgb(var(--acc));font-size:13px;padding:6px 0;min-height:32px}
+details.way ol{margin:6px 0 0 18px;padding:0;color:var(--ink2);font-size:13.5px}
+.orb{display:inline-block;width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffd0d4,rgb(var(--acc)) 45%,#6b0d1a);vertical-align:middle;margin-right:8px;box-shadow:0 0 14px rgb(var(--acc)/.6)}
+.itiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+@media(max-width:900px){.itiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.itiles{grid-template-columns:1fr}}
+.itile{cursor:pointer;display:flex;flex-direction:column;gap:6px;transition:transform .2s}
+.itile:active{transform:scale(.98)}
+.itile .hd{display:flex;align-items:center;gap:10px}
+.itile .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:rgb(var(--acc)/.18)}
+.itile .ic.w{background:rgba(255,160,90,.2)}
+.itile .ic svg{width:22px;height:22px;fill:none;stroke:rgb(var(--acc));stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.itile .ic.w svg{stroke:#ffa05a}
+.itile .big2{margin-left:auto;font-family:var(--font-hud);font-size:22px;font-variant-numeric:tabular-nums;text-align:right}
+.itile h4{margin:2px 0 0;font-size:15.5px}
+.itile p{margin:0;color:var(--ink2);font-size:13.5px}
+.itile .ev{margin-top:auto;border-top:1px solid var(--border);padding-top:8px;font-size:12px;color:var(--muted)}
+.flash{animation:flash 1.4s ease}
+@keyframes flash{0%,100%{box-shadow:0 8px 28px rgba(0,0,0,.35)}30%{box-shadow:0 0 0 2px rgb(var(--acc)),0 0 28px rgb(var(--acc)/.6)}}
+/* Diagramme */
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink2);margin:0 0 6px}
+.legend i{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:6px;vertical-align:3px}
+.ttip{position:fixed;z-index:60;pointer-events:none;background:rgba(6,12,22,.95);color:var(--ink);border:1px solid var(--edge2,rgba(160,215,255,.34));border-radius:12px;padding:8px 10px;font-size:12.5px;display:none;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.ttip .t{color:var(--muted);font-size:11.5px;margin-bottom:3px}
+.ttip .r{display:flex;gap:8px;align-items:center;margin-top:2px}
+.ttip .r i{width:10px;height:3px;border-radius:2px}
+.ttip .r b{margin-left:auto;padding-left:10px;font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+/* Race Day */
+.rd{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+@media(max-width:1100px){.rd{grid-template-columns:1fr}}
+.chance{font-family:var(--font-hud);font-size:clamp(56px,9vw,84px);line-height:1;font-variant-numeric:tabular-nums}
+.chance small{font-size:.38em;color:var(--muted)}
+.field{background:rgba(150,200,255,.07);border:1px solid var(--border);border-radius:16px;padding:12px;margin-top:12px}
+.tbig{font-family:var(--font-hud);font-size:30px;font-variant-numeric:tabular-nums;margin:2px 0 8px}
+input[type=range]{width:100%;accent-color:rgb(var(--acc));min-height:34px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.two>div{background:rgba(6,12,22,.5);border-radius:12px;padding:8px 10px}
+.two span{display:block;font-size:11.5px;color:var(--muted)}
+.two b{font-variant-numeric:tabular-nums}
+.how{list-style:none;margin:0;padding:0}
+.how li{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.how li:last-child{border:0}
+.how .t{flex:1;font-size:13.5px}.how .t small{display:block;color:var(--muted);font-size:12px}
+.how b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.how svg{width:22px;height:22px;flex:none;fill:none;stroke:rgb(var(--acc));stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;margin-top:2px}
+.racetot{background:rgb(var(--acc)/.14);border:1px solid rgb(var(--acc)/.45);border-radius:14px;padding:10px 12px;margin-top:10px;display:flex;justify-content:space-between;align-items:center}
+.racetot b{font-family:var(--font-hud);font-size:24px}
+table.pr{width:100%;border-collapse:collapse}
+table.pr td{padding:10px 8px;border-bottom:1px solid var(--border);font-size:13.5px}
+table.pr tr.mine td{background:rgb(var(--acc)/.14)}
+table.pr td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+table.pr b{font-size:18px;display:block}
+button.txt{background:none!important;border:0!important;box-shadow:none!important;color:rgb(var(--acc));padding:6px 0!important;min-height:36px!important}
+/* Kalender, Raster */
+.cal{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px}
+.cal i{display:block;aspect-ratio:1;border-radius:4px;background:rgba(150,200,255,.07);min-width:0}
+.cal i.t{outline:2px solid #fff}
+.rings3{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap}
+.rings3>div{flex:1;min-width:100px}
+.rings3 i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.rings3 b{display:block;font-family:var(--font-hud);font-size:22px}
+.rings3 span{font-size:12px;color:var(--muted)}
+/* Plan */
+.pl{list-style:none;margin:0;padding:0}
+.pl li{display:flex;gap:12px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--border);border-left:3px solid transparent}
+.pl li.today{border-left-color:rgb(var(--acc));background:rgb(var(--acc)/.07)}
+.pl li.fix{background:rgb(var(--acc)/.15)}
+.pl .d{width:62px;font-size:12.5px;color:var(--muted)}.pl .d b{display:block;color:var(--ink);font-size:14px}
+.pl .w{flex:1;min-width:0;font-size:14px}.pl .w small{display:block;color:var(--muted);font-size:12px}
+.pl .w s{color:var(--muted);text-decoration-color:rgb(var(--acc));text-decoration-thickness:2px;transition:text-decoration-color .6s}
+.pl .w .nw{display:block;font-weight:700;animation:slidein .6s .9s backwards}
+@keyframes slidein{from{opacity:0;transform:translateX(-10px)}}
+.pl .ck{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:grid;place-items:center;flex:none}
+.pl .ck.on{background:rgb(var(--acc));border-color:rgb(var(--acc))}
+.pl .ck svg{width:14px;height:14px;stroke:#03111a;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.repair{margin-top:14px;background:linear-gradient(150deg,rgb(var(--acc)/.18),transparent);border:1px solid rgb(var(--acc)/.4);border-radius:16px;padding:14px}
+.repair h4{margin:6px 0 6px;font-size:16px}
+.qs{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.ans{background:rgba(150,200,255,.07);border:1px solid var(--border);border-radius:16px;padding:14px;min-height:150px}
+.ans h4{margin:0 0 8px;font-size:16px}
+.ans p{margin:0 0 8px;font-size:14px;color:var(--ink2)}
+.cur::after{content:"";display:inline-block;width:2px;height:1em;background:rgb(var(--acc));margin-left:2px;vertical-align:-2px;animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+.ask{display:flex;gap:8px;margin-top:10px}
+.ask input,.fm input,.fm textarea,.fm select{flex:1;min-height:44px;border-radius:12px;border:1px solid var(--border);background:rgba(6,12,22,.6);color:var(--ink);padding:0 12px;font:inherit;font-size:15px;width:100%}
+.fm textarea{padding:10px 12px;min-height:90px}
+/* Material, Logbuch */
+.shoe{margin:10px 0}.shoe .bar{position:relative;margin-top:4px}.shoe .bar u{position:absolute;left:87.5%;top:-3px;bottom:-3px;width:2px;background:rgba(255,255,255,.5)}
+.hb{display:flex;align-items:center;gap:8px;margin:6px 0;font-size:13px}.hb span{width:86px;color:var(--ink2)}.hb .bar{flex:1}.hb b{width:54px;text-align:right;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table.log{border-collapse:collapse;width:100%;font-size:13px}
+table.log th,table.log td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+table.log th:nth-child(-n+3),table.log td:nth-child(-n+3){text-align:left}
+table.log th{color:var(--muted);font-weight:600;cursor:pointer;user-select:none}
+.tiles4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:700px){.tiles4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rec{background:rgba(150,200,255,.07);border:1px solid var(--border);border-radius:14px;padding:12px;position:relative}
+.rec span{font-size:11.5px;color:var(--muted)}.rec b{display:block;font-family:var(--font-hud);font-size:20px;margin:3px 0;font-variant-numeric:tabular-nums}.rec small{color:var(--muted);font-size:11.5px}
+.rec .nw{position:absolute;right:8px;top:8px;font-size:10.5px;background:rgb(var(--acc));color:#03111a;border-radius:99px;padding:1px 7px;font-weight:700}
+.rec.hl{background:rgb(var(--acc));color:#03111a}.rec.hl span,.rec.hl small{color:#3a0b12}
+/* Verbinden */
+.fm label{display:block;font-size:12.5px;color:var(--muted);margin:10px 0 4px}
+.fm .row{display:flex;gap:8px;flex-wrap:wrap}
+.fm .row>*{flex:1;min-width:130px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.msg{font-size:13.5px;color:var(--ink2);margin:8px 0;min-height:20px}.msg.err{color:#ff8a7c}
+.step{counter-increment:s;margin:6px 0;color:var(--ink2);font-size:14px}
+ol.how2{margin:8px 0 0 18px;padding:0;color:var(--ink2);font-size:14px}ol.how2 li{margin:4px 0}
+.share{position:fixed;inset:0;z-index:90;background:rgba(2,6,12,.8);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);display:grid;place-items:center;padding:16px}
+.sc{width:min(360px,90vw,calc((100vh - 40px)*9/16));aspect-ratio:9/16;border-radius:26px;overflow:hidden;display:flex;flex-direction:column;background:#0b121c;border:1px solid var(--border)}
+.sc .u{flex:1.05;background:linear-gradient(160deg,#ff5460,#a01f35);padding:18px;color:#fff;display:flex;flex-direction:column}
+.sc .u h3{margin:0;font-size:20px;font-family:var(--font-ui)}.sc .u .k{font-family:var(--font-hud);font-size:54px;margin:6px 0 0;line-height:1}
+.sc .l{flex:1;padding:16px;background:#101a28}.sc .l h4{font-size:19px;margin:0 0 10px;line-height:1.2}
+.sc .l .n3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.sc .l .n3 b{display:block;font-size:17px}.sc .l .n3 span{font-size:10.5px;color:var(--muted)}
+.sc .f{font-size:11px;color:var(--muted);margin-top:12px}
+.o1{grid-column:span 4;min-width:0}.o2{grid-column:span 5;min-width:0}.o3{grid-column:span 3;min-width:0;display:grid;gap:14px;align-content:start}
+@media(max-width:1100px){.o1,.o2,.o3{grid-column:span 12}.o3{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.o3{grid-template-columns:1fr}}
+.rise{animation:rise .6s cubic-bezier(.34,1.26,.5,1) backwards;transform-box:fill-box}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+footer.ft{margin:36px 0 90px;color:var(--muted);font-size:12px;line-height:1.5}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
+</style><link rel="stylesheet" href="theme.css?v=5">
+</head><body><main>
+<a class="back" href="index.html">← Life Board</a>
+<h1>🏃 Training</h1>
+<div id="trNav" role="navigation" aria-label="Abschnitte"></div>
+<div id="msg" class="msg">Lade Daten …</div>
+
+<section id="setup" hidden>
+  <div class="g">
+    <div class="card s7" id="onboard">
+      <h2>Trainingsdaten verbinden</h2>
+      <div class="sub">Zwei Wege – du kannst beide kombinieren. Doppelte Einheiten werden erkannt.</div>
+      <div id="stravaBox"></div>
+      <h3 style="margin:18px 0 6px;font-size:14px">Oder: Export hochladen</h3>
+      <ol class="how2"><li>Strava im Browser: <b>Einstellungen → Mein Konto → Daten herunterladen oder löschen → Archiv anfordern</b>.</li><li>Du bekommst eine E-Mail mit einer ZIP-Datei. Darin liegt <code>activities.csv</code>.</li><li>Hier auswählen – Garmin-Connect-CSV geht auch.</li></ol>
+      <div class="btns"><label class="btn" style="display:inline-flex;align-items:center;padding:0 16px;border:1px solid var(--border);border-radius:12px;cursor:pointer">CSV auswählen<input type="file" id="csvFile" accept=".csv,text/csv,text/plain" hidden></label></div>
+    </div>
+    <div class="card s5 fm" id="profile"></div>
+  </div>
+</section>
+
+<div id="content" hidden>
+  <div class="g" id="s-ueber"></div>
+
+  <h2 class="sec" id="insights">Insights</h2><div class="secsub" id="insSub"></div>
+  <div id="insBox"></div>
+
+  <h2 class="sec" id="form">Form und Belastung</h2><div class="secsub">Fitness (42 Tage), Ermüdung (7 Tage) und ihre Differenz.</div>
+  <div class="g">
+    <div class="card s8"><h2>Fitness, Ermüdung, Form</h2><div class="legend"><span><i style="background:#ff5460"></i>Fitness</span><span><i style="background:#8fa6bd"></i>Ermüdung</span><span><i style="background:#ff9a5c"></i>Form</span></div><div id="c-form"></div></div>
+    <div class="card s4"><h2>Belastung</h2><div class="sub">Akut zu chronisch</div><div id="c-gauge"></div><div class="mini" id="gaugeMini"></div><div class="note">* Akut zu chronisch ist in der Forschung umstritten – ein Hinweis, kein Urteil.</div></div>
+  </div>
+
+  <h2 class="sec" id="leistung">Leistung</h2><div class="secsub">VDOT, Prognosen und die Chance auf deine Zielzeit.</div>
+  <div class="g">
+    <div class="card s12" id="raceday"></div>
+    <div class="card s5" id="preds"></div>
+    <div class="card s7"><h2>Tempo bei gleichem Puls</h2><div class="sub" id="sameSub"></div><div id="sameHead"></div><div id="c-same"></div><div class="note" id="sameNote"></div></div>
+  </div>
+
+  <h2 class="sec" id="umfang">Umfang und Konstanz</h2><div class="secsub">Wochen laufen Montag bis Sonntag.</div>
+  <div class="g">
+    <div class="card s8"><h2>Wochenumfang</h2><div class="sub" id="wkSub"></div><div id="c-weeks"></div></div>
+    <div class="card s4"><h2>Ringe</h2><div class="sub">Woche · Konstanz · Plan</div><div id="c-rings"></div><div class="rings3" id="ringsLeg"></div><div class="mini" id="ringsMini"></div></div>
+    <div class="card s12"><h2>Dein Jahr, Tag für Tag</h2><div class="sub">Farbe nach Laufkilometern</div><div class="g" style="gap:20px"><div class="s8" id="c-cal"></div><div class="s4" id="calStats"></div></div><div class="legend" id="calLeg" style="margin-top:8px"></div></div>
+  </div>
+
+  <h2 class="sec" id="intensitaet">Intensität und Gewohnheit</h2><div class="secsub">Jede Einheit zählt komplett in der Zone ihres Durchschnittspulses.</div>
+  <div class="g">
+    <div class="card s5"><h2>Intensität nach Einheit</h2><div id="intens"></div></div>
+    <div class="card s7"><h2>Wann du läufst</h2><div id="habit"></div></div>
+  </div>
+
+  <h2 class="sec" id="rekorde">Rekorde</h2><div class="secsub">Bestzeiten und Bestwerte der letzten zwölf Monate.</div>
+  <div class="g">
+    <div class="card s8"><h2>Rekorde</h2><div class="tiles4" id="recs"></div></div>
+    <div class="card s4"><h2>In Zahlen</h2><div class="tiles4" id="nums" style="grid-template-columns:repeat(2,minmax(0,1fr))"></div></div>
+  </div>
+
+  <h2 class="sec" id="plan">Plan und Coach</h2><div class="secsub">Diese Woche gegen deinen Plan – und Antworten aus deinen Daten.</div>
+  <div class="g">
+    <div class="card s7"><h2>Diese Woche</h2><div class="sub" id="planSub"></div><ul class="pl" id="planList"></ul><div id="repair"></div></div>
+    <div class="card s5"><h2>Frag</h2><div class="sub">vorbereitet aus deinen Daten · funktioniert offline</div><div class="qs" id="qs"></div><div class="ans" id="ans"></div><div class="ask"><input id="askIn" placeholder="Eigene Frage …" aria-label="Eigene Frage"><button class="primary" id="askGo" style="min-width:48px">➤</button></div><div class="msg" id="askMsg"></div></div>
+  </div>
+
+  <h2 class="sec" id="material">Material und Daten</h2><div class="secsub"></div>
+  <div class="g">
+    <div class="card s4"><h2>Schuhe</h2><div class="sub">Letzte 90 Tage</div><div id="shoes"></div></div>
+    <div class="card s4"><h2>Sportarten</h2><div class="sub">Stunden, zwölf Monate</div><div id="sports"></div></div>
+    <div class="card s4"><h2>Daten und Annahmen</h2><div id="assume"></div></div>
+    <div class="card s12"><h2>Logbuch</h2><div class="chips" id="logChips" style="margin:6px 0 10px"></div><div class="scroll"><table class="log" id="log"></table></div><div class="btns"><button id="logMore" class="chip">Alle anzeigen</button></div></div>
+  </div>
+  <div class="g" style="margin-top:34px"><div class="card s12 fm" id="profile2"></div></div>
+  <footer class="ft">Training 1 · Regelbasiert analysiert (keine KI), Stand <span id="ftDate"></span>.<br>Deine Trainingsdaten liegen in deinem Life Board (Firestore). Nur fürs Rennwetter und den Ort fragt die Seite Open-Meteo nach Koordinaten und Datum des Rennens.<br>Idee und Berechnungen nach einem Prompt von felsr.com · Sport KI.</footer>
+</div>
+<div class="ttip" id="tip"></div>
+<div class="share" id="share" hidden></div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="fb.js"></script>
+<script src="assistant.js?v=4"></script>
+<script src="training-core.js?v=1"></script>
+<script src="training-text.js?v=1"></script>
+<script src="training-viz.js?v=1"></script>
+<script src="training.js?v=1"></script>
+<script src="theme.js?v=6"></script>
+<script src="jarvis.js?v=7"></script>
+</body></html>

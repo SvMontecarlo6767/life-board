@@ -187,7 +187,7 @@ function buildHub(r,n){
   const gear=document.querySelector('#lb-gear');
   const items=[];
   const T=id=>tabs.find(a=>a.dataset.tab===id);
-  ['heute','recovery','lernen','puzzle'].forEach(id=>{const a=T(id);if(a)items.push({n:a.querySelector('span').textContent,svg:svgOf(a),rgb:a.style.getPropertyValue('--tc'),href:a.getAttribute('href')})});
+  ['heute','recovery','lernen','puzzle','training'].forEach(id=>{const a=T(id);if(a)items.push({n:a.querySelector('span').textContent,svg:svgOf(a),rgb:a.style.getPropertyValue('--tc'),href:a.getAttribute('href')})});
   items.push({n:'Import',svg:'<svg viewBox="0 0 24 24">'+IC.imp+'</svg>',rgb:'150 175 205',href:'import.html?v=2'});
   items.push({n:'Habits',svg:'<svg viewBox="0 0 24 24">'+IC.chk+'</svg>',rgb:'120 140 160',off:'bald'});
   items.push({n:'Whoop',svg:'<svg viewBox="0 0 24 24">'+IC.who+'</svg>',rgb:'255 90 122',sheet:'wh'});
@@ -290,7 +290,7 @@ async function makeOrb(){
 function rebuildOrbIfNeeded(){if(el.canvas&&perfNow!==!!ST().perf)makeOrb()}
 async function init(){
   if(ready)return;ready=true;
-  try{await Promise.all([window.Assistant?Promise.resolve():loadScript('assistant.js?v=3').catch(()=>{}),loadScript('voice.js?v=1'),loadScript('jarvis-actions.js?v=2')])}catch(e){}
+  try{await Promise.all([window.Assistant?Promise.resolve():loadScript('assistant.js?v=4').catch(()=>{}),loadScript('voice.js?v=1'),loadScript('jarvis-actions.js?v=3')])}catch(e){}
   if(!window.Assistant||!window.LBVoice){ready=false;return}
   build();await makeOrb();
 }

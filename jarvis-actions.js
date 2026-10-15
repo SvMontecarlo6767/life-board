@@ -3,9 +3,9 @@
    Liegt die Aktion auf einer anderen Seite, wird sie nach Bestätigung vorgemerkt, die Seite geöffnet und dort ausgeführt. */
 (function(root){
 'use strict';
-const PEND='lb_jv_pending',TABS={hub:'index.html',heute:'heute.html?v=5',recovery:'recovery.html?v=4',lernen:'learn.html?v=2',puzzle:'puzzle.html?v=3'};
+const PEND='lb_jv_pending',TABS={hub:'index.html',heute:'heute.html?v=5',recovery:'recovery.html?v=4',lernen:'learn.html?v=2',puzzle:'puzzle.html?v=3',training:'training.html?v=1'};
 const PAGE={set_habit:'heute.html',set_puzzle:'puzzle.html'};
-const NAMES={hub:'Hub',heute:'Heute',recovery:'Recovery',lernen:'Lernen',puzzle:'Puzzle-Tracker'};
+const NAMES={hub:'Hub',heute:'Heute',recovery:'Recovery',lernen:'Lernen',puzzle:'Puzzle-Tracker',training:'Training'};
 const SET={sprachausgabe:['speak','Sprachausgabe'],performance:['perf','Performance-Modus'],sounds:['sounds','UI-Sounds']};
 const norm=s=>String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ß/g,'ss').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
 const file=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
@@ -22,7 +22,7 @@ async function tools(){
   const R=await rules();
   const list=R?R.ui.buttons.map(b=>b.label+' ['+(b.kind==='toggle'?'an/aus':b.kind==='count'?'Anzahl':b.kind==='amount'?'Minuten '+b.presets.join('/'):'Option: '+b.options.map(o=>o.label).join(' | '))+']').join('; '):'';
   return [
-   {name:'navigate',description:'Wechselt zu einem Reiter der Seite (Hub, Heute, Recovery, Lernen, Puzzle).',parameters:{type:'object',properties:{tab:{type:'string',enum:Object.keys(TABS),description:'Ziel-Reiter'}},required:['tab']}},
+   {name:'navigate',description:'Wechselt zu einem Reiter der Seite (Hub, Heute, Recovery, Lernen, Puzzle, Training).',parameters:{type:'object',properties:{tab:{type:'string',enum:Object.keys(TABS),description:'Ziel-Reiter'}},required:['tab']}},
    {name:'set_setting',description:'Ändert eine Einstellung: Sprachausgabe von Jarvis, Performance-Modus oder UI-Sounds.',parameters:{type:'object',properties:{name:{type:'string',enum:Object.keys(SET)},value:{type:'boolean',description:'true = an, false = aus'}},required:['name','value']}},
    {name:'set_habit',description:'Trägt eine Aktion im Reiter Heute ein (Sport, Lernen, Alltag-Gewohnheit). Knöpfe: '+list,parameters:{type:'object',properties:{button:{type:'string',description:'Name des Knopfes wie in der Liste'},value:{type:'string',description:'an/aus, Minuten, Anzahl oder Option je nach Knopf. Weglassen, wenn der Nutzer nichts gesagt hat.'},date:{type:'string',description:'heute oder gestern (Standard heute)'}},required:['button']}},
    {name:'set_puzzle',description:'Trägt ein Puzzle-Ergebnis im Puzzle-Tracker ein. Spiele: '+GAMES.map(g=>g[1]).join(', ')+'. Krillion: Score 0–700, höher ist besser. Bei Spielen mit Versuchen ist score die Anzahl der Versuche.',parameters:{type:'object',properties:{game:{type:'string',description:'Name des Spiels'},score:{type:'number',description:'Score bzw. Versuche'},solved:{type:'boolean',description:'false, wenn nicht geschafft'},date:{type:'string',description:'heute oder gestern (Standard heute)'}},required:['game']}}

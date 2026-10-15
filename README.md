@@ -9,6 +9,15 @@ Statische Seiten auf GitHub Pages, Daten in Firebase (Auth + Firestore), Schnitt
 3. Secrets (einmalig, nie im Chat): `GEMINI_KEY`, `NOTION_TOKEN` sowie die Whoop-Werte.
 Optionale Variablen: `GEMINI_MODEL` (bevorzugtes Modell), `GEMINI_VOICE` (Standard Charon, Alternative Orus), `AI_DAILY_LIMIT`, `AI_TTS_DAILY_LIMIT`.
 
+## Training (Reiter „Training“)
+Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-Design des Boards. Alles regelbasiert, keine KI nötig.
+- Dateien: `training.html`, `training.js` (Daten, Strava, CSV, Aufbau), `training-core.js` (Rechnen: VDOT, Belastung, Race Day …), `training-text.js` (Befund, Insights, Repair Guide, Coach-Antworten), `training-viz.js` (SVG-Diagramme).
+- Daten: Firestore `users/{uid}/training/` (`acts_JAHR`, `settings`, `summary`), in der Sicherung enthalten.
+- **Datenquelle A, Export:** Strava → Einstellungen → Mein Konto → Daten herunterladen → Archiv anfordern → `activities.csv` im Reiter „CSV auswählen“ (Garmin-CSV geht auch).
+- **Datenquelle B, Strava direkt:** auf strava.com/settings/api eine App anlegen, *Authorization Callback Domain* = Worker-Adresse ohne `https://`; im Cloudflare-Worker die Secrets `STRAVA_CLIENT_ID` und `STRAVA_CLIENT_SECRET` setzen, aktuelle `worker.js` deployen. Im Reiter „Mit Strava verbinden“, danach „Jetzt synchronisieren“. Strava-Limit: 100 Anfragen / 15 Minuten, 1000 / Tag.
+- Wetter und Ortssuche: einziger externer Abruf der Seite (Open-Meteo, nur Ort und Rennen-Datum).
+- Tests: `node tools/test-training.mjs`, `node worker/test.mjs`, Browser: `node tools/browser/gen_training_seed.mjs seed.json` und `python3 tools/browser/test_training.py <Ordner> seed.json`.
+
 ## Jarvis
 - Antippen öffnet, **halten = sprechen, loslassen = senden**. Tippen im Textfeld antwortet nur schriftlich.
 - Schalter „Jarvis spricht“ (Optionen) bzw. „nur schriftlich“ / „sprich mit mir“ per Zuruf.

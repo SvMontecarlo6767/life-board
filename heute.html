@@ -102,7 +102,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 .sum ul{list-style:none;padding:0;margin:10px 0;text-align:left;font-size:14px}
 .sum li{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--bd)}
 @media (max-width:900px){.wh ul{grid-template-columns:1fr}.hero{grid-template-columns:1fr 1fr}.hero .card:first-child{grid-column:1/-1}.dnav .dt{min-width:120px}.bar .back{display:none}}
-</style><link rel="stylesheet" href="theme.css?v=4">
+</style><link rel="stylesheet" href="theme.css?v=5">
 </head><body>
 <div class="bar"><div class="in">
   <a class="back" href="index.html">← Start</a>
@@ -153,7 +153,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=3"></script>
+<script src="assistant.js?v=4"></script>
 <script src="engine.js"></script>
 <script src="puzzle-dop.js"></script>
 <script src="whoop-auto.js"></script>
@@ -632,6 +632,6 @@ window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehle
 boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=5"></script>
-<script src="jarvis.js?v=6"></script>
+<script src="theme.js?v=6"></script>
+<script src="jarvis.js?v=7"></script>
 </body></html>

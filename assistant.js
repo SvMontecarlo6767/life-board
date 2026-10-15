@@ -8,6 +8,7 @@ const SITE=`SEITENÜBERSICHT DES LIFE BOARDS
 - Heute (heute.html): Tagesseite. Aktionen antippen (28 Knöpfe in Sport, Lernen, Alltag), Whoop-Werte zählen automatisch (Schlaf, Recovery, HRV, Strain, Workouts), Puzzle-Tracker-Wert (PUZ-01), Tagesabschluss. Punkte ergeben das Dopamin-Konto (Summe aller Tage), Rang pro Tag (S/A/B/C) und Level. Tageswechsel um 04:00 Uhr (Europa/Berlin). Regelwerk v2 (Punkte aus v1, Obergrenzen pro Aktion, nur die höchste Stufe einer Gruppe zählt).
 - Recovery (recovery.html): Whoop-Dashboard mit Recovery, HRV, Ruhepuls, Schlaf, Strain, Workouts, Wochentage, Tabellen.
 - Lernen (learn.html): Wiederholungsrunden mit 5 Fragen aus den Notion-Seiten (Abschnitt Active Recall / Mini-Wiederholung), Selbstbewertung richtig/fast/falsch, Stufen 1/7/30/90 Tage, bis zu 3 Runden pro Tag mit Punkten (WDH-01 575 Punkte, Mischrunde WDH-13), Active Recall bestanden (LRN-07).
+- Training (training.html): Laufanalyse aus Strava/CSV: Form (Fitness/Ermüdung), VDOT, Rennprognosen, Race Day (Chance auf Zielzeit), Wochenumfang, Intensität, Rekorde, Plan der Woche, Schuhe.
 - Puzzle-Tracker (puzzle.html): tägliche Puzzle-Spiele mit eigener Dopamin-Wertung, fließt als PUZ-01 in Heute ein.
 Das Board schreibt nie nach Notion oder Whoop; es liest nur.`;
 const $=(t,a,c)=>{const e=document.createElement(t);if(a)Object.assign(e,a);if(c)c.forEach(x=>e.append(x));return e};
@@ -76,6 +77,7 @@ async function snapshot(force){
   const ls=await get('learn');
   if(ls){const rows=ls.docs.map(x=>({k:x.id,...x.data()})).sort((a,b)=>a.k<b.k?1:-1).slice(0,14);
     if(rows.length)L.push('LERNRUNDEN: '+rows.map(d=>d.k+' '+(d.rounds||[]).length+' Runde(n)').join('; '))}
+  try{const tr=await fs.doc(base+'/training/summary').get();if(tr.exists&&tr.data().text)L.push(tr.data().text)}catch(e){}
   const qs=await get('questions');
   if(qs){const q=qs.docs.map(x=>x.data());const st={n:q.length,nw:0,due:0,s:[0,0,0,0,0]};q.forEach(x=>{if(!x.reps){st.nw++;return}st.s[x.stage||1]++;if(x.due<=today)st.due++});
     L.push('FRAGEN: '+st.n+' insgesamt, '+st.nw+' neu, '+st.due+' fällig; Stufe 1: '+st.s[1]+', Stufe 2: '+st.s[2]+', Stufe 3: '+st.s[3]+', Stufe 4 (gelernt): '+st.s[4]);
