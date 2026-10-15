@@ -71,6 +71,26 @@ async function wfetch(path){
   return d;
 }
 const list=()=>Object.values(QS);
+const PKEY=()=>'lb_learn_pending_'+user.uid;
+function pget(){try{return JSON.parse(localStorage.getItem(PKEY())||'null')||{q:{},d:{}}}catch(e){return{q:{},d:{}}}}
+function pset(p){try{localStorage.setItem(PKEY(),JSON.stringify(p))}catch(e){}}
+/* Offene (noch nicht bestätigte) Fragen-Stände und Tage erneut zum Server schicken */
+async function flushPending(){
+  const p=pget();let left=0;
+  for(const id of Object.keys(p.q)){
+    try{await tmo(fs.doc(base+'/questions/'+id).set(p.q[id],{merge:true}),10000,'Fragen');delete p.q[id]}catch(e){left++}
+  }
+  for(const k of Object.keys(p.d)){
+    try{
+      const cur=await tmo(fs.doc(base+'/learn/'+k).get({source:'server'}),10000,'Tag');
+      const have=cur.exists?((cur.data().rounds||[]).length):0;
+      if(have<(p.d[k].rounds||[]).length)await tmo(fs.doc(base+'/learn/'+k).set(p.d[k]),10000,'Tag');
+      delete p.d[k];
+    }catch(e){left++}
+  }
+  pset(p);return left;
+}
+function pendingNote(){const p=pget(),n=Object.keys(p.q).length+Object.keys(p.d).length;if(n)$('syncMsg').textContent=n+' Änderung'+(n===1?'':'en')+' noch nicht auf dem Server – wird beim nächsten Öffnen erneut gesendet.'}
 const dayRef=()=>base+'/learn/'+today;
 function render(){
   const st=L.stats(list(),today),paid=L.dayCounts(DAY.rounds),nr=(DAY.rounds||[]).filter(r=>r.n>=L.ROUND).length;
@@ -107,7 +127,8 @@ function abort(){R=null;$('round').hidden=true;$('start').hidden=false;$('topics
 async function rate(r){
   const q=R.items[R.i];R.ratings.push(r);
   const upd=L.schedule(q,r,today);Object.assign(q,upd);
-  try{await tmo(fs.doc(base+'/questions/'+q.id).set(upd,{merge:true}),10000,'Speichern')}catch(e){showMsg('<b>Konnte nicht speichern:</b> '+esc(errText(e)),true)}
+  {const p=pget();p.q[q.id]=upd;pset(p)}   // erst lokal sichern, dann senden
+  try{await tmo(fs.doc(base+'/questions/'+q.id).set(upd,{merge:true}),10000,'Speichern');const p=pget();delete p.q[q.id];pset(p)}catch(e){showMsg('<b>Noch nicht gespeichert:</b> '+esc(errText(e))+'. Die Antwort ist auf diesem Gerät gesichert und wird erneut gesendet.',true)}
   R.i++;R.shown=false;drawRound();
 }
 async function finish(){
@@ -116,13 +137,15 @@ async function finish(){
   DAY.rounds=(DAY.rounds||[]).concat([rd]);DAY.counts=L.dayCounts(DAY.rounds);
   const sc=L.score(R.ratings);
   let ok=true;
+  {const p=pget();p.d[today]=DAY;pset(p)}
   try{
     await tmo(fs.doc(dayRef()).set({rounds:DAY.rounds,counts:DAY.counts,updatedAt:Date.now()}),10000,'Speichern');
     const back=await tmo(fs.doc(dayRef()).get({source:'server'}),10000,'Prüfen');   // wirklich auf dem Server angekommen?
     if(!back.exists||(back.data().rounds||[]).length!==DAY.rounds.length)throw new Error('Rückprüfung fehlgeschlagen');
-  }catch(e){ok=false;showMsg('<b>Runde nicht gespeichert:</b> '+esc(errText(e)),true)}
+    {const p=pget();delete p.d[today];pset(p)}
+  }catch(e){ok=false;showMsg('<b>Runde noch nicht auf dem Server:</b> '+esc(errText(e))+'. Sie ist auf diesem Gerät gesichert und wird beim nächsten Öffnen automatisch erneut gesendet.',true)}
   try{localStorage.setItem('lb_learn_'+user.uid+'_'+today,JSON.stringify(DAY))}catch(e){}
-  $('round').innerHTML='<h3>Runde fertig</h3><div class="q">'+sc+' von '+rd.n+' richtig</div><div class="mu">'+(ok?'Gespeichert. ':'')+(Object.keys(L.dayCounts([rd])).length&&(DAY.rounds.length<=L.MAX_PAID_ROUNDS)?'Zählt fürs Dopamin-Konto.':'Diese Runde gibt keine Punkte (Tageslimit '+L.MAX_PAID_ROUNDS+' Runden).')+'</div><div class="row" style="margin-top:12px"><button class="primary" id="again">Noch eine Runde</button><button id="done">Fertig</button></div>';
+  $('round').innerHTML='<h3>Runde fertig</h3><div class="q">'+sc+' von '+rd.n+' richtig</div><div class="mu">'+(ok?'Gespeichert. ':'Lokal gesichert, noch nicht auf dem Server. ')+(Object.keys(L.dayCounts([rd])).length&&(DAY.rounds.length<=L.MAX_PAID_ROUNDS)?'Zählt fürs Dopamin-Konto.':'Diese Runde gibt keine Punkte (Tageslimit '+L.MAX_PAID_ROUNDS+' Runden).')+'</div><div class="row" style="margin-top:12px"><button class="primary" id="again">Noch eine Runde</button><button id="done">Fertig</button></div>';
   $('again').onclick=()=>{R=null;$('round').hidden=true;$('start').hidden=false;$('topics').hidden=false;render();if($('go'))begin(rd.type)};
   $('done').onclick=abort;
 }
@@ -162,6 +185,7 @@ base='users/'+user.uid;
 today=E.dayKey(new Date(),'Europe/Berlin',4);
 $('main').hidden=false;
 try{DAY=JSON.parse(localStorage.getItem('lb_learn_'+user.uid+'_'+today)||'null')||DAY}catch(e){}
+try{await flushPending()}catch(e){}
 try{
   const [qs,ps,dd,ss]=await Promise.all([
     tmo(fs.collection(base+'/questions').get(),12000,'Fragen'),
@@ -173,7 +197,7 @@ try{
   if(dd.exists)DAY=dd.data();
   SET=ss.exists?ss.data():{};
 }catch(e){showMsg('<b>Daten konnten nicht geladen werden:</b> '+esc(errText(e))+'. Falls das ein Regel-Problem ist: Firestore-Regeln müssen alle Unterbereiche von <code>users/{uid}</code> erlauben.',true)}
-render();
+render();pendingNote();
 $('sync').onclick=syncNotion;
 $('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
 if(!list().length)syncNotion();

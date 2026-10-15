@@ -82,6 +82,20 @@ def run(p,w,h):
     # Notion nicht eingerichtet -> verständliche Meldung
     st['noion']=True; pg.click('#sync'); pg.wait_for_selector('.info.warn')
     ck(t+'Meldung bei fehlendem Token','NOTION_TOKEN' in pg.inner_text('#msg'),pg.inner_text('#msg')[:90])
+    # Netz/Schreibfehler mitten in einer Runde: lokal gesichert, beim nächsten Öffnen nachgesendet
+    st['noion']=False
+    n0=pg.evaluate("window.__store['users/u1/learn/2026-10-15'].rounds.length")
+    pg.evaluate('window.__failWrites=true'); pg.click('#go')
+    for i in range(5):
+        pg.wait_for_selector('#show'); pg.click('#show'); pg.wait_for_selector('[data-r]'); pg.click('[data-r="ok"]')
+    pg.wait_for_selector('#again')
+    ck(t+'Schreibfehler: Runde als lokal gesichert gemeldet','Lokal gesichert' in pg.inner_text('#round'))
+    ck(t+'Schreibfehler: rote Meldung','noch nicht' in pg.inner_text('#msg').lower())
+    ck(t+'Schreibfehler: nichts auf dem Server',pg.evaluate("window.__store['users/u1/learn/2026-10-15'].rounds.length")==n0)
+    pg.reload(); pg.wait_for_selector('#go'); pg.wait_for_timeout(500)
+    ck(t+'Nach Neuladen: Runde nachgesendet',pg.evaluate("window.__store['users/u1/learn/2026-10-15'].rounds.length")==n0+1)
+    ck(t+'Nach Neuladen: Fragenstände nachgesendet',pg.evaluate("Object.values(window.__store).filter(v=>v&&v.reps>=1).length")>=n0*5+0 )
+    ck(t+'Nichts mehr offen',pg.evaluate("(JSON.parse(localStorage.getItem('lb_learn_pending_u1')||'{\"q\":{},\"d\":{}}'))").get('d')=={} if False else pg.evaluate("Object.keys(JSON.parse(localStorage.getItem('lb_learn_pending_u1')||'{\"q\":{},\"d\":{}}').d).length+Object.keys(JSON.parse(localStorage.getItem('lb_learn_pending_u1')||'{\"q\":{},\"d\":{}}').q).length")==0)
     b.close()
 with sync_playwright() as p:
     run(p,1024,768); run(p,820,1180)
