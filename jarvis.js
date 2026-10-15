@@ -217,6 +217,18 @@ function layoutHub(){
   const W=innerWidth,H=innerHeight,dop=document.getElementById('dop'),top=document.querySelector('#hub .top');
   const tb=Math.max(dop?dop.getBoundingClientRect().bottom:0,top?top.getBoundingClientRect().bottom:0,70)+10;
   const items=[...hubEl.querySelectorAll('.hp')],n=items.length;
+  if(W<=600){ // iPhone: Kern oben, Plattformen als 3-Spalten-Raster darunter
+    const cols=3,rows=Math.ceil(n/cols),gx=10,side=12,padB=14;
+    const pw2=Math.floor((W-2*side-(cols-1)*gx)/cols);
+    const k=Math.max(.78,Math.min(1,(H-tb-padB-170)/(rows*(88+24))));
+    const ph2=Math.round(88*k),gy=Math.round(24*k),gridH=rows*ph2+(rows-1)*gy;
+    const gridTop=H-padB-gridH-10,area=gridTop-tb-8,osz2=Math.max(96,Math.min(200,area-24));
+    const cy2=tb+8+area/2;
+    const st2=document.documentElement.style;st2.setProperty('--hcy',cy2+'px');st2.setProperty('--hos',osz2+'px');
+    items.forEach((c,i)=>{const r=Math.floor(i/cols),cc=i%cols,inRow=Math.min(cols,n-r*cols),off=(cols-inRow)*(pw2+gx)/2;
+      c.style.width=pw2+'px';c.style.height=ph2+'px';c.style.left=(side+off+cc*(pw2+gx))+'px';c.style.top=(gridTop+r*(ph2+gy))+'px'});
+    setTimeout(()=>{if(orb)orb.resize()},60);return;
+  }
   const pw=W<700?92:126,ph=W<700?80:104;
   const availH=H-tb-14,cy=tb+availH/2;
   const ry=Math.max(110,availH/2-ph/2-6),rx=Math.min(W*0.44,W/2-pw/2-8,470);

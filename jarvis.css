@@ -116,3 +116,23 @@ html[data-hubmode] #lb-set{top:50%;left:50%;right:auto;transform:translate(-50%,
 #jv[data-open="1"] #jv-hubp .hp,#jv[data-open="1"] #jv-hubp .hp *,#jv[data-open="1"] #jv-hubp .hp::before,#jv[data-open="1"] #jv-lines line{animation-play-state:paused!important}
 html.lb-hidden #jv-hubp .hp,html.lb-hidden #jv-hubp .hp *,html.lb-hidden #jv-lines line{animation-play-state:paused!important}
 #jv-hubp .hp{will-change:translate}
+
+/* ===== iPhone: Kern als kleine Schaltfläche über der Tab-Leiste, Hub als Raster ===== */
+@media(max-width:600px){
+  html:not([data-hubmode]) #jv:not([data-open="1"]) #jv-stage{left:auto;right:12px;transform:none;width:auto;bottom:calc(var(--tabh,58px) + 12px)}
+  html:not([data-hubmode]) #jv:not([data-open="1"]) #jv-orb{width:68px;height:68px}
+  #jv-hist{top:10px}
+  html[data-hubmode] #hub{grid-template-columns:1fr;gap:8px}
+  html[data-hubmode] #hub .top{flex-wrap:wrap;gap:4px}
+  html[data-hubmode] #hub h1{font-size:22px;margin:0}
+  html[data-hubmode] #hub .sub{font-size:12.5px}
+  html[data-hubmode] #dop{padding:8px 12px;max-width:100%;overflow:hidden}
+  html[data-hubmode] #dop span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  html[data-hubmode] #jv-lines{display:none}
+  #jv-hubp .hp-ic{width:38px;height:38px}
+  #jv-hubp .hp-ic svg{width:22px;height:22px}
+  #jv-hubp .hp-n{font-size:11px;letter-spacing:.1em;padding-left:.1em}
+  #jv-hubp .hp-in{gap:5px}
+  #jv-hubp .hp-base{bottom:-12px;height:12px}
+  #jv-hubp .hp em{font-size:8px;padding:0 6px}
+}

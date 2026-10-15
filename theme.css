@@ -200,3 +200,29 @@ html[data-tab="puzzle"] button:active{transform:scale(.93) rotate(-1deg)}
 html[data-tab="puzzle"] button.primary,html[data-tab="puzzle"] button.pri{background:linear-gradient(135deg,rgb(var(--pz1)),rgb(var(--pz2)));color:#190a10;border-color:transparent}
 
 #lb-fps{position:fixed;left:8px;bottom:6px;z-index:200;padding:3px 8px;border-radius:8px;background:rgba(0,0,0,.65);color:#7dffb0;font:600 12px ui-monospace,Menlo,monospace;pointer-events:none}
+
+/* ===== iPhone (Hochformat, ≤ 600 px): Tab-Leiste unten, größere Tippflächen, nichts hinter Daumen und Home-Balken ===== */
+@media(max-width:600px){
+  html[data-hud]{--navh:0px!important;--tabh:calc(58px + env(safe-area-inset-bottom))}
+  html[data-hud] body{padding-top:14px!important;padding-bottom:calc(var(--tabh) + 22px)!important}
+  html[data-hud][data-jarvis] body{padding-bottom:calc(var(--tabh) + 22px)!important}
+  #lb-nav{top:auto;bottom:0;height:var(--tabh);padding:0 8px env(safe-area-inset-bottom);gap:2px;border-top:1px solid var(--edge);border-bottom:0}
+  #lb-nav::after{top:-1px;bottom:auto}
+  #lb-nav .tabs{gap:2px;justify-content:space-between;overflow:visible}
+  #lb-nav a.tab{flex:1;justify-content:center;min-width:0;padding:0;min-height:48px;border-radius:14px}
+  #lb-nav a.tab svg{width:23px;height:23px}
+  #lb-nav .gear{min-width:48px;min-height:48px}
+  #lb-set{top:auto;bottom:calc(var(--tabh) + 10px);right:10px;left:10px;width:auto;max-height:calc(100vh - var(--tabh) - 40px);overflow:auto}
+  a.back,.back{display:inline-flex;align-items:center;min-height:44px}
+  a.mu{display:inline-block;padding:10px 4px}
+  .seg button,button.chip,.chips .chip{min-height:42px!important}
+  #trNav a{min-height:42px;display:inline-flex;align-items:center}
+  input,select,textarea{font-size:16px!important}
+}
+@media(max-width:600px){
+ .datebar{flex-wrap:wrap}
+ .datebar #date{flex:1 0 100%;order:-1;text-align:center}
+ .datebar button{flex:1;min-height:44px}
+ a.mu,summary{min-height:44px;display:inline-flex;align-items:center}
+ #trNav a,#trNav button{min-height:44px}
+}
