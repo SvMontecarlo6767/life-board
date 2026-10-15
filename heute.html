@@ -102,7 +102,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 .sum ul{list-style:none;padding:0;margin:10px 0;text-align:left;font-size:14px}
 .sum li{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--bd)}
 @media (max-width:900px){.wh ul{grid-template-columns:1fr}.hero{grid-template-columns:1fr 1fr}.hero .card:first-child{grid-column:1/-1}.dnav .dt{min-width:120px}.bar .back{display:none}}
-</style><link rel="stylesheet" href="theme.css?v=2">
+</style><link rel="stylesheet" href="theme.css?v=3">
 </head><body>
 <div class="bar"><div class="in">
   <a class="back" href="index.html">← Start</a>
@@ -323,7 +323,7 @@ function dateLabel(k){
   const wd=new Intl.DateTimeFormat('de-DE',{weekday:'short',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d)));
   return wd+', '+String(d).padStart(2,'0')+'.'+String(m).padStart(2,'0')+'.';
 }
-function cu(id,v,sign){const e=$(id);if(!window.LBUI||e._v!==undefined){e._v=v;e.textContent=fmt(v,sign);return}e._v=v;if(!v){e.textContent=fmt(v,sign);return}LBUI.countUp(e,v,{dur:900,fmt:n=>fmt(Math.round(n),sign)});setTimeout(()=>{e.textContent=fmt(e._v,sign)},1000)}
+function cu(id,v,sign){const e=$(id);if(!window.LBUI||navigator.webdriver||e._v!==undefined){e._v=v;e.textContent=fmt(v,sign);return}e._v=v;if(!v){e.textContent=fmt(v,sign);return}LBUI.countUp(e,v,{dur:900,fmt:n=>fmt(Math.round(n),sign)});setTimeout(()=>{e.textContent=fmt(e._v,sign)},1000)}
 function renderSummary(c){
   const {rules,res}=c;
   const prior=priorAccount(cur),acc=prior+res.net;
