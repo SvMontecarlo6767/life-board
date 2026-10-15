@@ -9,7 +9,7 @@ const root=document.documentElement;
 const $=(t,a,c)=>{const e=document.createElement(t);if(a)Object.assign(e,a);(c||[]).forEach(x=>e.append(x));return e};
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const loadScript=src=>new Promise((res,rej)=>{if(document.querySelector('script[data-jv="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.dataset.jv=src;s.onload=res;s.onerror=()=>rej(new Error('Laden fehlgeschlagen: '+src));document.head.append(s)});
-const css=document.createElement('link');css.rel='stylesheet';css.href='jarvis.css?v=3';document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href='jarvis.css?v=4';document.head.append(css);
 const ST=()=>(window.LBUI&&LBUI.settings)||{speak:true};
 const snd=n=>{try{window.LBUI&&LBUI.sound(n)}catch(e){}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -250,7 +250,6 @@ function build(){
    '<form id="jv-form" autocomplete="off"><input id="jv-in" type="text" enterkeyhint="send" placeholder="Schreib Jarvis …" aria-label="Nachricht an Jarvis"><button class="jb" type="submit" aria-label="Senden">➤</button></form>'+
    '<div id="jv-bar"><button class="jb" id="jv-mode" aria-pressed="true"></button><button class="jb" id="jv-whoop" aria-pressed="true">Whoop-Daten</button><button class="jb" id="jv-histb">Verlauf</button><button class="jb" id="jv-close">Schließen</button></div></div>';
   document.body.append(r);
-  buildPlat(r);
   setTimeout(()=>buildHub(r),0);
   el={root:r,canvas:r.querySelector('canvas'),orb:r.querySelector('#jv-orb'),hit:r.querySelector('#jv-hit'),hint:r.querySelector('#jv-hint'),you:r.querySelector('#jv-you'),say:r.querySelector('#jv-say'),
       form:r.querySelector('#jv-form'),input:r.querySelector('#jv-in'),hist:r.querySelector('#jv-hist'),hbody:r.querySelector('#jv-hbody'),conf:r.querySelector('#jv-confirm'),mode:r.querySelector('#jv-mode'),whoop:r.querySelector('#jv-whoop')};

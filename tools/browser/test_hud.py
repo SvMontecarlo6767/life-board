@@ -31,7 +31,7 @@ with sync_playwright() as p:
     from PIL import Image
     im=Image.open(io.BytesIO(pg.locator('#lb-bg').screenshot())).convert('L'); px=list(im.getdata())
     ck('3D-Hintergrund zeichnet etwas (nicht leer)',max(px)>25 and len(set(px))>8,(min(px),max(px)))
-    ck('Tab-Leiste: alle Touchflächen ≥ 44 px',pg.evaluate("Math.min(...[...document.querySelectorAll('#jv-plat a.pl,#lb-gear')].map(e=>e.offsetHeight))")>=44)
+    ck('Tab-Leiste: alle Touchflächen ≥ 44 px',pg.evaluate("Math.min(...[...document.querySelectorAll('#lb-nav a.tab,#lb-gear')].map(e=>e.offsetHeight))")>=44)
     # Einstellungen
     pg.tap('#lb-gear'); ck('Einstellungs-Panel öffnet',pg.is_visible('#lb-set'))
     ck('Schalter ≥ 44 px hoch',pg.evaluate("Math.min(...[...document.querySelectorAll('#lb-set .lb-sw')].map(e=>e.offsetHeight))")>=44)
@@ -50,7 +50,7 @@ with sync_playwright() as p:
     pg.keyboard.press('Escape'); pg.tap('.bar,h1') if False else None
     # Reiterwechsel + Akzent
     pg.tap('#lb-gear') if pg.is_visible('#lb-set') else None
-    pg.tap('#jv-plat a.pl[href^=recovery]',force=True); pg.wait_for_url(re.compile('recovery.html'),timeout=8000); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(1000)
+    pg.tap('#lb-nav a.tab[data-tab=recovery]'); pg.wait_for_url(re.compile('recovery.html'),timeout=8000); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(1000)
     ck('Reiterwechsel mit Übergang',pg.inner_text('#lb-nav a.tab.act').strip().lower()=='recovery')
     ck('Akzent Recovery = Grün',pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")=='52 235 170')
     # neuer Reiter per Config
@@ -64,7 +64,7 @@ with sync_playwright() as p:
     ctx.close()
     # Zurück-Taste / bfcache: Seite nicht ausgeblendet
     ctx=ctxof(b); pg=ctx.new_page(); pg.goto(f'http://127.0.0.1:{port}/index.html'); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(500)
-    pg.tap('#jv-plat a.pl[href^=learn]:visible, #jv-hubp a.hp[href^=learn]:visible',force=True); pg.wait_for_url(re.compile('learn.html')); pg.go_back(); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(600)
+    pg.tap('#lb-nav a.tab[data-tab=lernen]:visible, #jv-hubp a.hp[href^=learn]:visible',force=True); pg.wait_for_url(re.compile('learn.html')); pg.go_back(); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(600)
     ck('Zurück-Taste: Seite sichtbar',pg.evaluate("!document.documentElement.classList.contains('lb-leave') && getComputedStyle(document.body).opacity")!='0' )
     b.close()
 print('\n'.join(res)); print('FEHLER:',fails); sys.exit(1 if fails else 0)
