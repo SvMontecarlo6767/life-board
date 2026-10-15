@@ -395,8 +395,8 @@ function render(){
   const c=calc(cur);
   renderSummary(c);renderWhoop(c);
   let html='';
-  for(const g of c.rules.ui.groups){
-    const bs=c.rules.ui.buttons.filter(b=>b.group===g.id);
+  for(const g of RULES[CURV].ui.groups){
+    const bs=RULES[CURV].ui.buttons.filter(b=>b.group===g.id);
     html+='<section class="cat" id="g-'+g.id+'"><h2>'+esc(g.name)+'<small>'+bs.length+' Knöpfe</small></h2><div class="chips">'+bs.map(b=>chipHtml(b,c)).join('')+'</div></section>';
   }
   $('grid').innerHTML=html;
@@ -513,6 +513,10 @@ try{
   // lokal gesicherte, noch nicht bestätigte Tage erneut senden
   const pend=lsGet();let replay=[];
   for(const k of Object.keys(pend)){if(!DAYS[k]||(DAYS[k].updatedAt||0)<=(pend[k].updatedAt||0)){DAYS[k]=pend[k];replay.push(k)}}
+  // offene Tage aus Regelwerk v1 auf v2 umstellen (alte Angaben bleiben als legacyV1 erhalten)
+  for(const k of Object.keys(DAYS)){const d=DAYS[k];if((d.rulesVersion||1)<2&&!d.closed){
+    DAYS[k]=Object.assign({},d,{rulesVersion:2,in:{},a:{},x:{},legacyV1:{a:d.a||{},net:d.net||0},updatedAt:Date.now()});
+    const p=lsGet();p[k]=DAYS[k];lsSet(p);replay.push(k)}}
   setInfo();render();setSave('');
   replay.forEach(k=>flush(k));
   await loadWhoop();

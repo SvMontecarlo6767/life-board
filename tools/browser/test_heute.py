@@ -5,6 +5,7 @@ from playwright.sync_api import sync_playwright
 root=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','..'))
 back=json.load(open(sys.argv[1])); shots=sys.argv[2]; os.makedirs(shots,exist_ok=True)
 seed={}
+seed['users/u1/days/2026-10-14']={'date':'2026-10-14','rulesVersion':1,'a':{'MOR-01':1},'puz':330,'net':390,'rank':'C','closed':False,'focus':'','updatedAt':1}
 for d,v in back['days'].items(): seed['users/u1/puzzle/'+d]=v
 mock=open(os.path.join(root,'tools/browser/firebase-mock.js')).read()
 # Whoop-Testdaten: 7 gelbe Vortage (HRV 70, Ruhepuls 55), heute grün mit gutem Schlaf und einer Spinning-Einheit (62 Min)
@@ -51,6 +52,7 @@ def run(p,w,h):
     t=f'[{w}px] '
     ck(t+'keine Konsolenfehler',not errs,errs[:2])
     ck(t+'kein Seitwärtsscrollen',pg.evaluate('document.documentElement.scrollWidth<=window.innerWidth'))
+    ck(t+'Alter v1-Tag wurde auf v2 umgestellt, Altwert gesichert',pg.evaluate('window.__store["users/u1/days/2026-10-14"].legacyV1!==undefined'))
     n=pg.locator('.chip[data-b]').count(); ck(t+'höchstens 30 Tipp-Knöpfe',n<=30,n)
     fx=' '.join(pg.inner_text('#facts').split()); ck(t+'Whoop-Fakten sichtbar','Recovery 72 %' in fx and 'spinning 62 Min' in fx,fx[:90])
     wl=pg.inner_text('#whList')
