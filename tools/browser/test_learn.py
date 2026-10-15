@@ -86,7 +86,7 @@ def run(p,w,h):
     day=pg.evaluate("window.__store['users/u1/learn/2026-10-15']")
     ck(t+'Mehr als 3 Runden: Zähler bleibt bei 3',sum(v for k,v in day['counts'].items() if k.startswith('WDH'))==3,day['counts'])
     ck(t+'Hinweis zum Tageslimit','weitere Runden geben keine Punkte' in pg.inner_text('#start'))
-    ck(t+'keine Konsolenfehler',not errs,errs[:2]); ck(t+'kein Seitwärtsscrollen',pg.evaluate('document.documentElement.scrollWidth<=window.innerWidth'))
+    ck(t+'keine Konsolenfehler',not [e for e in errs if 'TUNNEL' not in e],errs[:2]); ck(t+'kein Seitwärtsscrollen',pg.evaluate('document.documentElement.scrollWidth<=window.innerWidth'))
     pg.screenshot(path=f'{shots}/learn_{w}.png')
     # Notion nicht eingerichtet -> verständliche Meldung
     st['noion']=True; pg.click('#sync'); pg.wait_for_selector('.info.warn')

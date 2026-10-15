@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de"><head><meta charset="utf-8">
+<html lang="de" data-hud><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Life Board</title>
 <style>
@@ -32,7 +32,8 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 #whMsg.warn{color:var(--bad)}#whMsg.good{color:var(--ac)}
 #err{color:var(--bad);margin-top:12px;font-size:14px}
 [hidden]{display:none!important}
-</style></head><body><main>
+</style><link rel="stylesheet" href="theme.css?v=1">
+</head><body><main>
 <section id="login" hidden>
   <h1>Life Board</h1>
   <p class="sub">Dein persönliches Board. Bitte anmelden.</p>
@@ -209,4 +210,5 @@ async function dopStatus(u){
 }
 auth.onAuthStateChanged(u=>{if(u)dopStatus(u)});
 </script>
-</main></body></html>
+</main><script src="theme.js?v=1"></script>
+</body></html>

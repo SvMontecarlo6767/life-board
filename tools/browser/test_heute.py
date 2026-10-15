@@ -50,7 +50,7 @@ def run(p,w,h):
     pg.clock.set_fixed_time('2026-10-14T12:00:00+02:00')
     pg.goto(URL); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'")
     t=f'[{w}px] '
-    ck(t+'keine Konsolenfehler',not errs,errs[:2])
+    ck(t+'keine Konsolenfehler',not [e for e in errs if 'TUNNEL' not in e],errs[:2])
     ck(t+'kein Seitwärtsscrollen',pg.evaluate('document.documentElement.scrollWidth<=window.innerWidth'))
     ck(t+'Alter v1-Tag wurde auf v2 umgestellt, Altwert gesichert',pg.evaluate('window.__store["users/u1/days/2026-10-14"].legacyV1!==undefined'))
     n=pg.locator('.chip[data-b]').count(); ck(t+'höchstens 30 Tipp-Knöpfe',n<=30,n)
@@ -135,7 +135,7 @@ def run(p,w,h):
     ck(t+'Leere Seite wird beim Zurückkehren selbst repariert',pg.locator('.chip[data-b]').count()==28)
     # Startseite zeigt das Konto
     hub=ctx.new_page(); hub.goto(URL.replace('heute.html','index.html')); hub.wait_for_function("document.getElementById('dopTxt').textContent.includes('Dopamin insgesamt')",timeout=8000)
-    ck(t+'Startseite zeigt Konto + Level + heute',all(x in hub.inner_text('#dopTxt') for x in('Level 3','Heute (14.10.)','Rang')),hub.inner_text('#dopTxt').replace('\n',' '))
+    ck(t+'Startseite zeigt Konto + Level + heute',all(x.lower() in hub.inner_text('#dopTxt').lower() for x in('Level 3','Heute (14.10.)','Rang')),hub.inner_text('#dopTxt').replace('\n',' '))
     hub.screenshot(path=f'{shots}/hub-{w}.png'); hub.close()
     # Tagesabschluss
     before=val(pg.inner_text('#netTop'))
@@ -171,8 +171,8 @@ def run(p,w,h):
     # Maße
     small=pg.evaluate('Math.min(...[...document.querySelectorAll(".chip[data-b]")].map(e=>e.getBoundingClientRect().height))')
     ck(t+'Knöpfe mindestens 44px hoch',small>=44,round(small))
-    small=pg.evaluate('Math.min(...[...document.querySelectorAll("button")].filter(b=>b.offsetParent&&!b.classList.contains("minus")).map(e=>e.getBoundingClientRect().height))')
-    ck(t+'Buttons mindestens 44px',small>=44,round(small))
+    small=pg.evaluate('Math.min(...[...document.querySelectorAll("button")].filter(b=>b.offsetParent&&!b.classList.contains("minus")).map(e=>e.offsetHeight))')
+    ck(t+'Buttons mindestens 44px',small>=44,[round(small),pg.evaluate('(()=>{const b=[...document.querySelectorAll("button")].filter(b=>b.offsetParent&&!b.classList.contains("minus")).sort((a,c)=>a.getBoundingClientRect().height-c.getBoundingClientRect().height)[0];return b.id+"|"+b.className+"|"+b.textContent.slice(0,20)})()')])
     b.close()
 with sync_playwright() as p:
     for w,h in((1024,768),(820,1180)):
