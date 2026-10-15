@@ -286,40 +286,36 @@ async function notionQuestions(env, id) {
 
 // ---------- KI-Assistent (Gemini, kostenloses Kontingent) ----------
 const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
-const AI_SYSTEM = 'Du bist der persönliche Assistent im "Life Board" einer einzelnen Person (Whoop-Daten, Dopamin-Punkte-System, Lernen mit Wiederholungen, Puzzle-Tracker). ' +
-  'Antworte auf Deutsch, knapp und konkret, ohne Floskeln. Stütze dich auf die mitgelieferten Daten und die Seitenbeschreibung; erfinde keine Zahlen. ' +
-  'Wenn Daten fehlen, sag das. Gib keine medizinischen Diagnosen. Bei Bewertungen von Lernantworten: nenne einen Vorschlag (richtig / fast / falsch) mit kurzer Begründung; die Person entscheidet selbst.';
-async function askGemini(env, body) {
-  if (!env.GEMINI_KEY) { const e = new Error('GEMINI_KEY fehlt'); e.code = 'NO_AI'; throw e; }
-  const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
-  if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
-  const ctx = String(body.context || '').slice(0, 40000);
-  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 60;
-  const dk = new Date().toISOString().slice(0, 10), key = 'ai:' + dk;
+const AI_SYSTEM = 'Du bist J.A.R.V.I.S, der persönliche Assistent im "Life Board" einer einzelnen Person (Whoop-Daten, Dopamin-Punkte-System, Lernen mit Wiederholungen, Puzzle-Tracker). ' +
+  'Persönlichkeit: ruhig, souverän, knapp, leicht trocken, wie der Jarvis aus Iron Man. Du sprichst die Person mit "du" an und antwortest auf Deutsch, ohne Floskeln und ohne Begrüßungsformeln. ' +
+  'Stütze dich auf die mitgelieferten Daten und die Seitenbeschreibung; erfinde keine Zahlen. Wenn Daten fehlen, sag das. Gib keine medizinischen Diagnosen. ' +
+  'Bei Bewertungen von Lernantworten: nenne einen Vorschlag (richtig / fast / falsch) mit kurzer Begründung; die Person entscheidet selbst.';
+const AI_VOICE = '\n\nDIESE ANTWORT WIRD VORGELESEN: höchstens 2 kurze Sätze (unter 40 Wörtern), reiner Fließtext ohne Listen, Markdown, Emojis oder Klammern. Ausführliches nur anbieten ("Details stehen im Verlauf") statt vorlesen.';
+const mkModel = (m) => String(m).replace(/^models\//, '').replace(/[^a-z0-9.\-]/gi, '');
+async function aiCount(env, kind, limit) {
+  const dk = new Date().toISOString().slice(0, 10), key = kind + ':' + dk;
   const used = parseInt((await env.WB.get(key)) || '0', 10);
-  if (used >= limit) { const e = new Error('Tageslimit für KI-Fragen erreicht (' + limit + ')'); e.code = 'AI_LIMIT'; throw e; }
+  if (used >= limit) { const e = new Error('Tageslimit erreicht (' + limit + ' ' + (kind === 'tts' ? 'Sprachausgaben' : 'KI-Anfragen') + ')'); e.code = 'AI_LIMIT'; throw e; }
   await env.WB.put(key, String(used + 1), { expirationTtl: 172800 });
-  const contents = msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content || '').slice(0, 4000) }] }));
-  const mk = (m) => String(m).replace(/^models\//, '').replace(/[^a-z0-9.\-]/gi, '');
+  return used + 1;
+}
+// Textmodell mit Ersatzlogik: gemerktes Modell, konfiguriertes, bekannte Namen, sonst Modellliste des Keys
+async function geminiGenerate(env, payload) {
   const call = async (model) => {
-    const r = await fetch(GEMINI_API + model + ':generateContent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
-      body: JSON.stringify({ systemInstruction: { parts: [{ text: AI_SYSTEM + '\n\n' + ctx }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: 1200 } })
-    });
+    const r = await fetch(GEMINI_API + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, body: JSON.stringify(payload) });
     return { r, d: await r.json().catch(() => ({})) };
   };
   const tried = []; let r, d;
   const cached = await env.WB.get('ai_model');
-  const first = [cached, env.GEMINI_MODEL, 'gemini-3.5-flash-lite', 'gemini-3.8-flash'].filter(Boolean).map(mk);
+  const first = [cached, env.GEMINI_MODEL, 'gemini-3.5-flash-lite', 'gemini-3.8-flash'].filter(Boolean).map(mkModel);
   for (const model of [...new Set(first)]) {
     tried.push(model); ({ r, d } = await call(model));
     if (r.status !== 404) { if (r.ok) await env.WB.put('ai_model', model); break; }
   }
-  if (r.status === 404) { // Modelle des Keys abfragen und passende Flash-Modelle der Reihe nach probieren
+  if (r.status === 404) {
     const lm = await fetch(GEMINI_API.replace(/models\/$/, 'models') + '?pageSize=200', { headers: { 'x-goog-api-key': env.GEMINI_KEY } });
     const ld = await lm.json().catch(() => ({}));
-    const avail = (ld.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && /flash/i.test(m.name) && !/image|tts|live|audio|embed|thinking|exp|preview|robotics|computer|native/i.test(m.name)).map(m => mk(m.name));
+    const avail = (ld.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && /flash/i.test(m.name) && !/image|tts|live|audio|embed|thinking|exp|preview|robotics|computer|native/i.test(m.name)).map(m => mkModel(m.name));
     avail.sort((x, y) => (/lite/.test(y) ? 1 : 0) - (/lite/.test(x) ? 1 : 0) || (x < y ? 1 : -1));
     for (const model of avail.filter(m => !tried.includes(m)).slice(0, 4)) {
       tried.push(model); ({ r, d } = await call(model));
@@ -328,10 +324,66 @@ async function askGemini(env, body) {
     if (r.status === 404) d = { error: { message: 'kein passendes Modell gefunden; vom Key unterstützt: ' + (avail.slice(0, 8).join(', ') || (ld.error && ld.error.message) || 'keine') } };
   }
   if (!r.ok) { const e = new Error(r.status === 429 ? 'Gemini-Kontingent gerade aufgebraucht, später erneut versuchen' : 'Gemini ' + r.status + (d && d.error && d.error.message ? ': ' + String(d.error.message).slice(0, 200) : '') + ' (versucht: ' + tried.join(', ') + ')'); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
-  const text = (((d.candidates || [])[0] || {}).content || {}).parts;
-  const out = text ? text.map(p => p.text || '').join('') : '';
+  return d;
+}
+const textOf = (d) => { const p = (((d.candidates || [])[0] || {}).content || {}).parts; return p ? p.map(x => x.text || '').join('') : ''; };
+function needKey(env) { if (!env.GEMINI_KEY) { const e = new Error('GEMINI_KEY fehlt'); e.code = 'NO_AI'; throw e; } }
+async function askGemini(env, body) {
+  needKey(env);
+  const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
+  if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
+  const ctx = String(body.context || '').slice(0, 40000);
+  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 150;
+  const used = await aiCount(env, 'ai', limit);
+  const contents = msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content || '').slice(0, 4000) }] }));
+  const d = await geminiGenerate(env, { systemInstruction: { parts: [{ text: AI_SYSTEM + (body.voice ? AI_VOICE : '') + '\n\n' + ctx }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: body.voice ? 300 : 1200 } });
+  const out = textOf(d);
   if (!out) { const e = new Error('Keine Antwort erhalten (evtl. blockiert)'); e.code = 'AI'; throw e; }
-  return { answer: out, used: used + 1, limit };
+  return { answer: out, used, limit };
+}
+// Sprache -> Text (Aufnahme als WAV, base64)
+async function sttGemini(env, body) {
+  needKey(env);
+  const audio = String(body.audio || ''), mime = /^audio\/[a-z0-9.+-]+$/i.test(body.mime || '') ? body.mime : 'audio/wav';
+  if (!audio || audio.length < 200) { const e = new Error('Aufnahme leer'); e.code = 'RANGE'; throw e; }
+  if (audio.length > 12e6) { const e = new Error('Aufnahme zu lang'); e.code = 'RANGE'; throw e; }
+  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 150;
+  const used = await aiCount(env, 'ai', limit);
+  const d = await geminiGenerate(env, { contents: [{ role: 'user', parts: [{ text: 'Transkribiere diese Sprachaufnahme wörtlich auf Deutsch. Gib nur den gesprochenen Text zurück, ohne Anführungszeichen und ohne Kommentar. Ist nichts Verständliches zu hören, gib ein leeres Ergebnis zurück.' }, { inline_data: { mime_type: mime, data: audio } }] }], generationConfig: { temperature: 0, maxOutputTokens: 400 } });
+  return { text: textOf(d).trim(), used, limit };
+}
+// Text -> Sprache (Gemini-TTS). Probiert die Interactions-API (laut Doku) und danach generateContent.
+async function ttsGemini(env, body) {
+  needKey(env);
+  const text = String(body.text || '').trim().slice(0, 1200);
+  if (!text) { const e = new Error('kein Text'); e.code = 'RANGE'; throw e; }
+  const voice = String(body.voice || env.GEMINI_VOICE || 'Charon').replace(/[^A-Za-z]/g, '').slice(0, 24) || 'Charon';
+  const limit = parseInt(env.AI_TTS_DAILY_LIMIT, 10) || 150;
+  await aiCount(env, 'tts', limit);
+  const models = [...new Set([env.GEMINI_TTS_MODEL, 'gemini-3.8-flash-tts', 'gemini-3.8-flash-lite-tts'].filter(Boolean).map(mkModel))];
+  const style = 'Ruhig, souverän, leicht trocken, deutsche Aussprache, mittleres Tempo';
+  const errs = [];
+  const findAudio = (d) => { // Base64-Audio irgendwo in der Antwort finden
+    let found = null;
+    const walk = (o) => { if (found || !o || typeof o !== 'object') return; if (typeof o.data === 'string' && o.data.length > 400 && (o.type === 'audio' || /audio/.test(o.mime_type || o.mimeType || ''))) { found = { audio: o.data, mime: o.mime_type || o.mimeType || 'audio/wav' }; return } if (o.inlineData && o.inlineData.data) { found = { audio: o.inlineData.data, mime: o.inlineData.mimeType || 'audio/l16;rate=24000' }; return } for (const k of Object.keys(o)) walk(o[k]) };
+    walk(d); return found;
+  };
+  for (const model of models) {
+    try {
+      let r = await fetch('https://generativelanguage.googleapis.com/v1beta/interactions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
+        body: JSON.stringify({ model, input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style }] }] }], response_format: { type: 'audio', mime_type: 'audio/wav' }, generation_config: { speech_config: [{ voice }] }, stream: false }) });
+      let d = await r.json().catch(() => ({})); let a = r.ok && findAudio(d);
+      if (a) return a;
+      errs.push(model + ' interactions ' + r.status + (d.error && d.error.message ? ' ' + String(d.error.message).slice(0, 80) : ''));
+      r = await fetch(GEMINI_API + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
+        body: JSON.stringify({ contents: [{ parts: [{ text }] }], generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } } }) });
+      d = await r.json().catch(() => ({})); a = r.ok && findAudio(d);
+      if (a) return a;
+      errs.push(model + ' generateContent ' + r.status + (d.error && d.error.message ? ' ' + String(d.error.message).slice(0, 80) : ''));
+      if (r.status === 429) break;
+    } catch (e) { errs.push(model + ' ' + e.message) }
+  }
+  const e = new Error('Sprachausgabe nicht verfügbar (' + errs.join('; ').slice(0, 300) + ')'); e.code = 'AI'; throw e;
 }
 
 // ---------- Routen ----------
@@ -402,6 +454,8 @@ export default {
         const b = await request.json().catch(() => ({}));
         return json(env, await askGemini(env, b));
       }
+      if (url.pathname === '/stt' && request.method === 'POST') return json(env, await sttGemini(env, await request.json().catch(() => ({}))));
+      if (url.pathname === '/tts' && request.method === 'POST') return json(env, await ttsGemini(env, await request.json().catch(() => ({}))));
       if (url.pathname === '/disconnect' && request.method === 'POST') {
         await env.WB.delete('tokens');
         return json(env, { ok: true });

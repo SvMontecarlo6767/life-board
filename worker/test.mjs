@@ -33,6 +33,16 @@ globalThis.fetch = async (url, opts = {}) => {
     if (body.get('grant_type') === 'refresh_token') { refreshCount++; if (body.get('refresh_token') !== 'R' + refreshCount) return new Response('{"error":"invalid_grant"}', { status: 400 }); return ok({ access_token: 'A' + (refreshCount + 1), refresh_token: 'R' + (refreshCount + 1), expires_in: 3600 }); }
     return ok({ access_token: 'A1', refresh_token: 'R1', expires_in: 3600 });
   }
+  if (url === 'https://generativelanguage.googleapis.com/v1beta/interactions') {
+    if (opts.headers?.['x-goog-api-key'] !== 'GK') return new Response('{}', { status: 403 });
+    const b = JSON.parse(opts.body); globalThis.__tts = b;
+    if (globalThis.__ttsMode === 'interactions') return ok({ steps: [{ content: [{ type: 'audio', data: 'A'.repeat(600), mime_type: 'audio/wav' }] }] });
+    return new Response('{"error":{"message":"nope"}}', { status: 404 });
+  }
+  if (url.includes('-tts:generateContent')) {
+    if (globalThis.__ttsMode === 'generate') return ok({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;rate=24000', data: 'B'.repeat(600) } }] } }] });
+    return new Response('{"error":{"message":"bad"}}', { status: 400 });
+  }
   if (url.startsWith('https://generativelanguage.googleapis.com/')) {
     if (opts.headers?.['x-goog-api-key'] !== 'GK') return new Response('{}', { status: 403 });
     if (url.includes('/models?')) return ok({ models: [{ name: 'models/gemini-9-flash', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9-flash-image', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9-pro', supportedGenerationMethods: ['generateContent'] }] });
@@ -195,5 +205,30 @@ console.log('✓ Zeitraum-Schutz');
   assert.ok(globalThis.__gemUrls[n5].includes('gemini-9-flash:'), 'gefundenes Modell wird gemerkt');
   globalThis.__gem404 = 'all';
   console.log('✓ KI-Assistent');
+}
+
+// 9) Sprache: STT und TTS
+{
+  const venv = { ...env, WB: kv(), GEMINI_KEY: 'GK' };
+  const post = async (path, body, e = venv) => { const r = await worker.fetch(req(path, { method: 'POST', body }), e); return { status: r.status, body: await r.json() } };
+  globalThis.__gem404 = false;
+  const st = await post('/stt', { audio: 'QUJD'.repeat(100), mime: 'audio/wav' });
+  assert.equal(st.status, 200, JSON.stringify(st.body)); assert.equal(st.body.text, 'Antwort 1');
+  assert.ok(JSON.stringify(globalThis.__gem.contents[0].parts).includes('inline_data'), 'Audio wird als inline_data geschickt');
+  assert.equal((await post('/stt', { audio: 'x' })).status, 400);
+  globalThis.__ttsMode = 'interactions';
+  const t1 = await post('/tts', { text: 'Guten Morgen.', voice: 'Orus' });
+  assert.equal(t1.status, 200, JSON.stringify(t1.body)); assert.equal(t1.body.mime, 'audio/wav'); assert.equal(t1.body.audio.length, 600);
+  assert.equal(globalThis.__tts.generation_config.speech_config[0].voice, 'Orus'); assert.equal(globalThis.__tts.model, 'gemini-3.8-flash-tts');
+  globalThis.__ttsMode = 'generate';
+  const t2 = await post('/tts', { text: 'Test' }); assert.equal(t2.status, 200, JSON.stringify(t2.body)); assert.ok(t2.body.mime.includes('L16'));
+  globalThis.__ttsMode = 'none';
+  const t3 = await post('/tts', { text: 'Test' }); assert.equal(t3.status, 502); assert.ok(t3.body.error.includes('Sprachausgabe nicht verfügbar'));
+  const lim = { ...venv, WB: kv(), AI_TTS_DAILY_LIMIT: '1' }; globalThis.__ttsMode = 'interactions';
+  await post('/tts', { text: 'a' }, lim); assert.equal((await post('/tts', { text: 'b' }, lim)).status, 429);
+  assert.equal((await post('/tts', { text: '' })).status, 400);
+  const v = await post('/ask', { messages: [{ role: 'user', content: 'hi' }], voice: true }); assert.equal(v.status, 200);
+  assert.ok(globalThis.__gem.systemInstruction.parts[0].text.includes('VORGELESEN') && globalThis.__gem.systemInstruction.parts[0].text.includes('J.A.R.V.I.S'));
+  console.log('✓ Sprache (STT/TTS)');
 }
 console.log('Alle Tests bestanden');

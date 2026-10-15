@@ -105,14 +105,14 @@ async function listChats(){
   const s=await fs.collection('users/'+user.uid+'/chats').get();
   return s.docs.map(x=>({id:x.id,...x.data()})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,60);
 }
-async function ask(prompt,extra,history){
+async function ask(prompt,extra,history,opts){
   if(busy)throw new Error('Es läuft noch eine Anfrage');busy=true;
   try{
     const snap=await snapshot();
     let page='';try{page=window.LB_PAGE_CONTEXT?String(window.LB_PAGE_CONTEXT()||''):''}catch(e){}
     const ctx='AKTUELLE SEITE: '+location.pathname.split('/').pop()+(page?'\n'+String(page).slice(0,4000):'')+(extra?'\n'+String(extra).slice(0,6000):'')+'\n\n'+snap;
     const m=(history||[]).concat([{role:'user',content:prompt}]);
-    return await worker('/ask',{method:'POST',body:JSON.stringify({messages:m,context:ctx})});
+    return await worker('/ask',{method:'POST',body:JSON.stringify({messages:m,context:ctx,voice:!!(opts&&opts.voice)})});
   }finally{busy=false}
 }
 /* ---------- Oberfläche ---------- */
@@ -171,10 +171,22 @@ function ui(){
   };
   T.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();p.querySelector('#aiF').requestSubmit()}};
 }
-window.Assistant={ask,snapshot,open(){const b=document.getElementById('aiB');if(b&&document.getElementById('aiP').hidden)b.click()}};
+/* Chat-Speicher für die Jarvis-Oberfläche (gleiche Dokumente users/{uid}/chats wie bisher) */
+const chat={
+  get msgs(){return msgs},get id(){return cid},
+  async ready(){await getUser();return user},
+  add(q,a){msgs.push({role:'user',content:q},{role:'assistant',content:a});try{localStorage.setItem(LK,JSON.stringify(msgs.slice(-40)))}catch(e){}return saveChat()},
+  fresh(){msgs=[];cid=null;try{localStorage.removeItem('lb_ai_cid');localStorage.setItem(LK,'[]')}catch(e){}},
+  open(c){msgs=(c.messages||[]).slice();cid=c.id;try{localStorage.setItem('lb_ai_cid',cid);localStorage.setItem(LK,JSON.stringify(msgs.slice(-40)))}catch(e){}},
+  list:()=>listChats(),
+  async remove(id){await fs.doc('users/'+user.uid+'/chats/'+id).delete();if(id===cid)chat.fresh()},
+  history(n){return msgs.slice(-(n||10))}
+};
+window.Assistant={ask,snapshot,chat,worker:(p,o)=>getUser().then(()=>worker(p,o)),useWhoop:()=>useWhoop(),setWhoop(v){try{localStorage.setItem(WK,v?'1':'0')}catch(e){}cache=null},open(){const b=document.getElementById('aiB');if(b&&document.getElementById('aiP').hidden)b.click()}};
+const classic=()=>{try{return localStorage.getItem('lb_classic_ai')==='1'}catch(e){return false}};   // altes Chatfenster nur noch auf ausdrücklichen Wunsch
 function start(){
   if(typeof auth==='undefined'||typeof fs==='undefined')return;
-  auth.onAuthStateChanged(u=>{user=u;if(u&&!document.getElementById('aiB'))ui();if(!u){const b=document.getElementById('aiB'),p=document.getElementById('aiP');b&&b.remove();p&&p.remove()}});
+  auth.onAuthStateChanged(u=>{user=u;if(u&&!document.getElementById('aiB')&&classic())ui();if(!u){const b=document.getElementById('aiB'),p=document.getElementById('aiP');b&&b.remove();p&&p.remove()}});
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
