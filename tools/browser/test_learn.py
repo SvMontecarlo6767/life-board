@@ -20,6 +20,11 @@ def ck(n,c,x=''):
     if not c: fails+=1
 def run(p,w,h):
     b=p.chromium.launch(); ctx=b.new_context(viewport={'width':w,'height':h},has_touch=True)
+    seed={}
+    for i,(f,n) in enumerate([('1.5','4'),('2.5','3'),('1.0','5'),('3.0','4'),('2.0','2')]):
+        seed['users/u1/puzzle/2026-10-%02d'%(10+i)]={'g':{'fermi':{'s':f,'w':1},'ner':{'s':n,'w':1}}}
+    seed['users/u1/days/2026-10-14']={'date':'2026-10-14','net':800,'rank':'B','closed':False,'in':{},'rulesVersion':2}
+    ctx.add_init_script('window.__seed='+json.dumps(seed)+';')
     for n,body in(('app',mock),('auth',''),('firestore','')):
         ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%n),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))
     st={'qcalls':0,'noion':False,'ask':[]}
@@ -107,10 +112,27 @@ def run(p,w,h):
     ck(t+'KI: Frage und Antwort im Chat','Testantwort' in pg.inner_text('#aiM'))
     ck(t+'KI: Seitenübersicht im Kontext','SEITENÜBERSICHT' in c and 'Regelwerk v2' in c)
     ck(t+'KI: Board-Daten im Kontext (Konto/Tage/Fragen/Whoop)','FRAGEN:' in c and 'THEMEN:' in c and 'Recovery 72' in c and 'spinning 62min' in c and 'LERNRUNDEN' in c,c[c.find('DATEN'):][:200])
+    ck(t+'KI: Puzzle-Tracker im Kontext (Spiele, Trend, Tageswert)','PUZZLE-TRACKER: 5 Tage' in c and 'Fermi (Score' in c and 'Nerdle' in c and 'Tageswert' in c,c[c.find('PUZZLE'):][:260])
+    ck(t+'KI: Vergleichstabelle mit Puzzle, Punkten und Whoop','VERGLEICHSTABELLE' in c and '2026-10-14 |' in c and '| 800 |' in c.replace(' ','').replace('|',' | ') or ('2026-10-14 | ' in c and '72' in c))
+    ck(t+'KI: Chat automatisch gespeichert',pg.evaluate("Object.keys(window.__store).filter(k=>k.includes('/chats/')).length")==1 and 'Wie war meine Woche' in pg.evaluate("Object.values(window.__store).find(v=>v&&v.messages).title"))
     ck(t+'KI: Zähler sichtbar','1 von 60' in pg.inner_text('#aiS'))
     pg.uncheck('#aiW'); pg.fill('#aiT','Noch eine'); pg.press('#aiT','Enter'); pg.wait_for_function("document.querySelectorAll('#aiM .u').length>=2 && !document.querySelector('#aiM .a:last-child').textContent.includes('…')")
     ck(t+'KI: Whoop abschaltbar','WHOOP: vom Nutzer' in st['ask'][-1]['context'] and 'Recovery 72' not in st['ask'][-1]['context'])
     ck(t+'KI: Verlauf wird mitgeschickt',len(st['ask'][-1]['messages'])==3)
+    # neuer Chat + Verlauf
+    pg.click('#aiR'); pg.fill('#aiT','Zweiter Chat'); pg.press('#aiT','Enter'); pg.wait_for_function("document.querySelectorAll('#aiM .a').length>=2")
+    pg.wait_for_function("Object.keys(window.__store).filter(k=>k.includes('/chats/')).length==2")
+    pg.click('#aiH'); pg.wait_for_function("document.querySelectorAll('#aiM .a').length>=2")
+    lst=pg.inner_text('#aiM')
+    ck(t+'Verlauf zeigt beide Chats','Wie war meine Woche' in lst and 'Zweiter Chat' in lst,lst[:120])
+    pg.locator('#aiM .a',has_text='Wie war meine Woche').click()
+    ck(t+'Alter Chat lässt sich öffnen und fortsetzen','Noch eine' in pg.inner_text('#aiM'))
+    pg.fill('#aiT','Weiter im alten'); pg.press('#aiT','Enter'); pg.wait_for_function("document.querySelectorAll('#aiM .u').length>=3")
+    pg.wait_for_function("Object.values(window.__store).filter(v=>v&&v.messages&&v.messages.length==6).length==1")
+    ck(t+'Fortgesetzter Chat im selben Dokument gespeichert',pg.evaluate("Object.keys(window.__store).filter(k=>k.includes('/chats/')).length")==2)
+    pg.click('#aiH'); pg.wait_for_selector('#aiM button'); pg.once('dialog',lambda d:d.accept()); pg.locator('#aiM .a button').first.click()
+    pg.wait_for_function("Object.keys(window.__store).filter(k=>k.includes('/chats/')).length==1")
+    ck(t+'Chat löschen',True)
     pg.click('#aiX')
     pg.click('#go'); pg.wait_for_selector('#show'); pg.fill('#ans','meine Antwort'); pg.click('#show'); pg.click('#aiHint'); pg.wait_for_function("document.getElementById('aiOut').textContent.includes('Testantwort')")
     h=st['ask'][-1]

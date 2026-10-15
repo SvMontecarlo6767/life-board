@@ -293,7 +293,7 @@ async function askGemini(env, body) {
   if (!env.GEMINI_KEY) { const e = new Error('GEMINI_KEY fehlt'); e.code = 'NO_AI'; throw e; }
   const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
   if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
-  const ctx = String(body.context || '').slice(0, 30000);
+  const ctx = String(body.context || '').slice(0, 40000);
   const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 60;
   const dk = new Date().toISOString().slice(0, 10), key = 'ai:' + dk;
   const used = parseInt((await env.WB.get(key)) || '0', 10);

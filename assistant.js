@@ -11,9 +11,9 @@ const SITE=`SEITENÜBERSICHT DES LIFE BOARDS
 - Puzzle-Tracker (puzzle.html): tägliche Puzzle-Spiele mit eigener Dopamin-Wertung, fließt als PUZ-01 in Heute ein.
 Das Board schreibt nie nach Notion oder Whoop; es liest nur.`;
 const $=(t,a,c)=>{const e=document.createElement(t);if(a)Object.assign(e,a);if(c)c.forEach(x=>e.append(x));return e};
-let user=null,cache=null,msgs=[],busy=false;
+let user=null,cache=null,msgs=[],busy=false,cid=null,chatCache=null;
 const LK='lb_ai_hist',WK='lb_ai_whoop';
-try{msgs=JSON.parse(localStorage.getItem(LK)||'[]').slice(-20)}catch(e){}
+try{msgs=JSON.parse(localStorage.getItem(LK)||'[]').slice(-40);cid=localStorage.getItem('lb_ai_cid')||null}catch(e){}
 const useWhoop=()=>{try{return localStorage.getItem(WK)!=='0'}catch(e){return true}};
 const dayKey=()=>{const f=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(new Date(Date.now()-4*3600e3));const g=t=>f.find(x=>x.type===t).value;return g('year')+'-'+g('month')+'-'+g('day')};
 const addDays=(k,n)=>{const d=new Date(k+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
@@ -28,6 +28,27 @@ async function worker(path,opts){
   let d=null;try{d=await r.json()}catch(e){}
   if(!r.ok){const e=new Error(d&&d.code==='NO_AI'?'Der KI-Zugang ist im Worker noch nicht eingerichtet (Secret GEMINI_KEY fehlt).':(d&&d.error)||('Fehler '+r.status));e.code=d&&d.code;throw e}
   return d;
+}
+const GAMES={fermi:['Fermi','Score, niedriger besser','low'],spm:['Spotle Movies','Versuche','low'],spm2:['Spotle Music','Versuche (nicht mehr aktiv)','low'],ner:['Nerdle','Versuche 1-6','low'],glo:['Globle','Tipps','low'],tra:['Travle','+X über Perfekt, 0 perfekt','low'],ran:['Ranke','Score, höher besser','high'],tim:['TimeGuessr','Punkte max 50000','high'],stl:['Statle','Versuche','low'],col:['Color Game','Punkte max 50','high'],hol:['Higher or Lower','Streak','high'],satl:['Satle','Versuche 1-6','low'],tmd:['Timdle','Punkte','high'],hf:['Historic Firsts','Versuche 1=Gold','low'],vlt:['Vault','Versuche 1-3','low'],zoo:['Zoodle','Versuche, Hinweis=Strafe','low']};
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+function loadScript(src){return new Promise(res=>{if(window.PuzzleDop)return res();const s=document.createElement('script');s.src=src;s.onload=()=>res();s.onerror=()=>res();document.head.append(s)})}
+/* Puzzle-Tracker: Tageswert (Dopamin) je Tag + Ergebnisse je Spiel mit Trend */
+function puzzleSection(D){
+  const days=Object.keys(D).sort(),L=[];
+  if(!days.length)return{lines:['PUZZLE-TRACKER: noch keine Daten'],dayVal:{}};
+  const PD=window.PuzzleDop,dayVal=PD?PD.puzzleDayValues(D):{};
+  L.push('PUZZLE-TRACKER: '+days.length+' Tage mit Einträgen ('+days[0]+' bis '+days[days.length-1]+'). Tageswert = Dopamin-Wert aller Spiele des Tages (PUZ-01).');
+  const dv=Object.keys(dayVal).sort();
+  if(dv.length){const last=dv.slice(-7).map(k=>dayVal[k]),prev=dv.slice(-14,-7).map(k=>dayVal[k]);L.push('  Tageswert Ø letzte 7 Tage: '+r1(avg(last))+(prev.length?', davor 7 Tage: '+r1(avg(prev)):'')+', Ø gesamt: '+r1(avg(dv.map(k=>dayVal[k]))))}
+  L.push('  Je Spiel (Ø der Ergebnisse: letzte 7 Einträge | davor 7 | alle; gespielt; gescheitert; bestes):');
+  Object.keys(GAMES).forEach(id=>{
+    const rows=days.map(d=>({d,e:(D[d]||{})[id]})).filter(x=>x.e&&(x.e.s!=null&&x.e.s!==''||x.e.w===0));
+    if(!rows.length)return;
+    const [name,desc,dir]=GAMES[id],ok=rows.filter(x=>x.e.w!==0&&!isNaN(parseFloat(String(x.e.s).replace(',','.')))),vals=ok.map(x=>parseFloat(String(x.e.s).replace(',','.')));
+    const fails=rows.length-ok.length,best=vals.length?(dir==='low'?Math.min.apply(null,vals):Math.max.apply(null,vals)):null;
+    L.push('  - '+name+' ('+desc+'): '+r1(avg(vals.slice(-7)))+' | '+r1(avg(vals.slice(-14,-7)))+' | '+r1(avg(vals))+'; '+rows.length+'x gespielt; '+fails+'x nicht geschafft; bestes '+r1(best)+'; letzte Werte: '+vals.slice(-6).join(', '));
+  });
+  return{lines:L,dayVal};
 }
 const r1=x=>x==null||isNaN(x)?'–':Math.round(x*10)/10;
 function whoopLine(k,d){
@@ -47,6 +68,11 @@ async function snapshot(force){
   if(ds){const rows=ds.docs.filter(x=>/^\d{4}-\d\d-\d\d$/.test(x.id)).map(x=>({k:x.id,...x.data()})).sort((a,b)=>a.k<b.k?1:-1).slice(0,30);
     L.push('LETZTE TAGE (Netto-Punkte, Rang, Eingaben):');
     rows.forEach(d=>L.push('  '+d.k+': '+Math.round(d.net||0)+' Pkt, Rang '+(d.rank||'–')+(d.closed?' (abgeschlossen)':'')+(d.in&&Object.keys(d.in).length?', Eingaben '+Object.entries(d.in).filter(([,v])=>v).map(([a,v])=>a+(v>1?'='+v:'')).join(' '):'')+(d.focus?', Fokus: '+d.focus:'')))}
+  let puz={lines:[],dayVal:{}};
+  try{await loadScript('puzzle-dop.js?v=1');const ps=await get('puzzle');
+    if(ps){const D={};ps.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id)){const v=x.data()||{};if(v.g)D[x.id]=v.g}});puz=puzzleSection(D)}}catch(e){puz={lines:['PUZZLE-TRACKER: nicht lesbar ('+e.message+')'],dayVal:{}}}
+  puz.lines.forEach(l=>L.push(l));
+  const netBy={};if(ds)ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))netBy[x.id]=x.data()});
   const ls=await get('learn');
   if(ls){const rows=ls.docs.map(x=>({k:x.id,...x.data()})).sort((a,b)=>a.k<b.k?1:-1).slice(0,14);
     if(rows.length)L.push('LERNRUNDEN: '+rows.map(d=>d.k+' '+(d.rounds||[]).length+' Runde(n)').join('; '))}
@@ -56,19 +82,35 @@ async function snapshot(force){
     const per={};q.forEach(x=>{(per[x.pageTitle]=per[x.pageTitle]||{n:0,due:0}).n++;if(x.reps&&x.due<=today)per[x.pageTitle].due++});
     L.push('THEMEN: '+Object.entries(per).map(([t,v])=>t+' ('+v.n+' Fragen, '+v.due+' fällig)').join('; '))}
   if(useWhoop()){
-    try{const w=await worker('/data?from='+addDays(today,-13)+'&to='+today);const ks=Object.keys(w.days||{}).sort().reverse();
-      if(ks.length){L.push('WHOOP (letzte 14 Tage):');ks.forEach(k=>L.push('  '+whoopLine(k,w.days[k])))}}catch(e){L.push('WHOOP: nicht verfügbar ('+e.message+')')}
+    try{const w=await worker('/data?from='+addDays(today,-44)+'&to='+today);const ks=Object.keys(w.days||{}).sort().reverse();
+      if(ks.length){L.push('WHOOP (letzte 14 Tage):');ks.slice(0,14).forEach(k=>L.push('  '+whoopLine(k,w.days[k])));
+        L.push('VERGLEICHSTABELLE (je Tag, für Zusammenhänge; Datum | Puzzle-Tageswert | Netto-Punkte | Recovery% | HRV | Schlaf% | Schlafstunden | Strain):');
+        ks.forEach(k=>{const d=w.days[k],rc=d.recovery&&d.recovery.score||{},sl=d.sleep||{},h=sl.start&&sl.end?(new Date(sl.end)-new Date(sl.start))/3600e3:null,n=netBy[k];
+          L.push('  '+k+' | '+(puz.dayVal[k]==null?'–':Math.round(puz.dayVal[k]))+' | '+(n&&n.net!=null?Math.round(n.net):'–')+' | '+r1(rc.recovery_score)+' | '+r1(rc.hrv_rmssd_milli)+' | '+r1(sl.score&&sl.score.sleep_performance_percentage)+' | '+r1(h)+' | '+r1(d.cycle&&d.cycle.score&&d.cycle.score.strain))})}}catch(e){L.push('WHOOP: nicht verfügbar ('+e.message+')')}
   }else L.push('WHOOP: vom Nutzer für diese Frage ausgeschaltet');
   let text=SITE+'\n\nDATEN:\n'+L.join('\n');
-  if(text.length>26000)text=text.slice(0,26000)+'\n…(gekürzt)';
+  if(text.length>29000)text=text.slice(0,29000)+'\n…(gekürzt)';
   cache={at:Date.now(),text,w:useWhoop()};return text;
+}
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+/* Gespeicherte Chats: users/{uid}/chats/{id} = {title, messages, createdAt, updatedAt} */
+async function saveChat(){
+  if(!user||!msgs.length)return;
+  if(!cid){cid=newId();try{localStorage.setItem('lb_ai_cid',cid)}catch(e){}}
+  const first=msgs.find(m=>m.role==='user');
+  const doc={title:(first?first.content:'Chat').slice(0,60),messages:msgs.slice(-40),updatedAt:Date.now()};
+  try{await fs.doc('users/'+user.uid+'/chats/'+cid).set(doc,{merge:true});return true}catch(e){return false}
+}
+async function listChats(){
+  const s=await fs.collection('users/'+user.uid+'/chats').get();
+  return s.docs.map(x=>({id:x.id,...x.data()})).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0)).slice(0,60);
 }
 async function ask(prompt,extra,history){
   if(busy)throw new Error('Es läuft noch eine Anfrage');busy=true;
   try{
     const snap=await snapshot();
     let page='';try{page=window.LB_PAGE_CONTEXT?String(window.LB_PAGE_CONTEXT()||''):''}catch(e){}
-    const ctx=snap+'\n\nAKTUELLE SEITE: '+location.pathname.split('/').pop()+(page?'\n'+page:'')+(extra?'\n'+extra:'');
+    const ctx='AKTUELLE SEITE: '+location.pathname.split('/').pop()+(page?'\n'+String(page).slice(0,4000):'')+(extra?'\n'+String(extra).slice(0,6000):'')+'\n\n'+snap;
     const m=(history||[]).concat([{role:'user',content:prompt}]);
     return await worker('/ask',{method:'POST',body:JSON.stringify({messages:m,context:ctx})});
   }finally{busy=false}
@@ -91,23 +133,39 @@ function ui(){
   document.head.append(css);
   const b=$('button',{id:'aiB',textContent:'KI',title:'KI-Assistent'});
   const p=$('div',{id:'aiP',hidden:true});
-  p.innerHTML='<header><div><b>KI-Assistent</b><div class="sm" id="aiS">kennt dein ganzes Board</div></div><div><label class="sm"><input type="checkbox" id="aiW"> Whoop</label> <button class="x" id="aiR" title="Neuer Chat">⟲</button><button class="x" id="aiX" title="Schließen">×</button></div></header><div id="aiM"></div><form id="aiF"><textarea id="aiT" placeholder="Frag mich etwas zu deinem Board …" rows="1"></textarea><button class="s" type="submit">Senden</button></form>';
+  p.innerHTML='<header><div><b>KI-Assistent</b><div class="sm" id="aiS">kennt dein ganzes Board</div></div><div><label class="sm"><input type="checkbox" id="aiW"> Whoop</label> <button class="x" id="aiH" title="Gespeicherte Chats">🕘</button><button class="x" id="aiR" title="Neuer Chat">＋</button><button class="x" id="aiX" title="Schließen">×</button></div></header><div id="aiM"></div><form id="aiF"><textarea id="aiT" placeholder="Frag mich etwas zu deinem Board …" rows="1"></textarea><button class="s" type="submit">Senden</button></form>';
   document.body.append(b,p);
   const M=p.querySelector('#aiM'),T=p.querySelector('#aiT'),W=p.querySelector('#aiW');
   W.checked=useWhoop();W.onchange=()=>{try{localStorage.setItem(WK,W.checked?'1':'0')}catch(e){}cache=null};
   const add=(c,t)=>{M.append($('div',{className:c,textContent:t}));M.scrollTop=M.scrollHeight};
-  const draw=()=>{M.innerHTML='';if(!msgs.length)add('a','Hallo! Ich kenne deine letzten Tage (Punkte, Whoop, Lernen) und weiß, wie das Board funktioniert. Frag mich zum Beispiel: „Wie war meine Woche?“, „Warum war meine Recovery gestern niedrig?“ oder „Was sollte ich heute zuerst tun?“');msgs.forEach(m=>add(m.role==='user'?'u':'a',m.content))};
-  const save=()=>{try{localStorage.setItem(LK,JSON.stringify(msgs.slice(-20)))}catch(e){}};
+  const draw=()=>{M.innerHTML='';M.dataset.mode='chat';if(!msgs.length)add('a','Hallo! Ich kenne deine letzten Tage (Punkte, Whoop, Lernen) und weiß, wie das Board funktioniert. Frag mich zum Beispiel: „Wie war meine Woche?“, „Warum war meine Recovery gestern niedrig?“ oder „Was sollte ich heute zuerst tun?“');msgs.forEach(m=>add(m.role==='user'?'u':'a',m.content))};
+  const save=()=>{try{localStorage.setItem(LK,JSON.stringify(msgs.slice(-40)))}catch(e){}};
   b.onclick=()=>{p.hidden=!p.hidden;if(!p.hidden){draw();T.focus()}};
   p.querySelector('#aiX').onclick=()=>{p.hidden=true};
-  p.querySelector('#aiR').onclick=()=>{msgs=[];save();draw()};
+  p.querySelector('#aiR').onclick=()=>{msgs=[];cid=null;try{localStorage.removeItem('lb_ai_cid')}catch(e){}save();draw();T.focus()};
+  p.querySelector('#aiH').onclick=async()=>{
+    M.innerHTML='';M.dataset.mode='list';add('a','Lade gespeicherte Chats …');
+    try{
+      const chats=await listChats();M.innerHTML='';
+      if(!chats.length){add('a','Noch keine gespeicherten Chats. Jeder Chat wird nach der ersten Antwort automatisch gespeichert.');return}
+      chats.forEach(c=>{
+        const row=$('div',{className:'a'});row.style.cssText='cursor:pointer;display:flex;justify-content:space-between;gap:8px;align-self:stretch;max-width:100%';
+        const t=$('span',{textContent:c.title+' · '+new Date(c.updatedAt||0).toLocaleDateString('de-DE')+' · '+((c.messages||[]).length/2|0)+' Fragen'});
+        const del=$('button',{className:'x',textContent:'🗑',title:'Löschen'});
+        row.onclick=()=>{msgs=(c.messages||[]).slice();cid=c.id;try{localStorage.setItem('lb_ai_cid',cid)}catch(e){}save();draw()};
+        del.onclick=async ev=>{ev.stopPropagation();if(!confirm('Diesen Chat löschen?'))return;try{await fs.doc('users/'+user.uid+'/chats/'+c.id).delete();row.remove();if(c.id===cid){msgs=[];cid=null;save()}}catch(e){alert('Löschen fehlgeschlagen: '+e.message)}};
+        row.append(t,del);M.append(row);
+      });
+    }catch(e){M.innerHTML='';add('e','Chats konnten nicht geladen werden: '+e.message)}
+  };
   p.querySelector('#aiF').onsubmit=async ev=>{
     ev.preventDefault();const q=T.value.trim();if(!q||busy)return;T.value='';
     add('u',q);const wait=$('div',{className:'a',textContent:'…'});M.append(wait);M.scrollTop=M.scrollHeight;
     try{
       const r=await ask(q,'',msgs.slice(-10));
       msgs.push({role:'user',content:q},{role:'assistant',content:r.answer});save();
-      wait.textContent=r.answer;p.querySelector('#aiS').textContent='Heute '+r.used+' von '+r.limit+' Fragen genutzt';
+      const sv=await saveChat();if(!sv)p.querySelector('#aiS').textContent='Chat nur auf diesem Gerät gespeichert (Server nicht erreichbar)';
+      wait.textContent=r.answer;if(!p.querySelector('#aiS').textContent.startsWith('Chat nur'))p.querySelector('#aiS').textContent='Heute '+r.used+' von '+r.limit+' Fragen genutzt · Chat gespeichert';
     }catch(e){wait.className='e';wait.textContent=e.message}
     M.scrollTop=M.scrollHeight;
   };

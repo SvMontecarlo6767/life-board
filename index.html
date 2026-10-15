@@ -94,7 +94,7 @@ $('logoutBtn').onclick=()=>auth.signOut();
 
 // ---- Sicherung ----
 // Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
-const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages'];
+const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages','chats'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function bkStatus(){
   let last=null;try{last=localStorage.getItem('lb-last-backup')}catch(e){}
