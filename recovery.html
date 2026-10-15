@@ -7,13 +7,13 @@
   color-scheme:light;
   --page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;
   --grid:#e1e0d9;--axis:#c3c2b7;--border:rgba(11,11,11,.10);
-  --series-1:#2a78d6;--good:#006300;--bad:#d03b3b;--ok:#0ca30c;--mid:#fab219;--low:#d03b3b;
+  --series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf7a;--series-7:#6250d6;--neutral:#a8a79f;--z1:#d3e3f8;--z2:#9fc4ef;--z3:#63a0e4;--z4:#2a78d6;--z5:#174f93;--good:#006300;--bad:#d03b3b;--ok:#0ca30c;--mid:#fab219;--low:#d03b3b;
 }
 @media (prefers-color-scheme:dark){:root{
   color-scheme:dark;
   --page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;
   --grid:#2c2c2a;--axis:#383835;--border:rgba(255,255,255,.10);
-  --series-1:#3987e5;--good:#0ca30c;--bad:#d03b3b;
+  --series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--series-7:#9085e9;--neutral:#6f6e68;--z1:#223d5e;--z2:#2a5588;--z3:#2f6db3;--z4:#3987e5;--z5:#86b8f4;--good:#0ca30c;--bad:#d03b3b;
 }}
 *{box-sizing:border-box}
 body{margin:0;background:var(--page);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:clamp(14px,4vw,32px)}
@@ -58,6 +58,16 @@ pre{white-space:pre-wrap;word-break:break-all;font:12px/1.45 ui-monospace,Menlo,
 #msg{color:var(--ink2);margin:12px 0}
 #msg.err{color:var(--bad)}
 [hidden]{display:none!important}
+.leg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--ink2);margin:0 0 6px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.leg i.ln{height:3px;border-radius:2px;vertical-align:3px;width:16px}
+.tip .row{display:flex;gap:6px;align-items:center;margin-top:2px}
+.tip .row b{margin-left:auto;padding-left:12px}
+.tip .key{display:inline-block;width:10px;height:10px;border-radius:2px}
+.zbar{display:flex;height:12px;border-radius:4px;overflow:hidden;min-width:110px;background:var(--grid)}
+.zbar i{display:block;height:100%}
+td.hm{text-align:center;font-weight:600}
+h2.sec{font-size:17px;margin:22px 0 10px}
 </style></head><body><main>
 <a class="back" href="index.html">← Life Board</a>
 <h1>💚 Recovery</h1>
@@ -74,6 +84,24 @@ pre{white-space:pre-wrap;word-break:break-all;font:12px/1.45 ui-monospace,Menlo,
   <div class="card"><h2>Schlafdauer</h2><div class="sub">Stunden tatsächlich geschlafen (ohne Wachzeit) pro Nacht</div><div id="c-sleep"></div></div>
   <div class="card"><h2>Schlafqualität</h2><div class="sub">Schlaf-Performance in Prozent: wie viel vom Schlafbedarf du gedeckt hast</div><div id="c-perf"></div></div>
   <div class="card"><h2>Strain</h2><div class="sub">Tagesbelastung auf der Whoop-Skala von 0 bis 21</div><div id="c-strain"></div></div>
+  <h2 class="sec">Schlaf im Detail</h2>
+  <div class="tiles" id="tiles2"></div>
+  <div class="card"><h2>Schlafphasen</h2><div class="sub">Stunden pro Nacht: Tiefschlaf, REM, Leichtschlaf und Wachzeit im Bett</div><div class="leg" id="l-stages"></div><div id="c-stages"></div></div>
+  <div class="card"><h2>Schlafbedarf und tatsächlicher Schlaf</h2><div class="sub">Wie viel Whoop für diese Nacht für nötig hielt (Basis, Schlafschuld, Belastung, Nickerchen) im Vergleich zu deinem Schlaf</div><div class="leg" id="l-need"></div><div id="c-need"></div></div>
+  <div class="card"><h2>Schlafeffizienz und Konsistenz</h2><div class="sub">Effizienz: Anteil der Zeit im Bett, in der du wirklich geschlafen hast. Konsistenz: wie regelmäßig dein Rhythmus ist.</div><div class="leg" id="l-eff"></div><div id="c-eff"></div></div>
+  <div class="card"><h2>Atemfrequenz im Schlaf</h2><div class="sub">Atemzüge pro Minute. Starke Ausreißer können auf Krankheit hindeuten.</div><div id="c-resp"></div></div>
+  <h2 class="sec">Körper</h2>
+  <div class="card"><h2>Blutsauerstoff</h2><div class="sub">SpO₂ im Schlaf in Prozent (nur wenn dein Band das misst)</div><div id="c-spo2"></div></div>
+  <div class="card"><h2>Hauttemperatur</h2><div class="sub">Gemessen im Schlaf, in °C. Verläufe sind aussagekräftiger als Einzelwerte.</div><div id="c-skin"></div></div>
+  <h2 class="sec">Aktivität</h2>
+  <div class="card"><h2>Kalorien</h2><div class="sub">Tagesverbrauch laut Whoop in kcal</div><div id="c-kcal"></div></div>
+  <div class="card"><h2>Schritte</h2><div class="sub">Schritte pro Tag</div><div id="c-steps"></div></div>
+  <div class="card"><h2>Belastung gestern, Erholung heute</h2><div class="sub" id="s-scatter"></div><div id="c-scatter"></div></div>
+  <div class="card"><h2>Zeit in den Pulszonen</h2><div class="sub">Alle Workouts im gewählten Zeitraum zusammen</div><div id="c-zones"></div></div>
+  <div class="card"><h2>Workouts</h2><div class="sub">Alle Einheiten im gewählten Zeitraum, neueste zuerst</div><div id="c-workouts"></div></div>
+  <h2 class="sec">Muster</h2>
+  <div class="card"><h2>Wochentage im Vergleich</h2><div class="sub">Durchschnitt pro Wochentag im gewählten Zeitraum. Dunkler bedeutet höher.</div><div id="c-dow"></div></div>
+  <div class="card"><h2>Was Whoop nicht liefert</h2><div class="sub">Healthspan, Stress-Monitor, Whoop-Alter und das Journal gibt die offene Whoop-Schnittstelle nicht her. Alles andere aus der App ist hier oder kommt als Nächstes.</div></div>
   <div class="card">
     <button class="link" id="tblBtn" aria-expanded="false">Tabelle anzeigen</button>
     <div id="tbl" hidden style="margin-top:10px"></div>
@@ -121,7 +149,15 @@ function toRows(days){
       perf:num(s&&s.sleep_performance_percentage),asleep,
       light:L!=null?L/3.6e6:null,sws:S!=null?S/3.6e6:null,rem:R!=null?R/3.6e6:null,
       awake:num(st.total_awake_time_milli)!=null?st.total_awake_time_milli/3.6e6:null,
-      strain:num(c&&c.strain),workouts:(d.workouts||[]).length};
+      strain:num(c&&c.strain),workouts:(d.workouts||[]).length,
+      eff:num(s&&s.sleep_efficiency_percentage),cons:num(s&&s.sleep_consistency_percentage),resp:num(s&&s.respiratory_rate),
+      need:(()=>{const n=s&&s.sleep_needed;if(!n)return null;const t=['baseline_milli','need_from_sleep_debt_milli','need_from_recent_strain_milli','need_from_recent_nap_milli'].map(k=>num(n[k])||0);return t[0]?t.reduce((a,b)=>a+b,0)/3.6e6:null})(),
+      debt:(()=>{const n=s&&s.sleep_needed;return n&&num(n.need_from_sleep_debt_milli)!=null?n.need_from_sleep_debt_milli/3.6e6:null})(),
+      spo2:num(r&&r.spo2_percentage),skin:num(r&&r.skin_temp_celsius),
+      kcal:num(c&&c.kilojoule)!=null?c.kilojoule/4.184:null,steps:num(d.cycle&&d.cycle.steps),
+      avgHr:num(c&&c.average_heart_rate),
+      wlist:(d.workouts||[]).map(w=>{const sc=w.score||{},z=sc.zone_durations||{};return{sport:w.sport||'Workout',start:w.start,min:(Date.parse(w.end)-Date.parse(w.start))/6e4,strain:num(sc.strain),avg:num(sc.average_heart_rate),max:num(sc.max_heart_rate),kcal:num(sc.kilojoule)!=null?sc.kilojoule/4.184:null,dist:num(sc.distance_meter),
+        z:['zone_zero_milli','zone_one_milli','zone_two_milli','zone_three_milli','zone_four_milli','zone_five_milli'].map(k=>(num(z[k])||0)/6e4)}})};
   });
 }
 function dateList(from,to){const out=[];for(let t=Date.parse(from+'T12:00:00Z');t<=Date.parse(to+'T12:00:00Z');t+=864e5)out.push(isoDay(t));return out}
@@ -213,6 +249,155 @@ function chart(host,o){
   host.appendChild(svg);
 }
 
+
+// ---- Weitere Diagrammformen ----
+const NS='http://www.w3.org/2000/svg';
+function svgBase(host,H){
+  const W=Math.max(300,host.clientWidth||640);
+  const svg=document.createElementNS(NS,'svg');svg.setAttribute('viewBox','0 0 '+W+' '+H);svg.setAttribute('class','ch');svg.setAttribute('role','img');
+  const add=(tag,attrs,text)=>{const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(text!=null)e.textContent=text;svg.appendChild(e);return e};
+  return{W,svg,add};
+}
+function legend(id,items){const b=$(id);b.replaceChildren();items.forEach(([name,color,line])=>{const s=el('span');const i=el('i',line?'ln':'');i.style.background=color;s.append(i,document.createTextNode(name));b.append(s)})}
+function axes(add,W,H,m,ticks,Y,dates,X,digits,bar){
+  const y0=ticks[0];
+  ticks.forEach(t=>{add('line',{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),stroke:t===y0?'var(--axis)':'var(--grid)','stroke-width':1});add('text',{x:m.l-6,y:Y(t)+4,'text-anchor':'end'},fmtN(t,digits||0))});
+  const n=dates.length,nl=Math.min(5,n);
+  for(let k=0;k<nl;k++){const i=nl===1?0:Math.round(k*(n-1)/(nl-1));add('text',{x:X(i),y:H-6,'text-anchor':k===0?'start':k===nl-1?'end':'middle'},fmtD(dates[i]))}
+}
+/* Mehrere Linien (o.series: [{name,color,values}]) */
+function multiLine(host,o){
+  host.replaceChildren();
+  const all=o.series.flatMap(s=>s.values.filter(v=>v!=null));
+  if(!all.length){host.append(el('div','hint','Keine Daten in diesem Zeitraum.'));return}
+  const H=200,m={l:38,r:14,t:12,b:24},{W,svg,add}=svgBase(host,H),iw=W-m.l-m.r,ih=H-m.t-m.b,n=o.dates.length;
+  const ticks=niceTicks(o.fixed?o.fixed[0]:Math.min(...all),o.fixed?o.fixed[1]:Math.max(...all),4),y0=ticks[0],y1=ticks[ticks.length-1];
+  const X=i=>m.l+(n>1?iw/(n-1)*i:iw/2),Y=v=>m.t+ih-(v-y0)/(y1-y0)*ih;
+  svg.setAttribute('aria-label',o.label);axes(add,W,H,m,ticks,Y,o.dates,X,o.digits);
+  o.series.forEach(s=>{let d='',p=false;s.values.forEach((v,i)=>{if(v==null){p=false;return}d+=(p?'L':'M')+X(i).toFixed(1)+','+Y(v).toFixed(1);p=true});add('path',{d,fill:'none',stroke:s.color,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'})});
+  const cross=add('line',{x1:0,x2:0,y1:m.t,y2:m.t+ih,stroke:'var(--axis)','stroke-width':1,visibility:'hidden'});
+  const hit=add('rect',{x:m.l,y:m.t,width:iw,height:ih,fill:'transparent'});
+  const at=ev=>{const rc=svg.getBoundingClientRect(),sx=(ev.clientX-rc.left)*(W/(rc.width||W));let i=Math.max(0,Math.min(n-1,Math.round((sx-m.l)/((n>1?iw/(n-1):1)))));
+    cross.setAttribute('x1',X(i));cross.setAttribute('x2',X(i));cross.setAttribute('visibility','visible');
+    const parts=[el('div','t',fmtLong(o.dates[i]))];
+    o.series.forEach(s=>{const r=el('div','row');const k=el('span','key');k.style.background=s.color;k.style.height='3px';r.append(k,document.createTextNode(s.name),el('b',null,s.values[i]==null?'–':fmtN(s.values[i],o.digits||0)+(o.unit||'')));parts.push(r)});showTip(ev,parts)};
+  hit.addEventListener('pointermove',at);hit.addEventListener('pointerdown',at);hit.addEventListener('pointerleave',()=>{hideTip();cross.setAttribute('visibility','hidden')});
+  host.append(svg);
+}
+/* Gestapelte Säulen (o.series von unten nach oben) */
+function stackBars(host,o){
+  host.replaceChildren();
+  const n=o.dates.length,tot=o.dates.map((_,i)=>o.series.some(s=>s.values[i]!=null)?o.series.reduce((a,s)=>a+(s.values[i]||0),0):null);
+  const have=tot.filter(v=>v!=null);if(!have.length){host.append(el('div','hint','Keine Daten in diesem Zeitraum.'));return}
+  const H=200,m={l:38,r:14,t:12,b:24},{W,svg,add}=svgBase(host,H),iw=W-m.l-m.r,ih=H-m.t-m.b,bandW=iw/n;
+  const ticks=niceTicks(0,Math.max(...have),4),y0=0,y1=ticks[ticks.length-1];
+  const X=i=>m.l+bandW*(i+.5),Y=v=>m.t+ih-(v-y0)/(y1-y0)*ih;
+  svg.setAttribute('aria-label',o.label);axes(add,W,H,m,ticks,Y,o.dates,X,1);
+  const bw=Math.min(24,Math.max(1,bandW-(bandW>6?2:0)));
+  const rects=[];
+  o.dates.forEach((d,i)=>{let acc=0;o.series.forEach(s=>{const v=s.values[i];if(!v)return;const top=Y(acc+v),bot=Y(acc);add('rect',{x:X(i)-bw/2,y:top,width:bw,height:Math.max(.5,bot-top-(bot-top>3?1:0)),fill:s.color});acc+=v})});
+  const cross=add('line',{x1:0,x2:0,y1:m.t,y2:m.t+ih,stroke:'var(--axis)','stroke-width':1,visibility:'hidden'});
+  const hit=add('rect',{x:m.l,y:m.t,width:iw,height:ih,fill:'transparent'});
+  const at=ev=>{const rc=svg.getBoundingClientRect(),sx=(ev.clientX-rc.left)*(W/(rc.width||W));const i=Math.max(0,Math.min(n-1,Math.floor((sx-m.l)/bandW)));
+    if(tot[i]==null){hideTip();cross.setAttribute('visibility','hidden');return}
+    cross.setAttribute('x1',X(i));cross.setAttribute('x2',X(i));cross.setAttribute('visibility','visible');
+    const parts=[el('div','t',fmtLong(o.dates[i])),el('div','v',fmtN(tot[i],1)+' h')];
+    o.series.slice().reverse().forEach(s=>{const r=el('div','row');const k=el('span','key');k.style.background=s.color;r.append(k,document.createTextNode(s.name),el('b',null,fmtN(s.values[i]||0,1)+' h'));parts.push(r)});showTip(ev,parts)};
+  hit.addEventListener('pointermove',at);hit.addEventListener('pointerdown',at);hit.addEventListener('pointerleave',()=>{hideTip();cross.setAttribute('visibility','hidden')});
+  host.append(svg);
+}
+/* Punktwolke Strain (gestern) → Recovery (heute) */
+function scatter(host,pts,sub){
+  host.replaceChildren();
+  if(pts.length<5){host.append(el('div','hint','Zu wenig Tage mit Strain und Recovery in diesem Zeitraum.'));$('s-scatter').textContent='';return}
+  const H=260,m={l:38,r:14,t:12,b:34},{W,svg,add}=svgBase(host,H),iw=W-m.l-m.r,ih=H-m.t-m.b;
+  const xs=pts.map(p=>p.x),xt=niceTicks(Math.min(...xs),Math.max(...xs),5),yt=[0,25,50,75,100];
+  const X=v=>m.l+(v-xt[0])/(xt[xt.length-1]-xt[0])*iw,Y=v=>m.t+ih-v/100*ih;
+  svg.setAttribute('aria-label','Strain gestern gegen Recovery heute');
+  yt.forEach(t=>{add('line',{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),stroke:t===0?'var(--axis)':'var(--grid)'});add('text',{x:m.l-6,y:Y(t)+4,'text-anchor':'end'},t)});
+  xt.forEach(t=>add('text',{x:X(t),y:H-16,'text-anchor':'middle'},fmtN(t,0)));
+  add('text',{x:m.l+iw/2,y:H-2,'text-anchor':'middle'},'Strain am Vortag');
+  const dots=pts.map(p=>add('circle',{cx:X(p.x),cy:Y(p.y),r:5,fill:'var(--series-1)',opacity:.85,stroke:'var(--surface)','stroke-width':1.5}));
+  // Trendgerade (kleinste Quadrate)
+  const mx=mean(xs),my=mean(pts.map(p=>p.y));let sxy=0,sxx=0,syy=0;pts.forEach(p=>{sxy+=(p.x-mx)*(p.y-my);sxx+=(p.x-mx)**2;syy+=(p.y-my)**2});
+  if(sxx>0){const b=sxy/sxx,a=my-b*mx,x0=xt[0],x1=xt[xt.length-1];add('line',{x1:X(x0),y1:Y(Math.max(0,Math.min(100,a+b*x0))),x2:X(x1),y2:Y(Math.max(0,Math.min(100,a+b*x1))),stroke:'var(--ink2)','stroke-width':1.5,'stroke-dasharray':'5 4'});
+    const r=syy>0?sxy/Math.sqrt(sxx*syy):0;
+    $('s-scatter').textContent='Jeder Punkt ist ein Tag: Strain des Vortags gegen die Recovery am Morgen. '+(Math.abs(r)<.2?'Im Zeitraum ist kaum ein Zusammenhang erkennbar':r<0?'Mehr Belastung ging im Zeitraum mit etwas niedrigerer Recovery einher':'Mehr Belastung ging im Zeitraum mit höherer Recovery einher')+' (Korrelation '+fmtN(r,2)+', '+pts.length+' Tage).'}
+  const hl=add('circle',{r:8,fill:'none',stroke:'var(--ink)','stroke-width':2,visibility:'hidden'});
+  const hit=add('rect',{x:m.l,y:m.t,width:iw,height:ih,fill:'transparent'});
+  const at=ev=>{const rc=svg.getBoundingClientRect(),k=W/(rc.width||W),px=(ev.clientX-rc.left)*k,py=(ev.clientY-rc.top)*k;let bi=-1,bd=1e9;pts.forEach((p,i)=>{const d=(X(p.x)-px)**2+(Y(p.y)-py)**2;if(d<bd){bd=d;bi=i}});
+    if(bi<0||bd>40*40){hideTip();hl.setAttribute('visibility','hidden');return}const p=pts[bi];hl.setAttribute('cx',X(p.x));hl.setAttribute('cy',Y(p.y));hl.setAttribute('visibility','visible');
+    showTip(ev,[el('div','t',fmtLong(p.date)),el('div','v',fmtN(p.y,0)+' % Recovery'),el('div','x','Strain am Vortag '+fmtN(p.x,1))])};
+  hit.addEventListener('pointermove',at);hit.addEventListener('pointerdown',at);hit.addEventListener('pointerleave',()=>{hideTip();hl.setAttribute('visibility','hidden')});
+  host.append(svg);
+}
+const ZN=['Zone 0','Zone 1','Zone 2','Zone 3','Zone 4','Zone 5'],ZC=['var(--grid)','var(--z1)','var(--z2)','var(--z3)','var(--z4)','var(--z5)'];
+const fmtHM=m=>{m=Math.round(m);return m>=60?Math.floor(m/60)+':'+String(m%60).padStart(2,'0')+' h':m+' Min'};
+function zoneBar(z,withLabel){
+  const t=z.reduce((a,b)=>a+b,0)||1;const box=el('div','zbar');
+  z.forEach((v,i)=>{if(v<=0)return;const s=el('i');s.style.width=(v/t*100)+'%';s.style.background=ZC[i];s.title=ZN[i]+': '+fmtHM(v);box.append(s)});return box;
+}
+function renderWorkouts(rows){
+  const all=rows.filter(Boolean).flatMap(r=>r.wlist.map(w=>Object.assign({date:r.date},w)));
+  const host=$('c-workouts'),zh=$('c-zones');host.replaceChildren();zh.replaceChildren();
+  if(!all.length){host.append(el('div','hint','Keine Workouts in diesem Zeitraum.'));zh.append(el('div','hint','Keine Workouts in diesem Zeitraum.'));return}
+  const zs=[0,0,0,0,0,0];all.forEach(w=>w.z.forEach((v,i)=>zs[i]+=v));
+  const bar=zoneBar(zs);bar.style.height='22px';zh.append(bar);
+  const lg=el('div','leg');lg.style.marginTop='10px';zs.forEach((v,i)=>{if(i===0)return;const sp=el('span');const k=el('i');k.style.background=ZC[i];sp.append(k,document.createTextNode(ZN[i]+' '+fmtHM(v)));lg.append(sp)});zh.append(lg);
+  const tb=document.createElement('table'),th=tb.createTHead().insertRow();
+  ['Datum','Sportart','Dauer','Strain','Ø/Max Puls','kcal','km','Zonen'].forEach(t=>{const e=document.createElement('th');e.textContent=t;th.append(e)});
+  const body=tb.createTBody();
+  all.sort((a,b)=>(b.start||'').localeCompare(a.start||'')).forEach(w=>{
+    const tr=body.insertRow();
+    [fmtD(w.date)+w.date.slice(0,4),w.sport,fmtHM(w.min),fmtN(w.strain,1),(w.avg!=null?fmtN(w.avg,0):'–')+' / '+(w.max!=null?fmtN(w.max,0):'–'),fmtN(w.kcal,0),w.dist!=null?fmtN(w.dist/1000,1):'–'].forEach(t=>{tr.insertCell().textContent=t});
+    tr.insertCell().append(zoneBar(w.z));
+  });
+  const sc=el('div','scroll');sc.append(tb);host.append(sc);
+}
+function renderDow(rows){
+  const host=$('c-dow');host.replaceChildren();
+  const names=['Mo','Di','Mi','Do','Fr','Sa','So'],keys=[['rec','Recovery',0,'%'],['asleep','Schlaf',1,' h'],['strain','Strain',1,''],['hrv','HRV',0,' ms'],['steps','Schritte',0,'']];
+  const dow=d=>(new Date(d+'T12:00:00Z').getUTCDay()+6)%7;
+  const data=keys.map(([k])=>names.map((_,wd)=>mean(rows.filter(r=>r&&dow(r.date)===wd).map(r=>r[k]))));
+  if(!data.some(a=>a.some(v=>v!=null))){host.append(el('div','hint','Keine Daten in diesem Zeitraum.'));return}
+  const tb=document.createElement('table'),th=tb.createTHead().insertRow();
+  th.append(Object.assign(document.createElement('th'),{textContent:''}));names.forEach(n=>th.append(Object.assign(document.createElement('th'),{textContent:n,style:'text-align:center'})));
+  const body=tb.createTBody();
+  keys.forEach(([k,l,dg,u],ki)=>{const tr=body.insertRow();tr.insertCell().textContent=l;const vals=data[ki].filter(v=>v!=null),lo=Math.min(...vals),hi=Math.max(...vals);
+    data[ki].forEach(v=>{const td=tr.insertCell();td.className='hm';if(v==null){td.textContent='–';return}const f=hi>lo?(v-lo)/(hi-lo):.5;td.textContent=fmtN(v,dg);
+      td.style.background='color-mix(in srgb,var(--series-1) '+Math.round(8+f*42)+'%,var(--surface))'})});
+  const sc=el('div','scroll');sc.style.maxHeight='none';sc.append(tb);host.append(sc);
+}
+function renderMore(dates,rows){
+  const C=(k)=>colOf(rows,k);
+  legend('l-stages',[['Tiefschlaf','var(--series-1)'],['REM','var(--series-2)'],['Leichtschlaf','var(--series-3)'],['Wach im Bett','var(--neutral)']]);
+  stackBars($('c-stages'),{dates,label:'Schlafphasen pro Nacht',series:[{name:'Tiefschlaf',color:'var(--series-1)',values:C('sws')},{name:'REM',color:'var(--series-2)',values:C('rem')},{name:'Leichtschlaf',color:'var(--series-3)',values:C('light')},{name:'Wach im Bett',color:'var(--neutral)',values:C('awake')}]});
+  legend('l-need',[['Schlafbedarf','var(--series-2)',1],['Geschlafen','var(--series-1)',1]]);
+  multiLine($('c-need'),{dates,label:'Schlafbedarf und Schlaf',unit:' h',digits:1,series:[{name:'Schlafbedarf',color:'var(--series-2)',values:C('need')},{name:'Geschlafen',color:'var(--series-1)',values:C('asleep')}]});
+  legend('l-eff',[['Effizienz','var(--series-1)',1],['Konsistenz','var(--series-2)',1]]);
+  multiLine($('c-eff'),{dates,label:'Schlafeffizienz und Konsistenz',unit:' %',fixed:[0,100],series:[{name:'Effizienz',color:'var(--series-1)',values:C('eff')},{name:'Konsistenz',color:'var(--series-2)',values:C('cons')}]});
+  chart($('c-resp'),{dates,values:C('resp'),kind:'line',unit:' /min',digits:1,label:'Atemfrequenz'});
+  chart($('c-spo2'),{dates,values:C('spo2'),kind:'line',unit:' %',digits:1,label:'Blutsauerstoff'});
+  chart($('c-skin'),{dates,values:C('skin'),kind:'line',unit:' °C',digits:1,label:'Hauttemperatur'});
+  chart($('c-kcal'),{dates,values:C('kcal'),kind:'bar',unit:' kcal',digits:0,label:'Kalorien pro Tag'});
+  chart($('c-steps'),{dates,values:C('steps'),kind:'bar',unit:'',digits:0,label:'Schritte pro Tag'});
+  const map=Object.fromEntries(ALL.map(r=>[r.date,r])),pts=[];
+  dates.forEach(d=>{const r=map[d],p=map[isoDay(Date.parse(d+'T12:00:00Z')-864e5)];if(r&&p&&r.rec!=null&&p.strain!=null)pts.push({date:d,x:p.strain,y:r.rec})});
+  scatter($('c-scatter'),pts);
+  renderWorkouts(rows);renderDow(rows);
+}
+function renderTiles2(){
+  const defs=[['need','Schlafbedarf','h',1,null],['debt','Schlafschuld','h',1,false],['eff','Effizienz','%',0,true],['cons','Konsistenz','%',0,true],['resp','Atemfrequenz','/min',1,null],['spo2','SpO₂','%',1,true],['skin','Hauttemperatur','°C',1,null],['kcal','Kalorien','kcal',0,null],['steps','Schritte','',0,true]];
+  const tiles=$('tiles2');tiles.replaceChildren();
+  defs.forEach(([k,label,unit,dg,upGood])=>{
+    const withV=ALL.filter(r=>r[k]!=null),lastV=withV[withV.length-1];if(!lastV)return;
+    const t=el('div','tile');t.append(el('div','l',label));const v=el('div','v');v.append(document.createTextNode(fmtN(lastV[k],dg)));if(unit)v.append(el('small',null,unit));t.append(v);
+    const a7=avgBetween(k,6,0),a30=avgBetween(k,29,0);let d=el('div','d','Zu wenig Daten für Vergleich');
+    if(a7!=null&&a30!=null){const diff=a7-a30,arrow=Math.abs(diff)<0.05?'●':diff>0?'▲':'▼',good=upGood==null||Math.abs(diff)<0.05?null:(diff>0)===upGood;d=el('div','d'+(good===true?' good':good===false?' bad':''),arrow+' '+(diff>0?'+':'')+fmtN(diff,dg)+' (Ø 7 vs. Ø 30 Tage)')}
+    t.append(d);tiles.append(t);
+  });
+}
+
 // ---- Seite zeichnen ----
 function slice(){
   const to=isoDay(Date.now()),from=isoDay(Date.now()-(RANGE-1)*864e5);
@@ -255,6 +440,7 @@ function renderTop(){
 }
 function renderCharts(){
   const {dates,rows}=slice();
+  renderMore(dates,rows);
   chart($('c-rec'),{dates,values:colOf(rows,'rec'),kind:'line',fixed:[0,100],unit:' %',label:'Recovery pro Tag',
     extra:i=>{const r=rows[i];return r?[zoneOf(r.rec)[0]+' (Zone)']:[]}});
   chart($('c-hrv'),{dates,values:colOf(rows,'hrv'),kind:'line',unit:' ms',digits:0,label:'HRV pro Tag'});
@@ -267,11 +453,11 @@ function renderCharts(){
 }
 function renderTable(){
   const {rows}=slice(),box=$('tbl');box.replaceChildren();
-  const cols=[['date','Datum'],['rec','Recovery %'],['hrv','HRV ms'],['rhr','Ruhepuls'],['asleep','Schlaf h'],['perf','Schlaf %'],['strain','Strain']];
+  const cols=[['date','Datum'],['rec','Recovery %'],['hrv','HRV ms'],['rhr','Ruhepuls'],['asleep','Schlaf h'],['perf','Schlaf %'],['eff','Effizienz %'],['cons','Konsistenz %'],['resp','Atem /min'],['strain','Strain'],['kcal','kcal'],['steps','Schritte']];
   const tb=document.createElement('table'),th=tb.createTHead().insertRow();
   cols.forEach(c=>{const e=document.createElement('th');e.textContent=c[1];th.appendChild(e)});
   const body=tb.createTBody();
-  rows.filter(Boolean).reverse().forEach(r=>{const tr=body.insertRow();cols.forEach(c=>{const td=tr.insertCell();td.textContent=c[0]==='date'?fmtD(r.date)+r.date.slice(0,4):fmtN(r[c[0]],c[0]==='rec'||c[0]==='rhr'||c[0]==='perf'?0:1)})});
+  rows.filter(Boolean).reverse().forEach(r=>{const tr=body.insertRow();cols.forEach(c=>{const td=tr.insertCell();td.textContent=c[0]==='date'?fmtD(r.date)+r.date.slice(0,4):fmtN(r[c[0]],['asleep','strain','resp'].includes(c[0])?1:0)})});
   const sc=el('div','scroll');sc.append(tb);box.append(sc);
 }
 function renderDebug(){
@@ -281,7 +467,7 @@ function renderDebug(){
   const keys=Object.keys(RAW).sort(),sample=keys.length?RAW[keys[keys.length-2]||keys[0]]:null;
   if(sample){box.append(el('div','hint','Beispiel eines Tages (Rohdaten, zum Prüfen der Felder):'));box.append(el('pre',null,JSON.stringify(sample,null,1)))}
 }
-function renderAll(){renderTop();renderCharts();if(!$('tbl').hidden)renderTable()}
+function renderAll(){renderTop();renderTiles2();renderCharts();if(!$('tbl').hidden)renderTable()}
 
 $('filters').addEventListener('click',e=>{
   const b=e.target.closest('button[data-d]');if(!b)return;
