@@ -14,10 +14,10 @@ const ICON={
 };
 const TABS=[
   {id:'hub',name:'Hub',file:'index.html',href:'index.html',rgb:[58,215,255],rgb2:[120,150,255]},
-  {id:'heute',name:'Heute',file:'heute.html',href:'heute.html?v=3',rgb:[58,215,255],rgb2:[120,150,255]},
-  {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=3',rgb:[52,235,170],rgb2:[58,215,255]},
-  {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=1',rgb:[150,125,255],rgb2:[70,140,255]},
-  {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html',rgb:[255,150,60],rgb2:[255,70,170]}
+  {id:'heute',name:'Heute',file:'heute.html',href:'heute.html?v=4',rgb:[58,215,255],rgb2:[120,150,255]},
+  {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=4',rgb:[52,235,170],rgb2:[58,215,255]},
+  {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=2',rgb:[150,125,255],rgb2:[70,140,255]},
+  {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=2',rgb:[255,150,60],rgb2:[255,70,170]}
 ];
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
 const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];
