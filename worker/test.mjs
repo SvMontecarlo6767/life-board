@@ -35,7 +35,8 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.startsWith('https://generativelanguage.googleapis.com/')) {
     if (opts.headers?.['x-goog-api-key'] !== 'GK') return new Response('{}', { status: 403 });
-    const b = JSON.parse(opts.body); globalThis.__gem = b;
+    const b = JSON.parse(opts.body); globalThis.__gem = b; globalThis.__gemUrls = (globalThis.__gemUrls || []).concat(url);
+    if ((url.includes('gemini-3.5-flash-lite') || url.includes('gemini-2.5')) && globalThis.__gem404) return new Response('{"error":{"message":"not found"}}', { status: 404 });
     if (b.contents[0].parts[0].text === '429') return new Response('{}', { status: 429 });
     return ok({ candidates: [{ content: { parts: [{ text: 'Antwort ' + b.contents.length }] } }] });
   }
@@ -183,6 +184,10 @@ console.log('✓ Zeitraum-Schutz');
   assert.equal((await post({ messages: [] }, { ...aenv, WB: kv() })).status, 400);
   assert.equal((await post({ messages: [{ role: 'user', content: 'x' }] }, aenv, 'abc')).status, 401, 'nur angemeldet');
   assert.equal((await post({ messages: [{ role: 'user', content: '429' }] }, { ...aenv, WB: kv() })).body.code, 'AI_LIMIT');
+  globalThis.__gem404 = true; globalThis.__gemUrls = [];
+  const a4 = await post({ messages: [{ role: 'user', content: 'x' }] }, { ...aenv, WB: kv(), GEMINI_MODEL: 'gemini-2.5-flash' });
+  assert.equal(a4.status, 200, JSON.stringify(a4.body));
+  assert.ok(globalThis.__gemUrls[0].includes('gemini-2.5-flash') && globalThis.__gemUrls.at(-1).includes('gemini-3.8-flash'), 'Fallback auf nächstes Modell: ' + globalThis.__gemUrls.join(' '));
   console.log('✓ KI-Assistent');
 }
 console.log('Alle Tests bestanden');
