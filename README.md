@@ -10,6 +10,11 @@ Statische Seiten auf GitHub Pages, Daten in Firebase (Auth + Firestore), Schnitt
 Optionale Variablen: `GEMINI_MODEL` (bevorzugtes Modell), `GEMINI_VOICE` (Standard Charon, Alternative Orus), `AI_DAILY_LIMIT`, `AI_TTS_DAILY_LIMIT`.
 
 ## Training (Reiter „Training“)
+**Zwei Ansichten** (Schalter oben auf der Seite): **Allround** (Standard) für alle Sportarten und **Läufer** (VDOT, Race Day, Schuhe, Plan).
+- Allround: Einheiten eintragen (Sportart, Dauer, Anstrengung 1–10, optional Strecke/Puls), Wochenziel in Einheiten, Form und Belastung, Sportarten-Verteilung, Jahr als 3D-Stadt, Rekorde, Logbuch mit Löschen. Ohne Puls wird die Belastung aus Dauer und Anstrengung geschätzt.
+- **Whoop:** Workouts (mit Puls, Strain, Kalorien) kommen automatisch aus den Whoop-Daten des Boards; „Jetzt abgleichen“ holt neue, „12 Monate nachholen“ die Vergangenheit. Gelöschte Whoop-Einträge bleiben gelöscht. Kein Strava nötig.
+- Tests: `python3 tools/browser/test_training_multi.py <Ordner>`.
+
 Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-Design des Boards. Alles regelbasiert, keine KI nötig.
 - Dateien: `training.html`, `training.js` (Daten, Strava, CSV, Aufbau), `training-core.js` (Rechnen: VDOT, Belastung, Race Day …), `training-text.js` (Befund, Insights, Repair Guide, Coach-Antworten), `training-viz.js` (SVG-Diagramme).
 - Daten: Firestore `users/{uid}/training/` (`acts_JAHR`, `settings`, `summary`), in der Sicherung enthalten.

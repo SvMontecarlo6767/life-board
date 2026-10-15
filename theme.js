@@ -19,7 +19,7 @@ const TABS=[
   {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=4',rgb:[52,235,170],rgb2:[58,215,255]},
   {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=2',rgb:[150,125,255],rgb2:[70,140,255]},
   {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=3',rgb:[255,150,60],rgb2:[255,70,170]},
-  {id:'training',name:'Training',file:'training.html',href:'training.html?v=1',rgb:[255,84,96],rgb2:[255,154,92]}
+  {id:'training',name:'Training',file:'training.html',href:'training.html?v=2',rgb:[255,84,96],rgb2:[255,154,92]}
 ];
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
 const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];

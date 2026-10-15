@@ -22,7 +22,7 @@ for i in range(40):
     CSV+='%d,"%s 7:00:00 AM",Lauf %d,Run,3100,10.0,170,3000,10000,3100,170,%d,82,40,Nike,600\n'%(5000+i,d.strftime('%b %d, %Y,').replace(' 0',' '),i,150+i%5)
 def run(p,w,h,mode):
     b=p.chromium.launch(args=['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader']); ctx=b.new_context(viewport={'width':w,'height':h},has_touch=True)
-    seed=SEED if mode=='data' else {}
+    seed=SEED if mode=='data' else {'users/u1/training/settings':{'view':'lauf'}}
     ctx.add_init_script('window.__seed='+json.dumps(seed)+';')
     for n,body in(('app',mock),('auth',''),('firestore','')):
         ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%n),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))

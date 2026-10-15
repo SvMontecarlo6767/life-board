@@ -135,6 +135,10 @@ table.pr tr.mine td{background:rgb(var(--acc)/.14)}
 table.pr td:last-child{text-align:right;font-variant-numeric:tabular-nums}
 table.pr b{font-size:18px;display:block}
 button.txt{background:none!important;border:0!important;box-shadow:none!important;color:rgb(var(--acc));padding:6px 0!important;min-height:36px!important}
+/* Allround */
+.seg.rpe{display:flex;flex-wrap:wrap;border-radius:16px;margin-top:4px}.seg.rpe button{flex:1;min-width:34px}
+.wkdots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px;text-align:center}.wkdots>div{background:rgba(150,200,255,.07);border-radius:10px;padding:6px 2px;min-width:0}.wkdots .today{outline:2px solid rgb(var(--acc))}.wkdots span{display:block;font-size:11px;color:var(--muted)}.wkdots b{font-size:14px;min-height:20px;display:block;word-break:break-all}
+.bh{font-family:var(--font-hud);font-size:clamp(20px,3vw,28px)}.bh em{font-style:normal;color:rgb(var(--acc))}
 /* Kalender, Raster */
 .cal{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px}
 .cal i{display:block;aspect-ratio:1;border-radius:4px;background:rgba(150,200,255,.07);min-width:0}
@@ -208,7 +212,8 @@ html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
 </style><link rel="stylesheet" href="theme.css?v=5">
 </head><body><main>
 <a class="back" href="index.html">← Life Board</a>
-<h1>🏃 Training</h1>
+<h1>💪 Training</h1>
+<div class="seg" id="viewSw" role="group" aria-label="Ansicht" style="margin:0 0 10px"><button type="button" data-v="multi" aria-pressed="true">Allround</button><button type="button" data-v="lauf" aria-pressed="false">Läufer</button></div>
 <div id="trNav" role="navigation" aria-label="Abschnitte"></div>
 <div id="msg" class="msg">Lade Daten …</div>
 
@@ -225,6 +230,8 @@ html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
     <div class="card s5 fm" id="profile"></div>
   </div>
 </section>
+
+<div id="mcontent" hidden></div>
 
 <div id="content" hidden>
   <div class="g" id="s-ueber"></div>
@@ -286,11 +293,12 @@ html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=5"></script>
-<script src="training-core.js?v=1"></script>
+<script src="assistant.js?v=6"></script>
+<script src="training-core.js?v=2"></script>
 <script src="training-text.js?v=1"></script>
-<script src="training-viz.js?v=1"></script>
-<script src="training.js?v=1"></script>
+<script src="training-viz.js?v=3"></script>
+<script src="training-multi.js?v=1"></script>
+<script src="training.js?v=2"></script>
 <script src="theme.js?v=7"></script>
 <script src="jarvis.js?v=7"></script>
 </body></html>

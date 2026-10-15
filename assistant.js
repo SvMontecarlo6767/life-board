@@ -8,7 +8,7 @@ const SITE=`SEITENÜBERSICHT DES LIFE BOARDS
 - Heute (heute.html): Tagesseite. Aktionen antippen (28 Knöpfe in Sport, Lernen, Alltag), Whoop-Werte zählen automatisch (Schlaf, Recovery, HRV, Strain, Workouts), Puzzle-Tracker-Wert (PUZ-01), Tagesabschluss. Punkte ergeben das Dopamin-Konto (Summe aller Tage), Rang pro Tag (S/A/B/C) und Level. Tageswechsel um 04:00 Uhr (Europa/Berlin). Regelwerk v2 (Punkte aus v1, Obergrenzen pro Aktion, nur die höchste Stufe einer Gruppe zählt).
 - Recovery (recovery.html): Whoop-Dashboard mit Recovery, HRV, Ruhepuls, Schlaf, Strain, Workouts, Wochentage, Tabellen.
 - Lernen (learn.html): Wiederholungsrunden mit 5 Fragen aus den Notion-Seiten (Abschnitt Active Recall / Mini-Wiederholung), Selbstbewertung richtig/fast/falsch, Stufen 1/7/30/90 Tage, bis zu 3 Runden pro Tag mit Punkten (WDH-01 575 Punkte, Mischrunde WDH-13), Active Recall bestanden (LRN-07).
-- Training (training.html): Laufanalyse aus Strava/CSV: Form (Fitness/Ermüdung), VDOT, Rennprognosen, Race Day (Chance auf Zielzeit), Wochenumfang, Intensität, Rekorde, Plan der Woche, Schuhe.
+- Training (training.html): Allround-Training für alle Sportarten (Kraft, Fußball, Laufen, Rad …): Einheiten per Hand eintragen oder aus Strava/CSV, Wochenziel in Einheiten, Form (Fitness/Ermüdung), Belastung, Sportarten-Verteilung, Rekorde, Logbuch. Zweite Ansicht „Läufer“ mit VDOT, Rennprognosen und Race Day.
 - Puzzle-Tracker (puzzle.html): tägliche Puzzle-Spiele mit eigener Dopamin-Wertung, fließt als PUZ-01 in Heute ein.
 Das Board schreibt nie nach Notion oder Whoop; es liest nur.`;
 const $=(t,a,c)=>{const e=document.createElement(t);if(a)Object.assign(e,a);if(c)c.forEach(x=>e.append(x));return e};

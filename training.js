@@ -20,13 +20,14 @@ async function wfetch(path, body) {
 const say = (t, err) => { const m = $('msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : '') };
 
 /* ---------- Speichern / Laden ---------- */
-const compact = a => ({ i: a.id, t: a.t, r: a.raw || '', n: a.name || '', k: a.km, s: a.sec, h: a.hr, m: a.hrmax, e: a.elev, c: a.cad, g: a.gear, q: a.kcal, p: a.steps });
-const expand = o => { const a = { id: o.i, t: o.t, raw: o.r, name: o.n, km: o.k == null ? null : o.k, sec: o.s, hr: o.h == null ? null : o.h, hrmax: o.m == null ? null : o.m, elev: o.e == null ? null : o.e, cad: o.c == null ? null : o.c, gear: o.g || null, kcal: o.q == null ? null : o.q, steps: o.p == null ? null : o.p }; a.sport = C.classify(a.raw, a.name, a.km, a.elev); if (a.cad != null && a.cad < 120 && (a.sport === 'Lauf' || a.sport === 'Trail')) a.cad *= 2; return a };
+const compact = a => ({ i: a.id, t: a.t, r: a.raw || '', n: a.name || '', k: a.km, s: a.sec, h: a.hr, m: a.hrmax, e: a.elev, c: a.cad, g: a.gear, q: a.kcal, p: a.steps, x: a.rpe || null, w: a.strain || null });
+const expand = o => { const a = { id: o.i, t: o.t, raw: o.r, name: o.n, km: o.k == null ? null : o.k, sec: o.s, hr: o.h == null ? null : o.h, hrmax: o.m == null ? null : o.m, elev: o.e == null ? null : o.e, cad: o.c == null ? null : o.c, gear: o.g || null, kcal: o.q == null ? null : o.q, steps: o.p == null ? null : o.p, rpe: o.x || null, strain: o.w || null, src: /^w/.test(o.i) ? 'whoop' : null }; a.sport = C.classify(a.raw, a.name, a.km, a.elev); if (a.cad != null && a.cad < 120 && (a.sport === 'Lauf' || a.sport === 'Trail')) a.cad *= 2; return a };
+const YEARS = new Set();
 async function loadAll() {
   const s = await fs.doc(base + '/training/settings').get();
   if (s.exists) ST = Object.assign(ST, s.data());
   const q = await fs.collection(base + '/training').get();
-  const list = []; q.docs.forEach(d => { if (/^acts_\d{4}$/.test(d.id)) (d.data().list || []).forEach(o => list.push(expand(o))) });
+  const list = []; q.docs.forEach(d => { if (/^acts_\d{4}$/.test(d.id)) YEARS.add(d.id.slice(5)); if (/^acts_\d{4}$/.test(d.id)) (d.data().list || []).forEach(o => list.push(expand(o))) });
   ACTS = dedupe(list);
   try { localStorage.setItem('lb_tr_n', String(ACTS.length)) } catch (e) {}
 }
@@ -38,10 +39,12 @@ function dedupe(list) {
 async function saveSettings() { await fs.doc(base + '/training/settings').set(JSON.parse(JSON.stringify(ST))) }
 async function saveActs() {
   const by = {}; ACTS.forEach(a => { const y = new Date(a.t).getUTCFullYear(); (by[y] = by[y] || []).push(compact(a)) });
-  for (const y of Object.keys(by)) await fs.doc(base + '/training/acts_' + y).set({ list: JSON.parse(JSON.stringify(by[y])) });
+  for (const y of Object.keys(by)) { await fs.doc(base + '/training/acts_' + y).set({ list: JSON.parse(JSON.stringify(by[y])) }); YEARS.add(y) }
+  for (const y of [...YEARS]) if (!by[y]) await fs.doc(base + '/training/acts_' + y).set({ list: [] });
 }
 async function saveSummary() {
   if (!R || !R.ok) return;
+  if (isMulti()) { const t = window.TrainingMulti.summary(R, ST); if (t) try { await fs.doc(base + '/training/summary').set({ text: t, at: Date.now() }) } catch (e) {} return }
   const L = ['TRAINING (Laufanalyse, Stand ' + R.today + '): ' + R.totals.runs + ' Läufe in 12 Monaten, ' + f0(R.totals.runKm) + ' km.'];
   L.push('  Form ' + F.signed(R.form, 0) + ' (Fitness ' + f0(R.fitness) + ', Ermüdung ' + f0(R.fatigue) + '), akut zu chronisch ' + (R.acwr != null ? F.num(R.acwr, 2) : '–') + ', VDOT ' + (R.vdot ? f1(R.vdot) : '–') + ', Schwellenpuls ' + R.thr + ', Maximalpuls ' + R.maxHr + '.');
   if (R.pred) L.push('  Prognosen: 5 km ' + F.time(R.pred[0].sec) + ', 10 km ' + F.time(R.pred[1].sec) + ', Halbmarathon ' + F.time(R.pred[2].sec) + ', Marathon ' + F.time(R.pred[3].sec) + '.');
@@ -55,12 +58,41 @@ function analyze() {
   const race = ST.race && ST.race.date && ST.race.km ? ST.race : null;
   const plan = ST.planText && ST.planText.trim() ? C.plan.parse(ST.planText) : null;
   R = C.analyze(ACTS, { today: todayKey(), rest: ST.rest || null, race, plan });
-  N = R.ok ? T.narrate(R, { name: ST.name, hour: new Date().getHours() }) : null;
-  window.LB_PAGE_CONTEXT = () => R && R.ok ? 'TRAINING-SEITE: Form ' + F.signed(R.form, 0) + ', VDOT ' + (R.vdot ? f1(R.vdot) : '–') + ', Befund: ' + N.befund.head + '. ' + N.befund.text : 'Training: noch keine Daten';
+  N = R.ok && !isMulti() ? T.narrate(R, { name: ST.name, hour: new Date().getHours() }) : null;
+  window.LB_PAGE_CONTEXT = () => isMulti() ? (R && R.ok ? window.TrainingMulti.summary(R, ST) : 'Training: noch keine Einheiten') : R && R.ok ? 'TRAINING-SEITE: Form ' + F.signed(R.form, 0) + ', VDOT ' + (R.vdot ? f1(R.vdot) : '–') + ', Befund: ' + N.befund.head + '. ' + N.befund.text : 'Training: noch keine Daten';
 }
-function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidden = which !== 'content'; $('trNav').style.display = which === 'content' ? '' : 'none' }
+const isMulti = () => ST.view !== 'lauf';
+function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidden = which !== 'content'; $('mcontent').hidden = which !== 'multi'; $('trNav').style.display = which === 'content' || which === 'multi' ? '' : 'none'; document.querySelectorAll('#viewSw [data-v]').forEach(b => b.setAttribute('aria-pressed', String((b.dataset.v === 'lauf') === !isMulti())) ) }
+function homeOnboard() { const o = $('onboard'), g = $('setup').querySelector('.g'); if (o && g && o.parentNode !== g) g.prepend(o) }
+let stvInit = false;
+function multiCtx() {
+  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
+}
+function renderMulti() {
+  show('multi'); say(''); window.TrainingMulti.render($('mcontent'), R, multiCtx());
+  if (!$('whoopBox')) { const w = document.createElement('div'); w.id = 'whoopBox'; w.style.marginBottom = '18px'; w.innerHTML = whoopBox(); bindWhoop(w); $('mImp').prepend(w) } else $('mImp').prepend($('whoopBox'));
+  if (!stvInit) { stvInit = true; stravaUI($('stravaBox')) }
+  $('ftDate').textContent = F.dateLong(R.ok ? R.today : todayKey());
+  saveSummary();
+}
+async function addAct(o) {
+  const [y, m, d] = o.date.split('-').map(Number), now = C.local(Date.now());
+  const t = o.date === now.key ? Date.now() : C.localToMs(y, m, d, 18, 0, 0);
+  const a = { id: 'm' + t.toString(36) + Math.random().toString(36).slice(2, 6), t, raw: o.sport, name: o.name || '', km: o.km || null, sec: Math.round(o.min * 60), hr: o.hr || null, hrmax: null, elev: null, cad: null, gear: null, kcal: null, steps: null, rpe: o.rpe || null };
+  a.sport = C.classify(a.raw, a.name, a.km, a.elev);
+  const keep = ACTS.slice(); ACTS = dedupe(ACTS.concat([a]));
+  try { await saveActs() } catch (e) { ACTS = keep; throw e }
+  renderAll();
+}
+async function removeAct(id) {
+  const keep = ACTS.slice(); ACTS = ACTS.filter(a => a.id !== id);
+  try { if (/^w/.test(id)) { ST.hide = (ST.hide || []).concat([id]).slice(-500); await saveSettings() } await saveActs() } catch (e) { ACTS = keep; throw e }
+  renderAll();
+}
 function renderAll() {
   analyze();
+  if (isMulti()) return renderMulti();
+  homeOnboard();
   if (!R.ok) { show('setup'); buildSetup(); say(ACTS.length ? 'Keine auswertbaren Einheiten gefunden.' : 'Noch keine Trainingsdaten.'); return }
   show('content'); say('');
   buildNav(); buildOverview(); buildInsights(); buildForm(); buildPerformance(); buildVolume(); buildIntensity(); buildRecords(); buildPlan(); buildMaterial(); buildProfile($('profile2'), 'p2');
@@ -383,6 +415,29 @@ async function stravaUI(box) {
   q('.stvSync').addEventListener('click', () => syncStrava());
   q('.stvOff').addEventListener('click', async () => { try { await wfetch('/strava/disconnect', {}); stvNote = ''; stravaUI(box) } catch (e) { q('.stvMsg').textContent = e.message } });
 }
+let whoopNote = '';
+async function syncWhoop(mode) {
+  const out = t => { whoopNote = t; document.querySelectorAll('.whMsg').forEach(x => { x.textContent = t }) };
+  document.querySelectorAll('.whGo').forEach(b => b.disabled = true);
+  try {
+    if (mode === 'sync' || mode === 'year') { out('Hole Workouts von Whoop …'); await wfetch('/sync', { days: mode === 'year' ? 365 : 14 }) }
+    const to = todayKey(), from = C.keyOfIdx(C.dayIdxOfKey(to) - 365);
+    const d = await wfetch('/data?from=' + from + '&to=' + to);
+    const list = C.fromWhoop(d.days), before = ACTS.length;
+    const have = new Set(ACTS.map(a => a.id));
+    const hide = new Set(ST.hide || []);
+    const fresh = list.filter(a => !have.has(a.id) && !hide.has(a.id));
+    if (fresh.length) { ACTS = dedupe(ACTS.concat(fresh)); await saveActs() }
+    const n = ACTS.length - before;
+    out(list.length ? list.length + ' Whoop-Workouts gefunden, ' + (n > 0 ? n + ' neu übernommen.' : 'nichts Neues.') : 'Keine Workouts in den gespeicherten Whoop-Daten. Tipp: „12 Monate nachholen“.');
+    if (n > 0) renderAll();
+  } catch (e) { out(mode ? 'Whoop: ' + e.message : '') }
+  finally { document.querySelectorAll('.whGo').forEach(b => b.disabled = false) }
+}
+function whoopBox() {
+  return '<h3 style="margin:0 0 6px;font-size:14px">Whoop-Workouts</h3><div class="mu" style="font-size:13px;margin-bottom:8px">Deine Whoop-Workouts kommen mit Puls, Strain und Kalorien automatisch ins Training – kein Strava nötig. Doppelte Einträge (Whoop + von Hand) löschst du im Logbuch.</div><div class="btns"><button type="button" class="primary whGo" data-m="sync">Jetzt abgleichen</button><button type="button" class="whGo" data-m="year">12 Monate nachholen</button></div><div class="msg whMsg" aria-live="polite">' + esc(whoopNote) + '</div>';
+}
+function bindWhoop(root) { root.querySelectorAll('.whGo').forEach(b => b.addEventListener('click', () => syncWhoop(b.dataset.m))) }
 async function syncStrava(auto) {
   const out = (t, err) => { const l = document.querySelectorAll('.stvMsg'); if (l.length) l.forEach(x => { x.textContent = t; x.className = 'msg stvMsg' + (err ? ' err' : '') }); else say(t, err) };
   let page = 1, got = 0;
@@ -422,10 +477,12 @@ function buildSetup() { buildProfile($('profile'), 'p1'); stravaUI($('stravaBox'
     const q = new URLSearchParams(location.search), sv = q.get('strava');
     await loadAll();
     renderAll(); watchSections();
-    if (!R || !R.ok) { show('setup'); }
+    syncWhoop('');
+    if (!isMulti() && (!R || !R.ok)) { show('setup'); }
+    document.querySelectorAll('#viewSw [data-v]').forEach(b => b.addEventListener('click', async () => { const v = b.dataset.v; if ((v === 'lauf') === (ST.view === 'lauf')) return; ST.view = v; try { await saveSettings() } catch (e) {} renderAll(); watchSections(); window.scrollTo(0, 0) }));
     if (sv) { history.replaceState(null, '', 'training.html'); if (sv === 'connected') { say('Strava verbunden – hole deine Einheiten …'); await syncStrava(true) } else say('Strava-Verbindung nicht zustande gekommen (' + sv + ').', true) }
     window.__trainingReady = true;
   } catch (e) { say('Training konnte nicht geladen werden: ' + e.message, true); window.__trainingReady = true }
-  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (R && R.ok && !$('content').hidden) { buildForm(); buildVolume(); drawBefund(); V.skyline($('sky'), R, mode); if ($('c-bell')) drawRaceDay(false); buildSame(); V.calendar($('c-cal'), R); buildIntensity() } }, 200) });
+  let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { if (R && R.ok && !$('mcontent').hidden) window.TrainingMulti.draw(); else if (R && R.ok && !$('content').hidden) { buildForm(); buildVolume(); drawBefund(); V.skyline($('sky'), R, mode); if ($('c-bell')) drawRaceDay(false); buildSame(); V.calendar($('c-cal'), R); buildIntensity() } }, 200) });
 })();
 })();

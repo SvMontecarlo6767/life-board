@@ -4,7 +4,7 @@
 (function (root) {
 'use strict';
 const TZ = 'Europe/Berlin';
-const SPORTS = ['Lauf', 'Trail', 'Rad', 'Kraft', 'Wandern', 'Schwimmen', 'Sonstiges'];
+const SPORTS = ['Lauf', 'Trail', 'Rad', 'Kraft', 'Wandern', 'Schwimmen', 'Fußball', 'Basketball', 'Tennis', 'Klettern', 'HIIT', 'Yoga', 'Boxen', 'Sonstiges'];
 const NF = {};
 const nf = d => NF[d] || (NF[d] = new Intl.NumberFormat('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
 
@@ -91,9 +91,16 @@ function classify(raw, name, km, elev) {
     return 'Lauf';
   }
   if (/ride|rad|bike|cycl|rolle|velo|spinning|e-?bike/.test(t)) return 'Rad';
-  if (/weight|kraft|strength|crossfit|gewicht/.test(t)) return 'Kraft';
+  if (/weight|kraft|strength|crossfit|gewicht|functional|powerlift|bodybuild/.test(t)) return 'Kraft';
   if (/hik|wander|walk|spazier|gehen/.test(t)) return 'Wandern';
   if (/swim|schwimm/.test(t)) return 'Schwimmen';
+  if (/fu(ß|ss)ball|soccer|football|kicken/.test(t)) return 'Fußball';
+  if (/basket/.test(t)) return 'Basketball';
+  if (/tennis|padel|squash|badminton/.test(t)) return 'Tennis';
+  if (/klettern|climb|boulder/.test(t)) return 'Klettern';
+  if (/hiit|intervall|tabata|circuit/.test(t)) return 'HIIT';
+  if (/yoga|pilates|stretch|mobil|dehn/.test(t)) return 'Yoga';
+  if (/box|kampf|mma|judo|karate|martial/.test(t)) return 'Boxen';
   return 'Sonstiges';
 }
 const HEAD = {
@@ -161,6 +168,21 @@ function importCSV(text) {
   return { acts, info: { rows: data.length, skipped, noHr, from: acts[0] && local(acts[0].t).key, to: acts.length && local(acts[acts.length - 1].t).key, source: 'CSV-Export' } };
 }
 // Strava-API (vom Worker bereits vereinheitlicht: t in ms, sport_type, Meter, Sekunden)
+// Whoop-Workouts (aus dem Worker: Tage → workouts[] mit score) → Einheiten
+function fromWhoop(days) {
+  const acts = [];
+  Object.keys(days || {}).forEach(k => (days[k].workouts || []).forEach(w => {
+    const t = Date.parse(w.start), e = Date.parse(w.end), sc = w.score || {};
+    if (!isFinite(t) || !isFinite(e) || e <= t) return;
+    const sec = Math.round((e - t) / 1000); if (sec < 300) return;
+    const km = sc.distance_meter > 0 ? Math.round(sc.distance_meter / 10) / 100 : null;
+    const a = { id: 'w' + w.id, t, raw: w.sport || 'Workout', name: '', km, sec, hr: sc.average_heart_rate > 30 ? sc.average_heart_rate : null, hrmax: sc.max_heart_rate > 60 ? sc.max_heart_rate : null, elev: sc.altitude_gain_meter > 0 ? Math.round(sc.altitude_gain_meter) : null, cad: null, gear: null, kcal: sc.kilojoule > 0 ? Math.round(sc.kilojoule / 4.184) : null, steps: null, strain: sc.strain > 0 ? Math.round(sc.strain * 10) / 10 : null, src: 'whoop' };
+    a.sport = classify(a.raw, a.name, a.km, a.elev);
+    acts.push(a);
+  }));
+  acts.sort((a, b) => a.t - b.t); return acts;
+}
+
 function fromStrava(list) {
   const acts = (list || []).map(s => {
     const km = s.distance != null ? s.distance / 1000 : null;
@@ -288,11 +310,12 @@ function analyze(acts, o) {
   R.zones = [0.85, 0.90, 0.95, 1.0].map(f => Math.round(thr * f));
 
   // Belastung
-  const F = { Kraft: 0.55, Rad: 0.65, Wandern: 0.6, Lauf: 0.75, Trail: 0.8 };
+  const F = { Kraft: 0.55, Rad: 0.65, Wandern: 0.6, Lauf: 0.75, Trail: 0.8, Schwimmen: 0.65, Fußball: 0.7, Basketball: 0.7, Tennis: 0.6, Klettern: 0.6, HIIT: 0.8, Yoga: 0.3, Boxen: 0.75 };
   let est = 0;
   L.forEach(a => {
     const h = a.sec / 3600;
     if (a.hr) { const fr = (a.hr - rest) / (thr - rest); a.load = h * fr * fr * 100; a.est = false }
+    else if (a.rpe) { const fr = 0.35 + 0.055 * Math.max(1, Math.min(10, a.rpe)); a.load = h * fr * fr * 100; a.est = false }
     else { const f = F[a.sport] != null ? F[a.sport] : 0.5; a.load = h * f * f * 100; a.est = true; est++ }
   });
   R.estLoad = est; R.noHr = L.filter(a => !a.hr).length;
@@ -317,9 +340,9 @@ function analyze(acts, o) {
   const wkStart = di => di - wdOfIdx(di);
   const curWk = wkStart(todayDi);
   const wkMap = new Map();
-  L.forEach(a => { const w = wkStart(a.loc.di); let o2 = wkMap.get(w); if (!o2) wkMap.set(w, o2 = { km: 0, runs: 0, hours: 0, load: 0 }); if (isRun(a) && a.km) { o2.km += a.km; o2.runs++ } o2.hours += a.sec / 3600; o2.load += a.load });
+  L.forEach(a => { const w = wkStart(a.loc.di); let o2 = wkMap.get(w); if (!o2) wkMap.set(w, o2 = { km: 0, runs: 0, hours: 0, load: 0, sessions: 0 }); o2.sessions++; if (isRun(a) && a.km) { o2.km += a.km; o2.runs++ } o2.hours += a.sec / 3600; o2.load += a.load });
   R.weeks = [];
-  for (let w = curWk - 52 * 7; w <= curWk; w += 7) { const o2 = wkMap.get(w) || { km: 0, runs: 0, hours: 0, load: 0 }; R.weeks.push({ di: w, start: keyOfIdx(w), km: Math.round(o2.km * 10) / 10, runs: o2.runs, hours: Math.round(o2.hours * 10) / 10, load: Math.round(o2.load), cur: w === curWk }) }
+  for (let w = curWk - 52 * 7; w <= curWk; w += 7) { const o2 = wkMap.get(w) || { km: 0, runs: 0, hours: 0, load: 0, sessions: 0 }; R.weeks.push({ sessions: o2.sessions, di: w, start: keyOfIdx(w), km: Math.round(o2.km * 10) / 10, runs: o2.runs, hours: Math.round(o2.hours * 10) / 10, load: Math.round(o2.load), cur: w === curWk }) }
   const done = R.weeks.filter(w => !w.cur);
   R.weeks.forEach((w, i) => { const pr = R.weeks.slice(Math.max(0, i - 4), i); w.avg4 = pr.length ? mean(pr.map(x => x.km)) : null });
   R.jump = null;
@@ -462,11 +485,11 @@ function analyze(acts, o) {
   R.totals = { runKm: sum(runsW.map(a => a.km || 0)), elev: sum(runsW.map(a => a.elev || 0)), hours: sum(win.map(a => a.sec / 3600)), kcal: win.some(a => a.kcal) ? sum(win.map(a => a.kcal || 0)) : null, steps: stepsKnown ? Math.round(steps) : null, acts: win.length, runs: runsW.length, hoursBy: hours, loadBy: SPORTS.reduce((m, s) => (m[s] = sum(win.filter(a => a.sport === s).map(a => a.load)), m), {}) };
 
   // Tage (Skyline / Kalender): je Tag Lauf-km, Last, aktiv
-  const dayMap = new Map(); win.forEach(a => { let d = dayMap.get(a.loc.di); if (!d) dayMap.set(a.loc.di, d = { km: 0, load: 0, act: 0 }); d.act++; d.load += a.load; if (isRun(a) && a.km) d.km += a.km });
-  R.days = []; for (let di = todayDi - 364; di <= todayDi; di++) { const d = dayMap.get(di); R.days.push({ di, k: keyOfIdx(di), km: d ? Math.round(d.km * 10) / 10 : 0, load: d ? Math.round(d.load) : 0, act: d ? d.act : 0 }) }
+  const dayMap = new Map(); win.forEach(a => { let d = dayMap.get(a.loc.di); if (!d) dayMap.set(a.loc.di, d = { km: 0, load: 0, act: 0, sec: 0 }); d.act++; d.sec += a.sec; d.load += a.load; if (isRun(a) && a.km) d.km += a.km });
+  R.days = []; for (let di = todayDi - 364; di <= todayDi; di++) { const d = dayMap.get(di); R.days.push({ di, k: keyOfIdx(di), km: d ? Math.round(d.km * 10) / 10 : 0, h: d ? Math.round(d.sec / 36) / 100 : 0, load: d ? Math.round(d.load) : 0, act: d ? d.act : 0 }) }
 
   // Log (12 Monate)
-  R.log = win.slice().reverse().map(a => ({ id: a.id, t: a.t, date: a.loc.key, h: a.loc.h, mi: a.loc.mi, name: a.name, sport: a.sport, km: a.km, sec: a.sec, hr: a.hr, elev: a.elev, load: Math.round(a.load), est: a.est, gear: a.gear }));
+  R.log = win.slice().reverse().map(a => ({ id: a.id, t: a.t, date: a.loc.key, h: a.loc.h, mi: a.loc.mi, name: a.name, sport: a.sport, km: a.km, sec: a.sec, hr: a.hr, elev: a.elev, load: Math.round(a.load), est: a.est, gear: a.gear, rpe: a.rpe || null, strain: a.strain || null, src: a.src || null }));
 
   // Diese Woche: Plan gegen Ist
   const wkDays = []; for (let i = 0; i < 7; i++) wkDays.push(curWk + i);
@@ -509,6 +532,6 @@ function analyze(acts, o) {
   return R;
 }
 
-root.TrainingCore = { SPORTS, WD, WDL, MON, fmt, parseCSV, importCSV, fromStrava, classify, dateOf, durOf, numOf, local, dayIdxOfKey, keyOfIdx, vdot, timeForVdot, paceForVo2, cdf, median, mean, sum, raceDay, chanceFor, bandFor, plan, analyze, QUALITY, HARDNAME };
+root.TrainingCore = { fromWhoop, localToMs, SPORTS, WD, WDL, MON, fmt, parseCSV, importCSV, fromStrava, classify, dateOf, durOf, numOf, local, dayIdxOfKey, keyOfIdx, vdot, timeForVdot, paceForVo2, cdf, median, mean, sum, raceDay, chanceFor, bandFor, plan, analyze, QUALITY, HARDNAME };
 if (typeof module !== 'undefined' && module.exports) module.exports = root.TrainingCore;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -16,6 +16,6 @@ for (let d = 420; d >= 0; d--) {
 acts.push({ i: String(id++), t: end - 30 * 864e5, r: 'Run', n: 'Stadtlauf Halbmarathon Rennen', k: 21.1, s: 5460, h: 171, m: 189, e: 90, c: 90, g: 'Nike Pegasus 40', q: 1400, p: null });
 const by = {}; acts.forEach(a => { const y = new Date(a.t).getUTCFullYear(); (by[y] = by[y] || []).push(a) });
 const seed = {}; for (const y in by) seed['users/u1/training/acts_' + y] = { list: by[y] };
-seed['users/u1/training/settings'] = { name: 'Max', rest: 48, planText: 'Mo frei\nDi 8 km locker\nMi Kraft\nDo 10 km Schwelle\nFr 6 km locker\nSa 7 km locker\nSo lang 22 km', race: { name: 'Stadtlauf Teststadt', place: 'Teststadt', date: '2026-11-22', km: 21.0975, target: 5400, elev: 120, elevSrc: 'von dir angegeben', lat: 50.1, lon: 8.6 }, source: 'Strava' };
+seed['users/u1/training/settings'] = { view: 'lauf', name: 'Max', rest: 48, planText: 'Mo frei\nDi 8 km locker\nMi Kraft\nDo 10 km Schwelle\nFr 6 km locker\nSa 7 km locker\nSo lang 22 km', race: { name: 'Stadtlauf Teststadt', place: 'Teststadt', date: '2026-11-22', km: 21.0975, target: 5400, elev: 120, elevSrc: 'von dir angegeben', lat: 50.1, lon: 8.6 }, source: 'Strava' };
 fs.writeFileSync(out, JSON.stringify(seed));
 console.log(acts.length + ' Einheiten');

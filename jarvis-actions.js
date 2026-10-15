@@ -3,7 +3,7 @@
    Liegt die Aktion auf einer anderen Seite, wird sie nach Bestätigung vorgemerkt, die Seite geöffnet und dort ausgeführt. */
 (function(root){
 'use strict';
-const PEND='lb_jv_pending',TABS={hub:'index.html',heute:'heute.html?v=5',recovery:'recovery.html?v=4',lernen:'learn.html?v=2',puzzle:'puzzle.html?v=3',training:'training.html?v=1'};
+const PEND='lb_jv_pending',TABS={hub:'index.html',heute:'heute.html?v=5',recovery:'recovery.html?v=4',lernen:'learn.html?v=2',puzzle:'puzzle.html?v=3',training:'training.html?v=2'};
 const PAGE={set_habit:'heute.html',set_puzzle:'puzzle.html'};
 const NAMES={hub:'Hub',heute:'Heute',recovery:'Recovery',lernen:'Lernen',puzzle:'Puzzle-Tracker',training:'Training'};
 const SET={sprachausgabe:['speak','Sprachausgabe'],performance:['perf','Performance-Modus'],sounds:['sounds','UI-Sounds']};

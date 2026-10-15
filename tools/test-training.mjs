@@ -111,5 +111,18 @@ ok(NH.repair.changed && /Puls unter/.test(NH.repair.neu), 'Repair: Lockeres leic
 const bad = JSON.stringify(N).match(/\b\w*(ae|oe|ue)\w*\b/g) || [];
 ok(!bad.some(w => /^(Duell|Aktuell|Quelle|Frueh|Fuer|Laeufe|Waehrend|Ueber)/.test(w)), 'Keine ae/oe/ue-Ersatzschreibung');
 ok(!/NaN|undefined|Infinity/.test(JSON.stringify(N)), 'Keine NaN/undefined in Texten');
+
+// --- Allround / Whoop ---
+const WD = { '2026-10-10': { workouts: [{ id: 77, sport: 'Weightlifting', start: '2026-10-10T08:00:00.000Z', end: '2026-10-10T09:10:00.000Z', score: { strain: 9.4, average_heart_rate: 118, max_heart_rate: 160, kilojoule: 1200 } }, { id: 78, sport: 'Soccer', start: '2026-10-11T16:00:00.000Z', end: '2026-10-11T17:30:00.000Z', score: { strain: 12.1, average_heart_rate: 139, max_heart_rate: 186, distance_meter: 7400 } }, { id: 79, sport: 'Activity', start: '2026-10-11T10:00:00.000Z', end: '2026-10-11T10:02:00.000Z', score: null }] } };
+const WA = C.fromWhoop(WD);
+ok(WA.length === 2 && WA[0].sport === 'Kraft' && WA[1].sport === 'Fußball' && WA[0].id === 'w77', 'Whoop-Workouts → Einheiten (Kraft, Fußball, Kurzes verworfen)');
+ok(WA[0].hr === 118 && WA[0].kcal === 287 && WA[1].km === 7.4 && WA[0].strain === 9.4, 'Whoop: Puls, Kalorien, Strecke, Strain');
+const mA = []; for (let d = 60; d >= 1; d--) { const t = Date.UTC(2026, 9, 14, 17) - d * 864e5, wd = (new Date(t).getUTCDay() + 6) % 7; if (wd === 1 || wd === 4) mA.push({ id: 'm' + d, t, raw: 'Kraft', name: '', sec: 4500, km: null, hr: null, rpe: 7, sport: 'Kraft' }); if (wd === 2) mA.push({ id: 'm9' + d, t, raw: 'Fußball', name: '', sec: 5400, km: null, hr: 140, sport: 'Fußball' }) }
+const RM = C.analyze(mA, { today: '2026-10-15' });
+ok(RM.ok && RM.counts['Kraft'] > 10 && RM.counts['Fußball'] > 5 && RM.weeks.at(-1).sessions >= 0 && RM.weeks.some(w => w.sessions >= 3), 'Allround: Sportarten und Einheiten pro Woche');
+ok(RM.log.every(a => a.sport && a.load > 0) && RM.log.find(a => a.sport === 'Kraft').rpe === 7, 'Belastung aus Anstrengung (RPE) und Puls');
+const kHard = C.analyze([{ id: 'x', t: Date.UTC(2026, 9, 14, 17), raw: 'Kraft', sec: 3600, rpe: 10, sport: 'Kraft' }], { today: '2026-10-15' }).log[0].load, kEasy = C.analyze([{ id: 'y', t: Date.UTC(2026, 9, 14, 17), raw: 'Kraft', sec: 3600, rpe: 2, sport: 'Kraft' }], { today: '2026-10-15' }).log[0].load;
+ok(kHard > kEasy * 3, 'RPE 10 zählt deutlich mehr als RPE 2 (' + Math.round(kHard) + ' vs ' + Math.round(kEasy) + ')');
+ok(['Fußball', 'Basketball', 'Tennis', 'Klettern', 'HIIT', 'Yoga', 'Boxen'].every(s => C.classify(s, '', null, null) === s), 'Neue Sportarten werden erkannt');
 console.log(fail ? '\nFEHLER: ' + fail : '\nalles ok');
 process.exit(fail ? 1 : 0);

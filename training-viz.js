@@ -45,7 +45,7 @@ const anim = (cls, d) => still() ? '' : ' class="' + cls + '" style="animation-d
 /* ---------- Skyline (3D-Jahr) ---------- */
 function skyline(el, R, mode) {
   const days = R.days, first = days[0].di, w0 = first - wdOf(first);
-  const vals = days.map(d => mode === 'load' ? d.load : d.km), mx = Math.max.apply(null, vals.concat([1]));
+  const vals = days.map(d => mode === 'load' ? d.load : mode === 'h' ? d.h : d.km), mx = Math.max.apply(null, vals.concat([1]));
   let best = -1; vals.forEach((v, i) => { if (v > 0 && (best < 0 || v > vals[best])) best = i });
   const P = (u, v, h) => [8.2 * u + 5.0 * v, -1.8 * u + 3.1 * v - h];
   const items = days.map((d, i) => ({ u: Math.floor((d.di - w0) / 7), v: 6 - wdOf(d.di), h: vals[i] > 0 ? Math.max(2.5, vals[i] / mx * 132) : 0, i, d }));
@@ -61,7 +61,7 @@ function skyline(el, R, mode) {
     const isBest = i === best, run = h > 0;
     const top = isBest ? LIME : run ? '#ffe9eb' : (d.act ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.085)');
     const left = isBest ? '#bde23c' : '#b83a48', front = isBest ? '#9bc226' : '#ff5460';
-    tt.push({ t: F.dateLong(d.k), rows: [[AC, 'Laufkilometer', f1(d.km) + ' km'], [AC2, 'Belastung', f0(d.load) + ' Punkte']] });
+    tt.push({ t: F.dateLong(d.k), rows: [mode === 'h' ? [AC, 'Training', f1(d.h) + ' h · ' + d.act + ' Einh.'] : [AC, 'Laufkilometer', f1(d.km) + ' km'], [AC2, 'Belastung', f0(d.load) + ' Punkte']] });
     out += '<g' + anim('rise', Math.round(u / Math.max(1, maxU) * 700)) + ' data-tt="' + (tt.length - 1) + '">';
     if (run) {
       out += '<polygon points="' + pts([P(a, c, 0), P(a, e, 0), P(a, e, h), P(a, c, h)]) + '" fill="' + left + '"/>';
@@ -73,7 +73,7 @@ function skyline(el, R, mode) {
   let lab = ''; let lastM = '';
   days.forEach(d => { const m = d.k.slice(0, 7); if (m !== lastM && +d.k.slice(8) <= 7) { lastM = m; const u = Math.floor((d.di - w0) / 7); const p = P(u + .5, 7.1, 0); lab += '<text x="' + p[0].toFixed(1) + '" y="' + (p[1] + 8).toFixed(1) + '" font-size="5.2" text-anchor="middle">' + monthName(d.k) + '</text>'; grow([p[0], p[1] + 10]) } });
   let bl = '';
-  if (best >= 0) { const it = items.find(x => x.i === best), p = P(it.u + .5, it.v + .5, it.h); bl = '<line x1="' + p[0].toFixed(1) + '" y1="' + p[1].toFixed(1) + '" x2="' + (p[0] - 8).toFixed(1) + '" y2="' + (p[1] - 18).toFixed(1) + '" stroke="' + LIME + '" stroke-width=".5"/><text x="' + (p[0] - 9).toFixed(1) + '" y="' + (p[1] - 20).toFixed(1) + '" font-size="5.6" text-anchor="end" style="fill:' + LIME + ';font-weight:700">' + f1(vals[best]) + (mode === 'load' ? ' Pkt' : ' km') + ' · ' + F.dateShort(days[best].k) + '</text>'; grow([p[0] - 60, p[1] - 28]) }
+  if (best >= 0) { const it = items.find(x => x.i === best), p = P(it.u + .5, it.v + .5, it.h); bl = '<line x1="' + p[0].toFixed(1) + '" y1="' + p[1].toFixed(1) + '" x2="' + (p[0] - 8).toFixed(1) + '" y2="' + (p[1] - 18).toFixed(1) + '" stroke="' + LIME + '" stroke-width=".5"/><text x="' + (p[0] - 9).toFixed(1) + '" y="' + (p[1] - 20).toFixed(1) + '" font-size="5.6" text-anchor="end" style="fill:' + LIME + ';font-weight:700">' + f1(vals[best]) + (mode === 'load' ? ' Pkt' : mode === 'h' ? ' h' : ' km') + ' · ' + F.dateShort(days[best].k) + '</text>'; grow([p[0] - 60, p[1] - 28]) }
   const pad = 6;
   el.innerHTML = '<svg viewBox="' + (x0 - pad).toFixed(1) + ' ' + (y0 - pad).toFixed(1) + ' ' + (x1 - x0 + 2 * pad).toFixed(1) + ' ' + (y1 - y0 + 2 * pad).toFixed(1) + '" width="100%" role="img" aria-label="Dein Jahr als 3D-Stadt: jeder Tag eine Säule">' + out + lab + bl + '</svg>' + sr('Dein Jahr', days.filter(d => d.km > 0).map(d => [d.k, f1(d.km) + ' km']));
   bindTT(el, tt);
@@ -228,14 +228,15 @@ function zoneBar(el, pct, zones) {
   const names = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'], rng = [' < ' + zones[0], zones[0] + '–' + (zones[1] - 1), zones[1] + '–' + (zones[2] - 1), zones[2] + '–' + (zones[3] - 1), '≥ ' + zones[3]];
   el.innerHTML = '<div style="display:flex;gap:2px;height:44px;border-radius:12px;overflow:hidden">' + pct.map((p, i) => '<i style="flex:' + Math.max(p, .0001) + ';background:' + ZC[i] + '" title="' + names[i] + '"></i>').join('') + '</div><div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;font-size:12.5px;color:var(--ink2)">' + pct.map((p, i) => '<span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:' + ZC[i] + ';margin-right:6px"></i>' + names[i] + ' · ' + rng[i] + ' · <b>' + f0(p) + ' %</b></span>').join('') + '</div>';
 }
-function habitGrid(el, hb) {
+function habitGrid(el, hb, noun) {
+  noun = noun || 'Läufe';
   const w = W(el), cw = (w - 30) / 24, rh = 26, h = 7 * rh + 22, mx = Math.max.apply(null, hb.grid.map(r => Math.max.apply(null, r)).concat([1]));
   let s = ''; const tt = [];
-  C.WD.forEach((d, wd) => { s += '<text x="0" y="' + (wd * rh + 17) + '">' + d + '</text>'; for (let hh = 0; hh < 24; hh++) { const n = hb.grid[wd][hh], isTop = hb.top.n && hb.top.wd === wd && hb.top.h === hh; tt.push({ t: C.WDL[wd] + ', ' + hh + ' Uhr', rows: [[AC, 'Läufe', String(n)]] }); const cx = 30 + hh * cw + cw / 2, cy = wd * rh + 13; if (n) s += '<circle data-tt="' + (tt.length - 1) + '" cx="' + cx + '" cy="' + cy + '" r="' + (Math.sqrt(n / mx) * Math.min(11, cw / 2 - 1)).toFixed(1) + '" fill="' + AC + '" fill-opacity="' + (.35 + .65 * n / mx).toFixed(2) + '"' + (isTop ? ' stroke="#fff" stroke-width="2"' : '') + '/>'; else s += '<circle data-tt="' + (tt.length - 1) + '" cx="' + cx + '" cy="' + cy + '" r="1.6" fill="rgba(150,200,255,.2)"/>' } });
+  C.WD.forEach((d, wd) => { s += '<text x="0" y="' + (wd * rh + 17) + '">' + d + '</text>'; for (let hh = 0; hh < 24; hh++) { const n = hb.grid[wd][hh], isTop = hb.top.n && hb.top.wd === wd && hb.top.h === hh; tt.push({ t: C.WDL[wd] + ', ' + hh + ' Uhr', rows: [[AC, noun, String(n)]] }); const cx = 30 + hh * cw + cw / 2, cy = wd * rh + 13; if (n) s += '<circle data-tt="' + (tt.length - 1) + '" cx="' + cx + '" cy="' + cy + '" r="' + (Math.sqrt(n / mx) * Math.min(11, cw / 2 - 1)).toFixed(1) + '" fill="' + AC + '" fill-opacity="' + (.35 + .65 * n / mx).toFixed(2) + '"' + (isTop ? ' stroke="#fff" stroke-width="2"' : '') + '/>'; else s += '<circle data-tt="' + (tt.length - 1) + '" cx="' + cx + '" cy="' + cy + '" r="1.6" fill="rgba(150,200,255,.2)"/>' } });
   for (let hh = 0; hh < 24; hh += 3) s += '<text x="' + (30 + hh * cw + cw / 2) + '" y="' + (h - 4) + '" text-anchor="middle">' + hh + '</text>';
-  el.innerHTML = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Läufe nach Wochentag und Uhrzeit">' + s + '</svg>';
+  el.innerHTML = '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="' + noun + ' nach Wochentag und Uhrzeit">' + s + '</svg>';
   bindTT(el, tt);
 }
 
-window.TrainingViz = { skyline, formChart, gauge, weeksChart, rings, calendar, scatter, paceChart, bell, zoneBar, habitGrid, showTip, hideTip, esc, sr };
+window.TrainingViz = { bindTT, grid, W, anim, monthName, skyline, formChart, gauge, weeksChart, rings, calendar, scatter, paceChart, bell, zoneBar, habitGrid, showTip, hideTip, esc, sr };
 })();
