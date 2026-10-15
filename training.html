@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" data-hud><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Life Board"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#04080f">
+
 <title>Training</title>
 <style>
 :root{--ink:#e6f1fb;--ink2:#b4c7da;--muted:#8fa6bd;--grid:rgba(150,200,255,.12);--border:rgba(150,200,255,.16);--surface:rgba(10,20,34,.58);--page:transparent;--series-1:#ff5460}
@@ -139,6 +145,17 @@ button.txt{background:none!important;border:0!important;box-shadow:none!importan
 .seg.rpe{display:flex;flex-wrap:wrap;border-radius:16px;margin-top:4px}.seg.rpe button{flex:1;min-width:34px}
 .wkdots{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px;text-align:center}.wkdots>div{background:rgba(150,200,255,.07);border-radius:10px;padding:6px 2px;min-width:0}.wkdots .today{outline:2px solid rgb(var(--acc))}.wkdots span{display:block;font-size:11px;color:var(--muted)}.wkdots b{font-size:14px;min-height:20px;display:block;word-break:break-all}
 .bh{font-family:var(--font-hud);font-size:clamp(20px,3vw,28px)}.bh em{font-style:normal;color:rgb(var(--acc))}
+/* Gym */
+.gymcard h2{margin-bottom:2px}.gh{font-size:14px;margin:22px 0 8px}
+.gstart{margin:12px 0}.gedit{margin-top:12px}.gtop{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline;margin-bottom:8px}
+.grest{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 10px}.grt{font-family:var(--font-hud);font-size:18px;margin-left:6px}
+.gx{background:rgba(150,200,255,.06);border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin:10px 0}
+.gxh{display:flex;justify-content:space-between;align-items:center}.gsm{font-size:12.5px;margin:2px 0 8px}
+.gs{display:grid;grid-template-columns:24px 1fr 1fr 40px;gap:8px;align-items:center;margin:6px 0}.gs span{color:var(--muted);text-align:center}
+.gs input{min-height:44px;border-radius:12px;border:1px solid var(--border);background:rgba(6,12,22,.6);color:var(--ink);padding:0 12px;font:inherit;font-size:16px;width:100%;box-sizing:border-box}
+.gadd{display:flex;gap:8px;margin:12px 0}.gadd input{flex:1;min-height:44px;border-radius:12px;border:1px solid var(--border);background:rgba(6,12,22,.6);color:var(--ink);padding:0 12px;font:inherit;font-size:16px}
+.gprs{background:rgb(var(--acc)/.14);border:1px solid rgb(var(--acc)/.45);border-radius:14px;padding:10px 12px;margin:12px 0;font-size:14px}
+.gt{margin:12px 0}.ghist details{border-bottom:1px solid var(--border);padding:6px 0}.ghist summary{cursor:pointer;min-height:40px;display:flex;align-items:center;font-size:14px}.gdet{padding:4px 0 8px;font-size:13.5px}.gdet div{margin:3px 0}
 /* Kalender, Raster */
 .cal{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px}
 .cal i{display:block;aspect-ratio:1;border-radius:4px;background:rgba(150,200,255,.07);min-width:0}
@@ -297,8 +314,9 @@ html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
 <script src="training-core.js?v=2"></script>
 <script src="training-text.js?v=1"></script>
 <script src="training-viz.js?v=3"></script>
-<script src="training-multi.js?v=1"></script>
-<script src="training.js?v=2"></script>
-<script src="theme.js?v=7"></script>
+<script src="training-gym.js?v=3"></script>
+<script src="training-multi.js?v=2"></script>
+<script src="training.js?v=3"></script>
+<script src="theme.js?v=8"></script>
 <script src="jarvis.js?v=7"></script>
 </body></html>

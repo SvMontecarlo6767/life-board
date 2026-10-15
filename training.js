@@ -22,11 +22,13 @@ const say = (t, err) => { const m = $('msg'); m.textContent = t || ''; m.classNa
 /* ---------- Speichern / Laden ---------- */
 const compact = a => ({ i: a.id, t: a.t, r: a.raw || '', n: a.name || '', k: a.km, s: a.sec, h: a.hr, m: a.hrmax, e: a.elev, c: a.cad, g: a.gear, q: a.kcal, p: a.steps, x: a.rpe || null, w: a.strain || null });
 const expand = o => { const a = { id: o.i, t: o.t, raw: o.r, name: o.n, km: o.k == null ? null : o.k, sec: o.s, hr: o.h == null ? null : o.h, hrmax: o.m == null ? null : o.m, elev: o.e == null ? null : o.e, cad: o.c == null ? null : o.c, gear: o.g || null, kcal: o.q == null ? null : o.q, steps: o.p == null ? null : o.p, rpe: o.x || null, strain: o.w || null, src: /^w/.test(o.i) ? 'whoop' : null }; a.sport = C.classify(a.raw, a.name, a.km, a.elev); if (a.cad != null && a.cad < 120 && (a.sport === 'Lauf' || a.sport === 'Trail')) a.cad *= 2; return a };
-const YEARS = new Set();
+const YEARS = new Set(), GYEARS = new Set();
+let GYM = [];
 async function loadAll() {
   const s = await fs.doc(base + '/training/settings').get();
   if (s.exists) ST = Object.assign(ST, s.data());
   const q = await fs.collection(base + '/training').get();
+  GYM = []; q.docs.forEach(d => { if (/^gym_\d{4}$/.test(d.id)) { GYEARS.add(d.id.slice(4)); (d.data().list || []).forEach(o => GYM.push(gExpand(o))) } });
   const list = []; q.docs.forEach(d => { if (/^acts_\d{4}$/.test(d.id)) YEARS.add(d.id.slice(5)); if (/^acts_\d{4}$/.test(d.id)) (d.data().list || []).forEach(o => list.push(expand(o))) });
   ACTS = dedupe(list);
   try { localStorage.setItem('lb_tr_n', String(ACTS.length)) } catch (e) {}
@@ -35,6 +37,31 @@ function dedupe(list) {
   const m = new Map(); list.forEach(a => { const k = a.id; if (!m.has(k)) m.set(k, a) });
   const byT = new Map(); [...m.values()].sort((a, b) => a.t - b.t).forEach(a => { const k = Math.round(a.t / 60000) + '|' + Math.round((a.km || 0) * 10); const p = byT.get(k); if (!p || (a.hr && !p.hr)) byT.set(k, a) });
   return [...byT.values()].sort((a, b) => a.t - b.t);
+}
+const gCompact = s => ({ i: s.id, d: s.date, t: s.t, m: s.min, x: s.rpe, n: s.note || '', p: s.plan || '', e: s.ex.map(e => ({ n: e.n, s: e.s.map(x => ({ w: x.w, r: x.r })) })) });
+const gExpand = o => ({ id: o.i, date: o.d, t: o.t, min: o.m, rpe: o.x, note: o.n || '', plan: o.p || '', ex: (o.e || []).map(e => ({ n: e.n, s: (e.s || []).map(x => ({ w: x.w, r: x.r })) })) });
+async function saveGym() {
+  const by = {}; GYM.forEach(s => { const y = s.date.slice(0, 4); (by[y] = by[y] || []).push(gCompact(s)) });
+  for (const y of Object.keys(by)) { await fs.doc(base + '/training/gym_' + y).set({ list: JSON.parse(JSON.stringify(by[y])) }); GYEARS.add(y) }
+  for (const y of [...GYEARS]) if (!by[y]) await fs.doc(base + '/training/gym_' + y).set({ list: [] });
+}
+async function addGym(o) {
+  const G = window.TrainingGym.core, [y, m, d] = o.date.split('-').map(Number), now = C.local(Date.now());
+  const t = o.date === now.key ? Date.now() : C.localToMs(y, m, d, 18, 0, 0);
+  const s = { id: 'x' + t.toString(36) + Math.random().toString(36).slice(2, 6), date: o.date, t, min: o.min, rpe: o.rpe, note: o.note, plan: o.plan, ex: o.ex };
+  const prs = G.prsOf(GYM, s, todayKey());
+  const keepG = GYM.slice(), keepA = ACTS.slice();
+  GYM = GYM.concat([s]);
+  const a = { id: 'g' + s.id, t, raw: 'Kraft', name: s.plan || 'Gym', km: null, sec: s.min * 60, hr: null, hrmax: null, elev: null, cad: null, gear: null, kcal: null, steps: null, rpe: s.rpe };
+  a.sport = 'Kraft'; ACTS = dedupe(ACTS.concat([a]));
+  try { await saveGym(); await saveActs() } catch (e) { GYM = keepG; ACTS = keepA; throw e }
+  renderAll(); return prs;
+}
+async function removeGym(id) {
+  const keepG = GYM.slice(), keepA = ACTS.slice();
+  GYM = GYM.filter(s => s.id !== id); ACTS = ACTS.filter(a => a.id !== 'g' + id);
+  try { await saveGym(); await saveActs() } catch (e) { GYM = keepG; ACTS = keepA; throw e }
+  renderAll();
 }
 async function saveSettings() { await fs.doc(base + '/training/settings').set(JSON.parse(JSON.stringify(ST))) }
 async function saveActs() {
@@ -66,7 +93,7 @@ function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidde
 function homeOnboard() { const o = $('onboard'), g = $('setup').querySelector('.g'); if (o && g && o.parentNode !== g) g.prepend(o) }
 let stvInit = false;
 function multiCtx() {
-  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
+  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
 }
 function renderMulti() {
   show('multi'); say(''); window.TrainingMulti.render($('mcontent'), R, multiCtx());
@@ -85,6 +112,7 @@ async function addAct(o) {
   renderAll();
 }
 async function removeAct(id) {
+  if (/^g/.test(id)) return removeGym(id.slice(1));
   const keep = ACTS.slice(); ACTS = ACTS.filter(a => a.id !== id);
   try { if (/^w/.test(id)) { ST.hide = (ST.hide || []).concat([id]).slice(-500); await saveSettings() } await saveActs() } catch (e) { ACTS = keep; throw e }
   renderAll();

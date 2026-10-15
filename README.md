@@ -29,6 +29,18 @@ In **Optionen → KI-Anbieter** zwischen Gemini (Standard), Groq (Llama), OpenRo
 - Aktuelle `worker/worker.js` deployen. Fehlt ein Schlüssel, meldet die KI das im Chat.
 - Nur mit Mocks getestet.
 
+## Gym-Logbuch (im Training, Ansicht „Allround“)
+- Vorlagen Push / Pull / Beine / Oberkörper / Unterkörper / Ganzkörper, „Wie zuletzt“ oder leer. Übungen frei hinzufügbar (Vorschläge aus deinen bisherigen Übungen).
+- Pro Übung Sätze mit Gewicht und Wiederholungen; die Werte vom letzten Mal sind vorbelegt, dazu ein Vorschlag (Doppelprogression: alle Sätze ≥ 10 Wdh → Gewicht erhöhen). Pausen-Timer, Entwurf bleibt bei Neuladen erhalten.
+- Auswertung: Rekorde (Gewicht, Wiederholungen, geschätztes 1RM nach Epley) mit Meldung beim Speichern, Verlaufskurve je Übung, Sätze pro Muskelgruppe (Zuordnung nach dem Namen), Einheitenverlauf. Jede Gym-Einheit zählt als Kraft-Einheit fürs Wochenziel und die Belastung.
+- Daten: `users/{uid}/training/gym_JJJJ` (Firestore, in der Sicherung enthalten). Tests: `node tools/test-gym.mjs`, `python3 tools/browser/test_gym.py <Ordner>`.
+
+## App auf dem iPad
+Safari → Teilen → **Zum Home-Bildschirm**. `manifest.webmanifest`, Symbole in `icons/` und `sw.js` (Service Worker: Netz zuerst, nur bei Ausfall die zuletzt geladene Seite; Firebase, Worker und Co. werden nie zwischengespeichert). Daten kommen weiterhin aus Firestore, brauchen also Netz. Nach Änderungen an Seiten steigt der Cache-Name in `sw.js` nur bei neuen Dateien in `SHELL`.
+
+## Sicherung wiederherstellen
+Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gleiche Dokumente werden überschrieben, nichts wird gelöscht; Whoop-Rohdaten (liegen im Worker) sind nicht enthalten. Test: `python3 tools/browser/test_backup.py`.
+
 ## Jarvis
 - Antippen öffnet, **halten = sprechen, loslassen = senden**. Tippen im Textfeld antwortet nur schriftlich.
 - Schalter „Jarvis spricht“ (Optionen) bzw. „nur schriftlich“ / „sprich mit mir“ per Zuruf.

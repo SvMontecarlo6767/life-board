@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" data-hud><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Life Board"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#04080f">
+
 <title>Life Board</title>
 <style>
 :root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--bd:#e2e0d8;--ac:#2f6f4f;--ac2:#e8f2ec;--bad:#b3413a}
@@ -21,10 +27,11 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .top button{padding:8px 12px;font-size:13px}
 #bk{margin-top:18px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
-#bk b{display:block;font-size:16px;margin-bottom:2px}
-#bk .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+#appTip{margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)}
+#bk b,#appTip b{display:block;font-size:16px;margin-bottom:2px}
+#bk .row,#appTip .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 #bkMsg{font-size:13.5px;color:var(--mu);margin-top:8px}
-#bkMsg.warn{color:var(--bad)}
+#bkMsg.warn,#bkPrev.warn{color:var(--bad)}#bkPrev.good{color:var(--ac)}
 #wh{margin-top:18px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
 #wh b{display:block;font-size:16px;margin-bottom:2px}
 #wh .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
@@ -68,6 +75,17 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
     <span style="color:var(--mu);font-size:13.5px">Lädt alle deine Daten als Datei herunter, unabhängig von Firebase. Am besten einmal pro Woche und die Datei zusätzlich in iCloud oder Google Drive ablegen.</span>
     <div class="row"><button class="primary" id="bkDl">Sicherung herunterladen</button><button id="bkCopy">In Zwischenablage kopieren</button></div>
     <div id="bkMsg"></div>
+    <details id="bkRestore" style="margin-top:12px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">Sicherung wiederherstellen</summary>
+      <span style="color:var(--mu);font-size:13.5px;display:block;margin:6px 0">Wählt eine Sicherungsdatei aus. Du siehst erst, was drinsteht, und bestätigst dann. Gleiche Einträge werden überschrieben, alles andere bleibt unberührt. Es wird nichts gelöscht. Whoop-Rohdaten liegen im Worker und sind nicht Teil der Datei (sie lassen sich neu abrufen).</span>
+      <div class="row"><label class="btn" style="display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--bd);border-radius:12px;cursor:pointer">Datei auswählen<input type="file" id="bkFile" accept=".json,application/json" hidden></label></div>
+      <div id="bkPrev" style="margin-top:10px;font-size:14px"></div>
+      <div class="row"><button class="primary" id="bkGo" hidden>Jetzt wiederherstellen</button></div>
+    </details>
+    <div id="appTip" hidden>
+      <b>📲 Als App aufs iPad</b>
+      <span style="color:var(--mu);font-size:13.5px">Safari → Teilen-Symbol → <b style="display:inline;font-size:inherit">Zum Home-Bildschirm</b>. Dann startet das Life Board wie eine App, ohne Adressleiste, und öffnet auch bei schwachem Netz.</span>
+      <div class="row"><button id="appTipOk">Verstanden</button></div>
+    </div>
   </div>
 </section>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -93,6 +111,14 @@ $('loginBtn').onclick=async()=>{
   }
 };
 $('logoutBtn').onclick=()=>auth.signOut();
+
+// ---- App-Tipp (nur wenn nicht als App geöffnet) ----
+try{
+  const standalone=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+  let seen=false;try{seen=localStorage.getItem('lb-app-tip')==='1'}catch(e){}
+  if(!standalone&&!seen&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document)$('appTip').hidden=false;
+  $('appTipOk').onclick=()=>{$('appTip').hidden=true;try{localStorage.setItem('lb-app-tip','1')}catch(e){}};
+}catch(e){}
 
 // ---- Sicherung ----
 // Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
@@ -138,6 +164,42 @@ $('bkCopy').onclick=async()=>{
   }catch(e){m.className='warn';m.textContent='Kopieren fehlgeschlagen: '+(e.code||e.message)}
 };
 bkStatus();
+
+// ---- Wiederherstellen ----
+let bkData=null;
+const BK_ID=/^[A-Za-z0-9_\-.:]{1,200}$/;
+function bkValidate(o){
+  if(!o||typeof o!=='object'||o.app!=='life-board'||!o.collections||typeof o.collections!=='object')return 'Das ist keine Life-Board-Sicherung.';
+  for(const [k,v] of Object.entries(o.collections)){
+    if(!MODULES.includes(k))return 'Unbekannter Bereich in der Datei: '+k;
+    if(!v||typeof v!=='object'||Array.isArray(v))return 'Bereich '+k+' ist kaputt.';
+    for(const [id,d] of Object.entries(v)){if(!BK_ID.test(id))return 'Ungültige Dokument-Kennung in '+k+'.';if(!d||typeof d!=='object'||Array.isArray(d))return 'Dokument '+k+'/'+id+' ist kaputt.'}
+  }
+  return '';
+}
+$('bkFile').onchange=async ev=>{
+  const f=ev.target.files&&ev.target.files[0];ev.target.value='';if(!f)return;const p=$('bkPrev');$('bkGo').hidden=true;bkData=null;
+  try{
+    const o=JSON.parse(await f.text()),err=bkValidate(o);
+    if(err){p.className='warn';p.textContent=err;return}
+    bkData=o;p.className='';p.textContent='Datei vom '+String(o.exported||'?').slice(0,10)+': '+summary(o)+'.';$('bkGo').hidden=false;
+  }catch(e){p.className='warn';p.textContent='Datei konnte nicht gelesen werden: '+e.message}
+};
+$('bkGo').onclick=async()=>{
+  const p=$('bkPrev'),u=auth.currentUser;if(!bkData||!u)return;
+  if(!confirm('Wiederherstellen? '+summary(bkData)+'. Gleiche Einträge in deinem Konto werden überschrieben.'))return;
+  $('bkGo').disabled=true;
+  try{
+    let n=0,batch=fs.batch(),c=0;
+    for(const [col,docs] of Object.entries(bkData.collections))for(const [id,d] of Object.entries(docs)){
+      batch.set(fs.doc('users/'+u.uid+'/'+col+'/'+id),d);c++;n++;
+      if(c>=400){await batch.commit();batch=fs.batch();c=0;p.textContent='Schreibe … '+n}
+    }
+    if(c)await batch.commit();
+    p.className='good';p.textContent='✓ '+n+' Dokumente wiederhergestellt. Lade die Seiten neu, damit alles sichtbar wird.';bkData=null;$('bkGo').hidden=true;
+  }catch(e){p.className='warn';p.textContent='Wiederherstellen fehlgeschlagen: '+(e.code||e.message)}
+  finally{$('bkGo').disabled=false}
+};
 
 // ---- Whoop ----
 const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
@@ -211,6 +273,6 @@ async function dopStatus(u){
 }
 auth.onAuthStateChanged(u=>{if(u)dopStatus(u)});
 </script>
-</main><script src="theme.js?v=7"></script>
+</main><script src="theme.js?v=8"></script>
 <script src="jarvis.js?v=7"></script>
 </body></html>

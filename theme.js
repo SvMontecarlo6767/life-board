@@ -162,3 +162,5 @@ function start(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();
+/* App-Modus: Service Worker (Offline-Start). Nicht im Test-Browser. */
+try{if('serviceWorker' in navigator&&!navigator.webdriver&&(location.protocol==='https:'||location.hostname==='localhost'))addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}))}catch(e){}

@@ -148,6 +148,7 @@ function render(host, R, ctx) {
   const st = ctx.st, ok = R && R.ok, N = narrate(R, st, new Date().getHours()), q = N.q;
   let h = '<div class="g" id="m-ueber"><div class="card s12"><div class="o1"><div class="avatar" aria-hidden="true">💪<b></b></div><div class="hello">' + esc(N.hello) + (N.name ? '<br>' + esc(N.name) + '<i>.</i>' : '') + '</div><h3 class="bh" style="margin:10px 0 4px">' + esc(N.head[0]) + ' <em>' + esc(N.head[1]) + '</em></h3><p class="sentence">' + esc(N.text) + '</p>' + (N.chips.length ? '<div class="chips">' + N.chips.map(c => '<span class="chip a">' + esc(c) + '</span>').join('') + '</div>' : '') + '</div></div></div>';
   h += '<div class="g">' + addCard(R, st) + profileCard(st) + '</div>';
+  h += '<h2 class="sec" id="m-gym">Gym</h2><div class="secsub">Übungen, Sätze und Gewichte – zählt automatisch fürs Wochenziel.</div><div class="g"><div class="card s12 gymcard" id="gymBox"></div></div>';
   if (ok) {
     const wk = q.wk, pct = Math.min(1, wk.sessions / q.goal);
     const days = []; for (let i = 0; i < 7; i++) days.push(R._L.filter(a => a.loc.di === wk.di + i));
@@ -177,17 +178,18 @@ function render(host, R, ctx) {
     const sp = ['Alle'].concat(C.SPORTS.filter(s => R.counts[s] > 0));
     let rows = R.log.filter(a => S.logSport === 'Alle' || a.sport === S.logSport); const total = rows.length; if (!S.logAll) rows = rows.slice(0, 15);
     h += '<h2 class="sec" id="m-log">Logbuch</h2><div class="secsub">Eigene und Whoop-Einträge kannst du hier löschen.</div><div class="g"><div class="card s12"><div class="chips" id="mLogChips" style="margin:0 0 10px">' + sp.map(s => '<button type="button" class="chip' + (s === S.logSport ? ' on' : '') + '" data-ls="' + esc(s) + '">' + esc(s) + '</button>').join('') + '</div><div class="scroll"><table class="log"><thead><tr><th>Datum</th><th>Sport</th><th>Notiz</th><th>Dauer</th><th>Anstrengung / Whoop</th><th>Belastung</th><th></th></tr></thead><tbody>' +
-      rows.map(a => '<tr><td>' + F.date(a.date) + '</td><td>' + esc(a.sport) + '</td><td>' + esc(a.name || '') + '</td><td>' + dur(a.sec) + (a.km ? ' · ' + f1(a.km) + ' km' : '') + '</td><td>' + (a.strain ? 'Strain ' + f1(a.strain) + (a.hr ? ' · Ø ' + f0(a.hr) : '') : a.rpe ? a.rpe + '/10' : a.hr ? 'Ø ' + f0(a.hr) + ' bpm' : '–') + '</td><td>' + f0(a.load) + (a.est ? '*' : '') + '</td><td>' + (/^[mw]/.test(a.id) ? '<button type="button" class="txt" data-del="' + esc(a.id) + '" aria-label="Einheit vom ' + F.date(a.date) + ' löschen">✕</button>' : '') + '</td></tr>').join('') +
+      rows.map(a => '<tr><td>' + F.date(a.date) + '</td><td>' + esc(a.sport) + '</td><td>' + esc(a.name || '') + '</td><td>' + dur(a.sec) + (a.km ? ' · ' + f1(a.km) + ' km' : '') + '</td><td>' + (a.strain ? 'Strain ' + f1(a.strain) + (a.hr ? ' · Ø ' + f0(a.hr) : '') : a.rpe ? a.rpe + '/10' : a.hr ? 'Ø ' + f0(a.hr) + ' bpm' : '–') + '</td><td>' + f0(a.load) + (a.est ? '*' : '') + '</td><td>' + (/^[mwg]/.test(a.id) ? '<button type="button" class="txt" data-del="' + esc(a.id) + '" aria-label="Einheit vom ' + F.date(a.date) + ' löschen">✕</button>' : '') + '</td></tr>').join('') +
       '</tbody></table></div>' + (total > 15 ? '<div class="btns"><button type="button" id="mLogMore">' + (S.logAll ? 'Weniger zeigen' : 'Alle ' + total + ' zeigen') + '</button></div>' : '') + '<div class="note">* geschätzt aus Dauer und Sportart (kein Puls, keine Anstrengung).</div></div></div>';
   }
   h += '<h2 class="sec" id="m-daten">Daten und Quellen</h2><div class="secsub">Whoop, Strava oder CSV – doppelte Einheiten werden erkannt.</div><div class="g"><div class="card s12" id="mImp"></div></div>';
   host.innerHTML = h;
   // Navigation
-  const nav = $('trNav'); const L = [['m-ueber', 'Übersicht'], ['m-add', 'Eintragen']].concat(ok ? [['m-woche', 'Woche'], ['m-form', 'Form'], ['m-sport', 'Sportarten'], ['m-jahr', 'Jahr'], ['m-rek', 'Rekorde'], ['m-log', 'Logbuch']] : []).concat([['m-daten', 'Daten']]);
+  const nav = $('trNav'); const L = [['m-ueber', 'Übersicht'], ['m-add', 'Eintragen'], ['m-gym', 'Gym']].concat(ok ? [['m-woche', 'Woche'], ['m-form', 'Form'], ['m-sport', 'Sportarten'], ['m-jahr', 'Jahr'], ['m-rek', 'Rekorde'], ['m-log', 'Logbuch']] : []).concat([['m-daten', 'Daten']]);
   nav.innerHTML = L.map(x => '<a href="#' + x[0] + '">' + x[1] + '</a>').join('');
   nav.querySelectorAll('a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const t = $(a.getAttribute('href').slice(1)); if (t) t.scrollIntoView({ behavior: ctx.noAnim() ? 'auto' : 'smooth', block: 'start' }) }));
   const imp = $('mImp'); const ob = ctx.importNode; if (ob) imp.appendChild(ob);
   bindAdd(host); bindProfile(host);
+  if (window.TrainingGym && ctx.gym) window.TrainingGym.render($('gymBox'), ctx.gym);
   if (ok) {
     host.querySelectorAll('[data-w]').forEach(b => b.addEventListener('click', () => { S.wmode = b.dataset.w; host.querySelectorAll('[data-w]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); weeksStack($('m-weeks'), R, q.goal, S.wmode) }));
     host.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { S.skymode = b.dataset.m; host.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); V.skyline($('sky'), R, S.skymode) }));
@@ -202,7 +204,7 @@ function draw() {
   const q = stats(R, S.ctx.st);
   weeksStack($('m-weeks'), R, q.goal, S.wmode); V.formChart($('c-form'), R, 180); V.gauge($('c-gauge'), R.acwr);
   $('gaugeMini').innerHTML = '<div><span>Rampe</span><b>' + F.signed(R.ramp, 1) + '</b><small>Fitness in 7 Tagen</small></div><div><span>Monotonie</span><b>' + (R.monotony != null ? F.num(R.monotony, 2) : '–') + '</b><small>7 Tage</small></div><div><span>Punkte</span><b>' + f0(R.load7) + '</b><small>letzte 7 Tage</small></div>';
-  V.skyline($('sky'), R, S.skymode); calendar($('c-cal'), R); V.habitGrid($('habit'), habit(R), 'Einheiten');
+  V.skyline($('sky'), R, S.skymode); calendar($('c-cal'), R); V.habitGrid($('habit'), habit(R), 'Einheiten'); if (window.TrainingGym) window.TrainingGym.draw();
 }
 function summary(R, st) {
   if (!R || !R.ok) return null; const q = stats(R, st), by = C.SPORTS.filter(s => R.totals.hoursBy[s] > 0).sort((a, b) => R.totals.hoursBy[b] - R.totals.hoursBy[a]).slice(0, 5).map(s => s + ' ' + f0(R.totals.hoursBy[s]) + ' h').join(', ');

@@ -7,7 +7,9 @@
   const fsApi = {
     enablePersistence: async()=>{}, settings:()=>{},
     collection:(p)=>({get:async()=>{if(localStorage.getItem('__failreads')==='1'){const e=new Error('denied');e.code='permission-denied';throw e}const pre=p+'/';const docs=Object.keys(store).filter(k=>k.startsWith(pre)&&!k.slice(pre.length).includes('/')).map(k=>docSnap(k.slice(pre.length),store[k]));return{docs}}}),
+    batch:()=>{const ops=[];return{set:(r,d)=>{ops.push([r,d])},commit:async()=>{for(const o of ops)await o[0].set(o[1])}}},
     doc:(p)=>({
+      path:p,
       delete:async()=>{delete store[p];try{localStorage.setItem('__mockstore',JSON.stringify(store))}catch(e){}},
       get:async()=>{if(localStorage.getItem('__failreads')==='1'){const e=new Error('denied');e.code='permission-denied';throw e}return docSnap(p.split('/').pop(),store[p])},
       set:async(d,o)=>{ if(window.__failWrites){const e=new Error('denied');e.code='permission-denied';throw e}
@@ -16,7 +18,7 @@
   };
   window.firebase = {
     initializeApp(){},
-    auth:()=>({onAuthStateChanged:(cb)=>{setTimeout(()=>cb({uid:'u1',email:'test@example.com',getIdToken:async()=>'test-token'}),0);return()=>{}}}),
+    auth:()=>({currentUser:{uid:'u1',email:'test@example.com',getIdToken:async()=>'test-token'},onAuthStateChanged:(cb)=>{setTimeout(()=>cb({uid:'u1',email:'test@example.com',getIdToken:async()=>'test-token'}),0);return()=>{}}}),
     firestore:()=>fsApi
   };
 })();

@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" data-hud><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Life Board"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#04080f">
+
 <title>Lernen – Life Board</title>
 <style>
 :root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--bd:#e2e0d8;--ac:#2f6f4f;--ac2:#e8f2ec;--bad:#b3413a;--bad2:#f8e9e7;--warn:#9a6b00}
@@ -213,6 +219,6 @@ $('sync').onclick=syncNotion;
 $('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
 if(!list().length)syncNotion();
 })();
-</script><script src="theme.js?v=7"></script>
+</script><script src="theme.js?v=8"></script>
 <script src="jarvis.js?v=7"></script>
 </body></html>

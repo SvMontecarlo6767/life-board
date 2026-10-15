@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="de" data-hud><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Life Board"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#04080f">
+
 <title>Recovery</title>
 <style>
 :root{
@@ -508,7 +514,7 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL
   }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
 })();
 </script>
-</main><script src="theme.js?v=7"></script>
+</main><script src="theme.js?v=8"></script>
 <script src="hud-viz.js?v=1"></script>
 <script src="jarvis.js?v=7"></script>
 </body></html>
