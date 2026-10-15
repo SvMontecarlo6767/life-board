@@ -290,6 +290,7 @@ const AI_SYSTEM = 'Du bist J.A.R.V.I.S, der persönliche Assistent im "Life Boar
   'Persönlichkeit: ruhig, souverän, knapp, leicht trocken, wie der Jarvis aus Iron Man. Du sprichst die Person mit "du" an und antwortest auf Deutsch, ohne Floskeln und ohne Begrüßungsformeln. ' +
   'Stütze dich auf die mitgelieferten Daten und die Seitenbeschreibung; erfinde keine Zahlen. Wenn Daten fehlen, sag das. Gib keine medizinischen Diagnosen. ' +
   'Bei Bewertungen von Lernantworten: nenne einen Vorschlag (richtig / fast / falsch) mit kurzer Begründung; die Person entscheidet selbst.';
+const AI_TOOLS = ' Du kannst Funktionen aufrufen, um Reiter zu wechseln, Einträge in Heute oder im Puzzle-Tracker zu machen und Einstellungen zu ändern. Rufe eine Funktion nur auf, wenn der Nutzer das ausdrücklich möchte. Antworte nie, etwas sei eingetragen, ohne die Funktion aufzurufen. Fehlt eine Angabe, frage kurz nach, statt zu raten. Reine Fragen zu den Daten beantwortest du ohne Funktion.';
 const AI_VOICE = '\n\nDIESE ANTWORT WIRD VORGELESEN: höchstens 2 kurze Sätze (unter 40 Wörtern), reiner Fließtext ohne Listen, Markdown, Emojis oder Klammern. Ausführliches nur anbieten ("Details stehen im Verlauf") statt vorlesen.';
 const mkModel = (m) => String(m).replace(/^models\//, '').replace(/[^a-z0-9.\-]/gi, '');
 async function aiCount(env, kind, limit) {
@@ -307,10 +308,12 @@ async function geminiGenerate(env, payload) {
   };
   const tried = []; let r, d;
   const cached = await env.WB.get('ai_model');
-  const first = [cached, env.GEMINI_MODEL, 'gemini-3.5-flash-lite', 'gemini-3.8-flash'].filter(Boolean).map(mkModel);
+  // Qualität zuerst: großes Flash-Modell, bei Kontingent-/Verfügbarkeitsproblemen das nächstkleinere
+  const first = [env.GEMINI_MODEL, 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', cached].filter(Boolean).map(mkModel);
   for (const model of [...new Set(first)]) {
     tried.push(model); ({ r, d } = await call(model));
-    if (r.status !== 404) { if (r.ok) await env.WB.put('ai_model', model); break; }
+    if (r.ok) { await env.WB.put('ai_model', model); d = Object.assign({}, d, { _model: model }); break; }
+    if (r.status !== 404 && r.status !== 429 && r.status !== 403) break;
   }
   if (r.status === 404) {
     const lm = await fetch(GEMINI_API.replace(/models\/$/, 'models') + '?pageSize=200', { headers: { 'x-goog-api-key': env.GEMINI_KEY } });
@@ -319,7 +322,7 @@ async function geminiGenerate(env, payload) {
     avail.sort((x, y) => (/lite/.test(y) ? 1 : 0) - (/lite/.test(x) ? 1 : 0) || (x < y ? 1 : -1));
     for (const model of avail.filter(m => !tried.includes(m)).slice(0, 4)) {
       tried.push(model); ({ r, d } = await call(model));
-      if (r.status !== 404) { if (r.ok) await env.WB.put('ai_model', model); break; }
+      if (r.status !== 404) { if (r.ok) { await env.WB.put('ai_model', model); d = Object.assign({}, d, { _model: model }) } break; }
     }
     if (r.status === 404) d = { error: { message: 'kein passendes Modell gefunden; vom Key unterstützt: ' + (avail.slice(0, 8).join(', ') || (ld.error && ld.error.message) || 'keine') } };
   }
@@ -336,10 +339,15 @@ async function askGemini(env, body) {
   const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 150;
   const used = await aiCount(env, 'ai', limit);
   const contents = msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content || '').slice(0, 4000) }] }));
-  const d = await geminiGenerate(env, { systemInstruction: { parts: [{ text: AI_SYSTEM + (body.voice ? AI_VOICE : '') + '\n\n' + ctx }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: body.voice ? 300 : 1200 } });
+  const decl = (Array.isArray(body.tools) ? body.tools : []).slice(0, 12).filter(t => t && /^[a-z_]{1,40}$/.test(t.name || '')).map(t => ({ name: t.name, description: String(t.description || '').slice(0, 2500), parameters: t.parameters }));
+  const payload = { systemInstruction: { parts: [{ text: AI_SYSTEM + (body.voice ? AI_VOICE : '') + (decl.length ? AI_TOOLS : '') + '\n\n' + ctx }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: body.voice ? 300 : 1200 } };
+  if (decl.length) { payload.tools = [{ functionDeclarations: decl }]; payload.toolConfig = { functionCallingConfig: { mode: 'AUTO' } }; }
+  const d = await geminiGenerate(env, payload);
   const out = textOf(d);
-  if (!out) { const e = new Error('Keine Antwort erhalten (evtl. blockiert)'); e.code = 'AI'; throw e; }
-  return { answer: out, used, limit };
+  const parts = (((d.candidates || [])[0] || {}).content || {}).parts || [];
+  const calls = parts.filter(p => p.functionCall && p.functionCall.name).map(p => ({ name: p.functionCall.name, args: p.functionCall.args || {} })).slice(0, 3);
+  if (!out && !calls.length) { const e = new Error('Keine Antwort erhalten (evtl. blockiert)'); e.code = 'AI'; throw e; }
+  return { answer: out, calls, model: d._model || null, used, limit };
 }
 // Sprache -> Text (Aufnahme als WAV, base64)
 async function sttGemini(env, body) {

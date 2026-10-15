@@ -153,7 +153,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=2"></script>
+<script src="assistant.js?v=3"></script>
 <script src="engine.js"></script>
 <script src="puzzle-dop.js"></script>
 <script src="whoop-auto.js"></script>
@@ -312,6 +312,31 @@ function tap(bid,minus){
   const after=levelOf(cur);
   if(after>before)levelUp(after);
 }
+
+/* ---------- Jarvis-Anbindung: gleiche Funktionen wie beim Antippen ---------- */
+window.JarvisHandlers=window.JarvisHandlers||{};
+window.JarvisHandlers.set_habit=async function(args){
+  if(!window.__heuteReady&&performance.now()<15000)return{wait:true};
+  if(!window.JarvisActions)return{wait:true};
+  try{
+    if(/gestern/i.test(args.date||'')&&cur===today)$('prev').click();
+    else if(!/gestern/i.test(args.date||'')&&cur!==today)$('next').click();
+    const c=calc(cur);if(c.legacy)return{err:'Dieser Tag nutzt das alte Regelwerk und lässt sich nicht ändern.'};
+    const x=JarvisActions.resolveHabit(c.rules,args);
+    if(x.err||x.ask)return x.err?{err:x.err}:{ask:x.ask};
+    const b=x.b;
+    if(c.whoopHas[b.whoop])return{err:'„'+b.label+'“ kommt automatisch von Whoop und lässt sich nicht von Hand setzen.'};
+    if(DAYS[cur]&&DAYS[cur].closed)return{err:'Der Tag ist abgeschlossen. Öffne ihn zuerst wieder.'};
+    const act=c.rules.actions.find(a=>a.id===(b.ids||[])[0]);
+    let nv=x.nv;if(b.kind==='count'&&act&&act.max)nv=Math.min(nv,act.max);
+    const before=levelOf(cur),inp=Object.assign({},(DAYS[cur]&&DAYS[cur].in)||{});
+    if(nv)inp[b.id]=nv;else delete inp[b.id];
+    persist({in:inp});render();
+    const after=levelOf(cur);if(after>before)levelUp(after);
+    const r=calc(cur).res;
+    return{say:'Eingetragen: '+x.txt+'. Heute steht jetzt bei '+fmt(r.net,true)+' Punkten, Rang '+r.rank+'.'};
+  }catch(e){if(e instanceof ReferenceError)return{wait:true};return{err:'Das hat nicht geklappt: '+(e.message||e)}}
+};
 
 /* ---------- Anzeige ---------- */
 function ring(frac,lvl){
@@ -587,7 +612,7 @@ async function boot(){
   diag('Whoop',WHSTATE==='ok',WHSTATE==='ok'?'':WHMSG);
   const c=calc(cur);
   if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&versionOf(cur)>=2&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
-  saveCache();render();writeState();
+  saveCache();render();writeState();window.__heuteReady=true;
 }
 
 /* ---------- Rückkehr in die Seite (iPad: App-Wechsel, Sperren, Tab im Hintergrund) ---------- */
@@ -607,6 +632,6 @@ window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehle
 boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=3"></script>
-<script src="jarvis.js?v=4"></script>
+<script src="theme.js?v=4"></script>
+<script src="jarvis.js?v=5"></script>
 </body></html>

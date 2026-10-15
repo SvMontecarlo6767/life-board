@@ -50,6 +50,8 @@ globalThis.fetch = async (url, opts = {}) => {
     if (globalThis.__gem404 && !url.includes('gemini-9-flash:')) return new Response('{"error":{"message":"not found"}}', { status: 404 }); globalThis.__gemUrls = (globalThis.__gemUrls || []).concat(url);
     if ((url.includes('gemini-3.5-flash-lite') || url.includes('gemini-2.5')) && globalThis.__gem404) return new Response('{"error":{"message":"not found"}}', { status: 404 });
     if (b.contents[0].parts[0].text === '429') return new Response('{}', { status: 429 });
+    if (b.contents[0].parts[0].text === 'bigquota' && url.includes('gemini-3.8-flash:')) return new Response('{"error":{"message":"quota"}}', { status: 429 });
+    if (b.contents[0].parts[0].text === 'tool') return ok({ candidates: [{ content: { parts: [{ functionCall: { name: 'set_habit', args: { button: 'Dusche' } } }] } }] });
     return ok({ candidates: [{ content: { parts: [{ text: 'Antwort ' + b.contents.length }] } }] });
   }
   if (url.startsWith('https://api.notion.com/')) {
@@ -203,6 +205,14 @@ console.log('✓ Zeitraum-Schutz');
   const wb = kv(); const a5 = await post({ messages: [{ role: 'user', content: 'x' }] }, { ...aenv, WB: wb }); const n5 = globalThis.__gemUrls.length;
   await post({ messages: [{ role: 'user', content: 'y' }] }, { ...aenv, WB: wb });
   assert.ok(globalThis.__gemUrls[n5].includes('gemini-9-flash:'), 'gefundenes Modell wird gemerkt');
+  globalThis.__gem404 = false; globalThis.__gemUrls = [];
+  const q1 = await post({ messages: [{ role: 'user', content: 'bigquota' }] }, { ...aenv, WB: kv(), AI_DAILY_LIMIT: '50' });
+  assert.equal(q1.status, 200, JSON.stringify(q1.body)); assert.ok(globalThis.__gemUrls[0].includes('gemini-3.8-flash:') && globalThis.__gemUrls[1].includes('gemini-3.5-flash:'), 'erst großes Modell, bei Kontingent das nächste: ' + globalThis.__gemUrls.join(' '));
+  assert.equal(q1.body.model, 'gemini-3.5-flash');
+  const tl = await post({ messages: [{ role: 'user', content: 'tool' }], tools: [{ name: 'set_habit', description: 'x', parameters: { type: 'object', properties: { button: { type: 'string' } } } }, { name: 'BAD NAME', description: 'y' }] }, { ...aenv, WB: kv(), AI_DAILY_LIMIT: '50' });
+  assert.equal(tl.status, 200, JSON.stringify(tl.body)); assert.deepEqual(tl.body.calls, [{ name: 'set_habit', args: { button: 'Dusche' } }]); assert.equal(tl.body.answer, '');
+  assert.equal(globalThis.__gem.tools[0].functionDeclarations.length, 1, 'ungültige Werkzeugnamen werden verworfen');
+  assert.ok(globalThis.__gem.systemInstruction.parts[0].text.includes('Funktionen aufrufen'));
   globalThis.__gem404 = 'all';
   console.log('✓ KI-Assistent');
 }

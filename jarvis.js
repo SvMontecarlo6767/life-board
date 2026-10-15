@@ -89,7 +89,9 @@ async function handle(text,via){
     if(pending&&await answerPending(text))return;
     setState('thinking');hint('Ich denke nach …');
     const wantVoice=via==='voice'&&ST().speak;
-    const r=await Assistant.ask(text,'',Assistant.chat.history(10),{voice:wantVoice});
+    let tl=null;try{if(window.JarvisActions)tl=await JarvisActions.tools()}catch(e){}
+    const r=await Assistant.ask(text,'',Assistant.chat.history(10),{voice:wantVoice,tools:tl});
+    if(r.calls&&r.calls.length&&window.JarvisActions&&await JarvisActions.handle(r,text))return;
     const saved=await Assistant.chat.add(text,r.answer);
     if(saved===false)hint('Chat nur auf diesem Gerät gesichert');
     await present(r.answer,wantVoice,false);
@@ -299,7 +301,7 @@ async function makeOrb(){
 function rebuildOrbIfNeeded(){if(el.canvas&&perfNow!==!!ST().perf)makeOrb()}
 async function init(){
   if(ready)return;ready=true;
-  try{await Promise.all([window.Assistant?Promise.resolve():loadScript('assistant.js?v=2').catch(()=>{}),loadScript('voice.js?v=1')])}catch(e){}
+  try{await Promise.all([window.Assistant?Promise.resolve():loadScript('assistant.js?v=3').catch(()=>{}),loadScript('voice.js?v=1'),loadScript('jarvis-actions.js?v=2')])}catch(e){}
   if(!window.Assistant||!window.LBVoice){ready=false;return}
   build();await makeOrb();
 }
@@ -308,7 +310,7 @@ function start(){
   if(typeof auth==='undefined'){return}
   auth.onAuthStateChanged(u=>{if(u&&!window.Jarvis_ui){window.Jarvis_ui=true;init()}else if(!u&&el.root){el.root.remove();el={};root.removeAttribute('data-jarvis');window.Jarvis_ui=false;ready=false}});
 }
-window.Jarvis={setState,get state(){return state},open:()=>setOpen(true),close:()=>setOpen(false),say:(t,speak)=>present(t,!!speak&&ST().speak,false),ask:t=>handle(t,'text'),confirm,
+window.Jarvis={notice:(t,bad,speak)=>{setOpen(true);if(bad){snd('err');showSay(t,true)}else present(t,!!speak&&ST().speak,true)},setState,get state(){return state},open:()=>setOpen(true),close:()=>setOpen(false),say:(t,speak)=>present(t,!!speak&&ST().speak,false),ask:t=>handle(t,'text'),confirm,
   get isOpen(){return open},speakText};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();

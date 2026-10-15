@@ -619,6 +619,35 @@ $('form').addEventListener('click',e=>{
  const id=b.closest('.row').dataset.g,w=+b.dataset.b,c=(((D[cur]||{})[id])||{}).w;
  set(id,undefined,c===w?null:w);form();render();dopamineLiveUpdate(id);
 });
+
+/* ---------- Jarvis-Anbindung: gleiche Funktionen wie bei der Eingabe ---------- */
+window.JarvisHandlers=window.JarvisHandlers||{};
+window.JarvisHandlers.set_puzzle=async function(a){
+  if(!seen&&performance.now()<15000)return{wait:true};
+  if(!window.JarvisActions)return{wait:true};
+  try{
+    const gm=JarvisActions.resolveGame(a);if(!gm.id)return{err:gm.err||gm.ask};
+    const g=G.find(x=>x.id===gm.id);if(!g)return{err:'Spiel nicht gefunden.'};
+    const todayIso=iso(new Date());
+    if(/gestern/i.test(a.date||'')&&cur===todayIso)$('prev').click();
+    else if(!/gestern/i.test(a.date||'')&&cur!==todayIso)$('date').value=todayIso,$('date').dispatchEvent(new Event('change',{bubbles:true}));
+    let say;
+    if(a.solved===false){
+      if(!g.win)return{err:g.n+' kennt kein „nicht geschafft“. Nenne mir den Score.'};
+      set(g.id,'',0);say=g.n+' als nicht geschafft eingetragen.';
+    }else{
+      const n=Number(String(a.score).replace(',','.'));
+      if(!isFinite(n)||a.score==null||a.score==='')return{ask:'Welchen Score hast du bei '+g.n+'?'};
+      const lo=g.win&&g.max?1:0,hi=g.max||(g.id==='tim'?50000:1e6);
+      if(n<lo||n>hi)return{err:'Bei '+g.n+' sind Werte von '+lo+' bis '+hi+' möglich, nicht '+n+'.'};
+      set(g.id,String(n).replace('.',','));
+      if(g.win&&((D[cur]||{})[g.id]||{}).w==null)set(g.id,undefined,1);
+      say=g.n+': '+String(n).replace('.',',')+' eingetragen.';
+    }
+    form();render();dopamineLiveUpdate(g.id);
+    return{say};
+  }catch(e){if(e instanceof ReferenceError)return{wait:true};return{err:'Das hat nicht geklappt: '+(e.message||e)}}
+};
 function dopamineLiveUpdate(gameId){
  const ctx=computeDopamineCtx();window._dopCtx=ctx;
  renderDopamineHead(ctx,{gameId,date:cur});renderDopamine(ctx);
@@ -2431,6 +2460,6 @@ form();render();status();initCloud();
 evaluateRating();evaluateMilestones();
 maybeGenerateReports();renderReports();
 </script>
-<script src="theme.js?v=3"></script>
-<script src="assistant.js?v=2"></script>
-<script src="jarvis.js?v=4"></script></body></html>
+<script src="theme.js?v=4"></script>
+<script src="assistant.js?v=3"></script>
+<script src="jarvis.js?v=5"></script></body></html>

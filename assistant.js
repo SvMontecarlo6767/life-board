@@ -112,7 +112,7 @@ async function ask(prompt,extra,history,opts){
     let page='';try{page=window.LB_PAGE_CONTEXT?String(window.LB_PAGE_CONTEXT()||''):''}catch(e){}
     const ctx='AKTUELLE SEITE: '+location.pathname.split('/').pop()+(page?'\n'+String(page).slice(0,4000):'')+(extra?'\n'+String(extra).slice(0,6000):'')+'\n\n'+snap;
     const m=(history||[]).concat([{role:'user',content:prompt}]);
-    return await worker('/ask',{method:'POST',body:JSON.stringify({messages:m,context:ctx,voice:!!(opts&&opts.voice)})});
+    return await worker('/ask',{method:'POST',body:JSON.stringify({messages:m,context:ctx,voice:!!(opts&&opts.voice),tools:(opts&&opts.tools)||undefined})});
   }finally{busy=false}
 }
 /* ---------- Oberfläche ---------- */
