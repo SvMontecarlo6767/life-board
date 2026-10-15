@@ -126,7 +126,10 @@ def run(p,w,h):
     pg.evaluate("LBUI.setSetting('perf',true)"); pg.wait_for_timeout(1200); pg.evaluate("LBUI.setSetting('perf',false)"); pg.wait_for_timeout(1200)
     ck(t+'Performance-Modus an/aus ohne Fehler',pg.is_visible('#jv-orb canvas'))
     # Schließen
-    pg.tap('#jv-close'); pg.wait_for_timeout(1000); bb=pg.evaluate("document.getElementById('jv-orb').offsetWidth"); ck(t+'Schließen: Kern wieder klein',bb<200,(bb,pg.get_attribute('#jv','data-open')))
+    pg.tap('#jv-close')
+    try: pg.wait_for_function("document.getElementById('jv-orb').offsetWidth<200",timeout=6000)
+    except Exception: pass
+    bb=pg.evaluate("document.getElementById('jv-orb').offsetWidth"); ck(t+'Schließen: Kern wieder klein',bb<200,(bb,pg.get_attribute('#jv','data-open')))
     ck(t+'Keine Konsolenfehler',not errs,errs[:3])
     # Mikrofon verweigert
     ctx2=b.new_context(viewport={'width':w,'height':h},has_touch=True)
