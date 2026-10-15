@@ -1,6 +1,6 @@
 // Test-Ersatz für das Firebase-Compat-SDK (nur Browsertests; kein Teil der Seite).
 (function(){
-  let saved=null;try{saved=sessionStorage.getItem('__mockstore')}catch(e){}
+  let saved=null;try{saved=localStorage.getItem('__mockstore')}catch(e){}
   const store = saved?JSON.parse(saved):(window.__seed || {});   // Pfad -> Daten (übersteht Reloads wie der echte Server)
   window.__store = store;
   const docSnap = (id,d)=>({id,exists:d!==undefined,data:()=>d===undefined?undefined:JSON.parse(JSON.stringify(d))});
@@ -10,7 +10,7 @@
     doc:(p)=>({
       get:async()=>docSnap(p.split('/').pop(),store[p]),
       set:async(d,o)=>{ if(window.__failWrites){const e=new Error('denied');e.code='permission-denied';throw e}
-        store[p]=o&&o.merge?Object.assign({},store[p]||{},JSON.parse(JSON.stringify(d))):JSON.parse(JSON.stringify(d)); window.__writes=(window.__writes||0)+1; try{sessionStorage.setItem('__mockstore',JSON.stringify(store))}catch(e){} }
+        store[p]=o&&o.merge?Object.assign({},store[p]||{},JSON.parse(JSON.stringify(d))):JSON.parse(JSON.stringify(d)); window.__writes=(window.__writes||0)+1; try{localStorage.setItem('__mockstore',JSON.stringify(store))}catch(e){} }
     })
   };
   window.firebase = {

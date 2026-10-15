@@ -217,14 +217,13 @@ function calc(k){
   if(WH&&Object.keys(WH).length){const wm=WA.workoutMinutes(WH,k);rules.ui.buttons.forEach(b=>{if(b.whoop&&wm[b.whoop]>=b.tiers[0].min)whoopHas[b.whoop]=wm[b.whoop]})}
   const manual=E.deriveCounts(rules,inp,Object.fromEntries(rules.ui.buttons.filter(b=>b.whoop&&whoopHas[b.whoop]).map(b=>[b.id,true])));
   let auto,why={},row=null,have={};
-  if(d.closed&&d.auto){auto=d.auto}
-  else{
+  const frozen=d.closed&&d.auto;
+  if(frozen){auto=d.auto;why=d.autoWhy||{}}
+  else if(WHSTATE==='ok'){
     const prev=DAYS[E.addDays(k,-1)];
     const a=WA.autoDay(WH,k,{final:k<today,target:SETTINGS.bedtimeTarget||null,prevAlcohol:!!(prev&&prev.in&&(prev.in.alkohol|0)>0),manualSport:sportInput(rules,inp)});
     auto=a.counts;why=a.why;row=a.row;have=a.have;
-  }
-  
-  if(d.closed&&d.auto&&d.autoWhy)why=d.autoWhy;
+  }else{auto=d.auto||{};why=d.autoWhy||{}}   // Whoop gerade nicht da: zuletzt gespeicherten Whoop-Stand benutzen, nie 0
   let counts=E.mergeCounts(manual,auto);counts=E.mergeCounts(counts,d.x||{});
   const blocked=blockedFor(k,rules);
   const res=E.computeDay(rules,counts,{puz:puzFor(k),blocked});
@@ -250,7 +249,7 @@ function buildDoc(k,over){
   DAYS[k]=doc;doc.puz=puzFor(k);const c2=calc(k);
   doc.a=c2.counts;doc.net=c2.res.net;doc.rank=c2.res.rank;
   doc.closed=!!doc.closed;doc.focus=doc.focus||'';doc.updatedAt=Date.now();
-  if(!doc.closed){delete doc.auto;delete doc.autoWhy}
+  if(!doc.closed&&WHSTATE==='ok'){doc.auto=c2.auto;doc.autoWhy=c2.why}
   return doc;
 }
 function persist(over){
@@ -265,6 +264,8 @@ async function flush(k){
   clearTimeout(ackTimer);ackTimer=setTimeout(()=>setSave('nicht bestätigt – offline?',true),6000);
   try{
     await fs.doc(base+'/days/'+k).set(doc);
+    const back=await fs.doc(base+'/days/'+k).get({source:'server'});     // wirklich vom Server zurücklesen
+    if(!back.exists||back.data().updatedAt!==doc.updatedAt)throw new Error('Server hat den Stand nicht übernommen');
     clearTimeout(ackTimer);
     if(DAYS[k]===doc||DAYS[k].updatedAt===doc.updatedAt){const p=lsGet();if(p[k]&&p[k].updatedAt<=doc.updatedAt){delete p[k];lsSet(p)}}
     setSave('gespeichert ✓ '+new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}));
@@ -278,8 +279,9 @@ async function flush(k){
 function writeState(){
   try{
     const acc=Object.keys(DAYS).reduce((s,d)=>s+netOf(d),0);
-    const li=E.levelInfo(RULES[CURV],acc);
-    fs.doc(base+'/state/current').set({account:acc,level:li.level,days:Object.keys(DAYS).length,rulesVersion:CURV,updatedAt:Date.now()}).catch(()=>{});
+    const li=E.levelInfo(RULES[CURV],acc),t=DAYS[today]?calc(today).res:null;
+    fs.doc(base+'/state/current').set({account:acc,level:li.level,levelProgress:li.frac,days:Object.keys(DAYS).length,rulesVersion:CURV,
+      todayDate:today,todayNet:t?t.net:null,todayRank:t?t.rank:null,updatedAt:Date.now()}).catch(()=>{});
   }catch(e){}
 }
 
@@ -441,7 +443,7 @@ async function refreshWhoop(){
   await loadWhoop();
   $('whRefresh').disabled=false;
   const c=calc(cur);
-  if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&c.res.net!==DAYS[cur].net)persist();
+  if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
   render();
 }
 
@@ -521,7 +523,7 @@ try{
   replay.forEach(k=>flush(k));
   await loadWhoop();
   const c=calc(cur);
-  if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&versionOf(cur)>=2&&c.res.net!==DAYS[cur].net)persist();
+  if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&versionOf(cur)>=2&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
   render();writeState();
 }catch(e){
   if(e&&e.code==='permission-denied')showMsg('Firestore verweigert den Zugriff. Die Regeln müssen alle Unterordner von <code>users/{uid}</code> erlauben.',true);

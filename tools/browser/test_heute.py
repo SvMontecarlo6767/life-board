@@ -108,6 +108,15 @@ def run(p,w,h):
     pg.reload(); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'"); pg.wait_for_timeout(500)
     ck(t+'Nach Reload: lokale Eingabe erneut gesendet (Dusche im Server-Speicher)',pg.evaluate('window.__store["users/u1/days/2026-10-14"].in.dusche')==1)
     ck(t+'Nach Reload: Dusche noch an','on' in pg.get_attribute('.chip[data-b="dusche"]','class'))
+    # Whoop fällt aus, Tag noch offen: Punkte dürfen nicht verschwinden
+    open_net=pg.inner_text('#netTop'); acc=pg.inner_text('#hAcc')
+    state['fail']=True; pg.reload(); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='nicht erreichbar'")
+    ck(t+'Whoop aus, Tag offen: Punkte und Konto bleiben (gespeicherter Whoop-Stand)',pg.inner_text('#netTop')==open_net and pg.inner_text('#hAcc')==acc,(open_net,pg.inner_text('#netTop'),acc,pg.inner_text('#hAcc')))
+    state['fail']=False; pg.reload(); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'")
+    # Startseite zeigt das Konto
+    hub=ctx.new_page(); hub.goto(URL.replace('heute.html','index.html')); hub.wait_for_function("document.getElementById('dopTxt').textContent.includes('Dopamin insgesamt')",timeout=8000)
+    ck(t+'Startseite zeigt Konto + Level + heute',all(x in hub.inner_text('#dopTxt') for x in('Level 3','Heute (14.10.)','Rang')),hub.inner_text('#dopTxt').replace('\n',' '))
+    hub.screenshot(path=f'{shots}/hub-{w}.png'); hub.close()
     # Tagesabschluss
     before=val(pg.inner_text('#netTop'))
     pg.fill('#focus','Latein wiederholen'); pg.tap('#closeBtn'); pg.wait_for_selector('#ov:not([hidden]) .sum')
