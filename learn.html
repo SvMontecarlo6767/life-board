@@ -33,7 +33,7 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--ac);min-height:32px}
 table{width:100%;border-collapse:collapse;font-size:14.5px}td,th{padding:7px 4px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mu);font-weight:600;font-size:12.5px}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
-</style><link rel="stylesheet" href="theme.css?v=1">
+</style><link rel="stylesheet" href="theme.css?v=2">
 </head><body><div class="wrap">
 <div class="top"><div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>📚 Lernen</h1></div><a href="heute.html?v=3" class="mu">zu Heute</a></div>
 <div id="msg"></div>
@@ -97,7 +97,8 @@ const dayRef=()=>base+'/learn/'+today;
 function render(){
   const st=L.stats(list(),today),paid=L.dayCounts(DAY.rounds),nr=(DAY.rounds||[]).filter(r=>r.n>=L.ROUND).length;
   $('stats').innerHTML='<h3>Stand</h3><div class="grid st"><div><b>'+st.due+'</b><span class="mu">fällig'+(st.overdue?' ('+st.overdue+' überfällig)':'')+'</span></div><div><b>'+st.nw+'</b><span class="mu">neu</span></div><div><b>'+(st.stage[2]+st.stage[3]+st.stage[4])+'</b><span class="mu">in Wiederholung</span></div><div><b>'+st.learned+'</b><span class="mu">gelernt (Stufe 4)</span></div></div>'
-   +'<div class="mu" style="margin-top:8px">Stufen: 1 Tag: '+st.stage[1]+' · 7 Tage: '+st.stage[2]+' · 30 Tage: '+st.stage[3]+' · 90 Tage: '+st.stage[4]+'</div>';
+   +'<div class="mu" style="margin-top:8px">Stufen: 1 Tag: '+st.stage[1]+' · 7 Tage: '+st.stage[2]+' · 30 Tage: '+st.stage[3]+' · 90 Tage: '+st.stage[4]+'</div>'
+   +(()=>{const tot=Math.max(1,st.stage[1]+st.stage[2]+st.stage[3]+st.stage[4]);return '<div class="en">'+[['1 Tag',1],['7 Tage',2],['30 Tage',3],['90 Tage',4]].map(([n,k],i)=>'<div class="e e'+k+'"><span>'+n+'</span><div class="b"><i style="--w:'+Math.round(st.stage[k]/tot*100)+'%;--d:'+(i*0.12)+'s"></i></div><b>'+st.stage[k]+'</b></div>').join('')+'</div>'})();
   const topics=[...new Map(list().map(q=>[q.pageId,q.pageTitle])).entries()].sort((a,b)=>a[1]<b[1]?-1:1);
   if(!list().length){$('start').innerHTML='<h3>Runde starten</h3><div class="mu">Noch keine Fragen geladen. Unten auf „Aus Notion aktualisieren“ tippen.</div>';}
   else{
@@ -212,6 +213,6 @@ $('sync').onclick=syncNotion;
 $('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
 if(!list().length)syncNotion();
 })();
-</script><script src="theme.js?v=1"></script>
+</script><script src="theme.js?v=2"></script>
 <script src="jarvis.js?v=1"></script>
 </body></html>

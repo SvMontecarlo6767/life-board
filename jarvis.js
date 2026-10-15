@@ -77,7 +77,7 @@ async function endListen(){
     await handle(text,'voice');
   }catch(e){busy=false;err(netMsg(e))}
 }
-const netMsg=e=>!navigator.onLine?'Du bist offline. Ohne Netz kann ich gerade nicht antworten.':(e&&/Failed to fetch|NetworkError|Load failed/i.test(e.message))?'Der Server ist nicht erreichbar. Prüfe dein Netz oder versuche es gleich nochmal.':(e&&e.message)||'Unbekannter Fehler';
+const netMsg=e=>(e&&/^unbekannt$/i.test((e.message||'').trim()))?'Der Cloudflare-Worker ist noch auf dem alten Stand (Sprachfunktion fehlt). Kopiere die neue worker.js in Cloudflare und klicke Deploy.':!navigator.onLine?'Du bist offline. Ohne Netz kann ich gerade nicht antworten.':(e&&/Failed to fetch|NetworkError|Load failed/i.test(e.message))?'Der Server ist nicht erreichbar. Prüfe dein Netz oder versuche es gleich nochmal.':(e&&e.message)||'Unbekannter Fehler';
 /* ---------- Anfragen ---------- */
 const RE_TEXT=/(nur|ab jetzt|künftig|von jetzt an)[^.]{0,30}(schriftlich|als text|per text|geschrieben)|(antworte|schreib\w*)[^.]{0,25}(nur|ab jetzt)[^.]{0,25}(schriftlich|text)|(sei|bleib)\s+(bitte\s+)?still|(hör|hoer)\w*\s+auf\s+zu\s+sprechen/i;
 const RE_SPEAK=/(sprich|sprech)\w*\s+(wieder\s+)?(mit|zu)\s+mir|antworte\s+(wieder\s+)?(gesprochen|mündlich|mit\s+(deiner\s+)?stimme|laut)|(ab jetzt|wieder)\s+(mit\s+)?(stimme|sprechen)/i;
@@ -164,6 +164,19 @@ async function showHist(tab){
     }catch(e){body.innerHTML='';body.append($('div',{className:'empty',textContent:'Chats konnten nicht geladen werden: '+e.message}))}
   }
 }
+/* ---------- Schwebende Reiter-Plattformen um den Kern ---------- */
+function buildPlat(r,n){
+  const tabs=[...document.querySelectorAll('#lb-nav a.tab')];
+  if(!tabs.length){if((n||0)<12)setTimeout(()=>buildPlat(r,(n||0)+1),250);return}
+  let pl=r.querySelector('#jv-plat');if(pl)pl.remove();
+  pl=$('nav',{id:'jv-plat'});pl.setAttribute('aria-label','Reiter');
+  const other=tabs.filter(a=>!a.classList.contains('act'));
+  const mk=(a,i)=>{const c=$('a',{className:'pl',href:a.getAttribute('href')});c.style.setProperty('--tc',a.style.getPropertyValue('--tc'));c.style.setProperty('--d',(i*0.7)+'s');
+    c.innerHTML=a.querySelector('svg').outerHTML+'<span>'+a.querySelector('span').textContent+'</span>';return c};
+  const half=Math.ceil(other.length/2),L=$('div',{className:'g l'}),R=$('div',{className:'g r'});
+  other.forEach((a,i)=>(i<half?L:R).append(mk(a,i)));
+  pl.append(L,$('div',{className:'sp'}),R);r.prepend(pl);if(!r.querySelector('#jv-band'))r.prepend($('div',{id:'jv-band'}));
+}
 /* ---------- Aufbau ---------- */
 function build(){
   root.setAttribute('data-jarvis','');
@@ -175,6 +188,7 @@ function build(){
    '<form id="jv-form" autocomplete="off"><input id="jv-in" type="text" enterkeyhint="send" placeholder="Schreib Jarvis …" aria-label="Nachricht an Jarvis"><button class="jb" type="submit" aria-label="Senden">➤</button></form>'+
    '<div id="jv-bar"><button class="jb" id="jv-mode" aria-pressed="true"></button><button class="jb" id="jv-whoop" aria-pressed="true">Whoop-Daten</button><button class="jb" id="jv-histb">Verlauf</button><button class="jb" id="jv-close">Schließen</button></div></div>';
   document.body.append(r);
+  buildPlat(r);
   el={root:r,canvas:r.querySelector('canvas'),orb:r.querySelector('#jv-orb'),hit:r.querySelector('#jv-hit'),hint:r.querySelector('#jv-hint'),you:r.querySelector('#jv-you'),say:r.querySelector('#jv-say'),
       form:r.querySelector('#jv-form'),input:r.querySelector('#jv-in'),hist:r.querySelector('#jv-hist'),hbody:r.querySelector('#jv-hbody'),conf:r.querySelector('#jv-confirm'),mode:r.querySelector('#jv-mode'),whoop:r.querySelector('#jv-whoop')};
   /* Push-to-talk auf dem Kern */

@@ -44,7 +44,7 @@ def run(p,w,h):
     pg.goto(f'http://127.0.0.1:{port}/heute.html'); pg.wait_for_selector('#jv-orb',timeout=20000); pg.wait_for_timeout(1500)
     pg.screenshot(path=f'{shots}/jarvis_{w}_docked.png')
     box=pg.locator('#jv-orb').bounding_box()
-    ck(t+'Kern sichtbar, unten mittig, klein',abs(box['x']+box['width']/2-w/2)<3 and box['width']<100 and box['y']+box['height']<=h,box)
+    ck(t+'Kern sichtbar, unten mittig, klein',abs(box['x']+box['width']/2-w/2)<3 and box['width']<200 and box['y']+box['height']<=h,box)
     ck(t+'Seiteninhalt wird nicht verdeckt (Platz unten)',pg.evaluate("parseInt(getComputedStyle(document.body).paddingBottom)>=100"))
     ck(t+'Name J.A.R.V.I.S im Kern vorhanden','J.A.R.V.I.S' in pg.inner_text('#jv-name') or pg.evaluate("document.getElementById('jv-name').textContent")=='J.A.R.V.I.S')
     # Tippen öffnet
@@ -126,7 +126,7 @@ def run(p,w,h):
     pg.evaluate("LBUI.setSetting('perf',true)"); pg.wait_for_timeout(1200); pg.evaluate("LBUI.setSetting('perf',false)"); pg.wait_for_timeout(1200)
     ck(t+'Performance-Modus an/aus ohne Fehler',pg.is_visible('#jv-orb canvas'))
     # Schließen
-    pg.tap('#jv-close'); pg.wait_for_timeout(1000); bb=pg.evaluate("document.getElementById('jv-orb').offsetWidth"); ck(t+'Schließen: Kern wieder klein',bb<100,(bb,pg.get_attribute('#jv','data-open')))
+    pg.tap('#jv-close'); pg.wait_for_timeout(1000); bb=pg.evaluate("document.getElementById('jv-orb').offsetWidth"); ck(t+'Schließen: Kern wieder klein',bb<200,(bb,pg.get_attribute('#jv','data-open')))
     ck(t+'Keine Konsolenfehler',not errs,errs[:3])
     # Mikrofon verweigert
     ctx2=b.new_context(viewport={'width':w,'height':h},has_touch=True)

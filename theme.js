@@ -43,7 +43,7 @@ function setAcc(rgb,rgb2){root.style.setProperty('--acc',rgb.map(Math.round).joi
 function accentIn(tab){
   let prev=null;try{prev=JSON.parse(sessionStorage.getItem('lb_acc')||'null')}catch(e){}
   try{sessionStorage.setItem('lb_acc',JSON.stringify(tab.rgb))}catch(e){}
-  root.style.setProperty('--tc',tab.rgb.join(' '));
+  root.style.setProperty('--tc',tab.rgb.join(' '));root.setAttribute('data-tab',tab.id);
   if(!prev||S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches||prev.join()===tab.rgb.join()){setAcc(tab.rgb,tab.rgb2);return}
   const t0=performance.now(),D=700;
   (function step(now){const k=Math.min(1,(now-t0)/D),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;setAcc(tab.rgb.map((c,i)=>prev[i]+(c-prev[i])*e),tab.rgb2);if(k<1)requestAnimationFrame(step)})(t0);

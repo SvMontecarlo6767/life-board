@@ -102,7 +102,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 .sum ul{list-style:none;padding:0;margin:10px 0;text-align:left;font-size:14px}
 .sum li{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--bd)}
 @media (max-width:900px){.wh ul{grid-template-columns:1fr}.hero{grid-template-columns:1fr 1fr}.hero .card:first-child{grid-column:1/-1}.dnav .dt{min-width:120px}.bar .back{display:none}}
-</style><link rel="stylesheet" href="theme.css?v=1">
+</style><link rel="stylesheet" href="theme.css?v=2">
 </head><body>
 <div class="bar"><div class="in">
   <a class="back" href="index.html">← Start</a>
@@ -323,6 +323,7 @@ function dateLabel(k){
   const wd=new Intl.DateTimeFormat('de-DE',{weekday:'short',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d)));
   return wd+', '+String(d).padStart(2,'0')+'.'+String(m).padStart(2,'0')+'.';
 }
+function cu(id,v,sign){const e=$(id);if(!window.LBUI||e._v!==undefined){e._v=v;e.textContent=fmt(v,sign);return}e._v=v;if(!v){e.textContent=fmt(v,sign);return}LBUI.countUp(e,v,{dur:900,fmt:n=>fmt(Math.round(n),sign)});setTimeout(()=>{e.textContent=fmt(e._v,sign)},1000)}
 function renderSummary(c){
   const {rules,res}=c;
   const prior=priorAccount(cur),acc=prior+res.net;
@@ -333,13 +334,13 @@ function renderSummary(c){
   $('netTop').textContent=fmt(res.net,true);$('netTop').className='net '+cls;
   $('rankTop').textContent=res.rank;$('rankTop').className='rank '+res.rank;
   $('ringTop').innerHTML=ring(li.frac,li.level);
-  $('hNet').textContent=fmt(res.net,true);$('hNet').className='big '+cls;
+  cu('hNet',res.net,true);$('hNet').className='big '+cls;
   $('hRank').textContent='Rang '+res.rank+(rp.next?' · noch '+fmt(rp.toNext)+' bis '+rp.next:' · höchster Rang');
   $('hMods').textContent=res.modInfo&&res.modInfo.factor!==1?'Sport ×'+String(res.modInfo.factor.toFixed(2)).replace('.',',')+' ('+fmt(res.modDelta,true)+')':'';
   $('hLvl').textContent='Level '+li.level;
   $('hLvlBar').style.width=(li.frac*100).toFixed(1)+'%';
   $('hLvlTxt').textContent=li.max?'Höchstes Level erreicht':fmt(li.into)+' / '+fmt(li.need)+' · noch '+fmt(li.toNext)+' bis Level '+(li.level+1);
-  $('hAcc').textContent=fmt(acc);
+  cu('hAcc',acc,false);
   $('hAccTxt').textContent='davor '+fmt(prior)+' · heute '+fmt(res.net,true)+' · '+Object.keys(DAYS).length+' Tage';
   const p=puzFor(cur);
   {const lc=learnFor(cur),n=(lc['WDH-01']|0)+(lc['WDH-13']|0);$('lrnCard').innerHTML='<div><b>📚 Lernrunden</b><div class="mu">'+(n?n+' Runde'+(n===1?'':'n')+' heute'+(lc['LRN-07']?', Active Recall bestanden':'')+' – zählt automatisch':'Noch keine Runde an diesem Tag')+'</div></div><a href="learn.html?v=1" class="mu">Lernen öffnen</a>'}
@@ -606,6 +607,6 @@ window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehle
 boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=1"></script>
+<script src="theme.js?v=2"></script>
 <script src="jarvis.js?v=1"></script>
 </body></html>

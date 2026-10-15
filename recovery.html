@@ -68,7 +68,7 @@ pre{white-space:pre-wrap;word-break:break-all;font:12px/1.45 ui-monospace,Menlo,
 .zbar i{display:block;height:100%}
 td.hm{text-align:center;font-weight:600}
 h2.sec{font-size:17px;margin:22px 0 10px}
-</style><link rel="stylesheet" href="theme.css?v=1">
+</style><link rel="stylesheet" href="theme.css?v=2">
 </head><body><main>
 <a class="back" href="index.html">← Life Board</a>
 <h1>💚 Recovery</h1>
@@ -77,6 +77,7 @@ h2.sec{font-size:17px;margin:22px 0 10px}
 </div>
 <div id="msg">Lade Daten …</div>
 <div id="content" hidden>
+  <div class="card hv-hero" id="hudHero"><div class="hv-grid"><div id="hvRings"></div><div id="hvPulse"></div><div class="hv-side"><div class="hv-st"><span>Recovery · letzte 14 Tage</span><div id="hvS1"></div></div><div class="hv-st"><span>HRV · letzte 14 Tage</span><div id="hvS2"></div></div><div class="hv-st"><span>Schlafdauer · letzte 14 Tage</span><div id="hvS3"></div></div></div></div></div>
   <div class="card" id="heroCard"></div>
   <div class="tiles" id="tiles"></div>
   <div class="card"><h2>Recovery</h2><div class="sub">Erholungswert in Prozent pro Tag</div><div id="c-rec"></div></div>
@@ -413,7 +414,24 @@ function avgBetween(key,fromDaysAgo,toDaysAgo){
   const a=isoDay(Date.now()-fromDaysAgo*864e5),b=isoDay(Date.now()-toDaysAgo*864e5);
   return mean(ALL.filter(r=>r.date>=a&&r.date<=b).map(r=>r[key]));
 }
+function renderHud(){
+  if(!window.HudViz)return;
+  const last=k=>{const a=ALL.filter(r=>r[k]!=null);return a.length?a[a.length-1][k]:null};
+  const rec=last('rec'),perf=last('perf'),strain=last('strain'),rhr=last('rhr');
+  const zc=v=>v==null?'#8fa6bd':v>=67?'#16ec06':v>=34?'#ffde00':'#ff2a48';
+  HudViz.rings($('hvRings'),{aria:'Recovery, Schlaf und Strain als Ringe',items:[
+    {label:'Recovery',value:rec,max:100,unit:' %',color:zc(rec)},
+    {label:'Schlaf',value:perf,max:100,unit:' %',color:'#4cc9ff'},
+    {label:'Strain',value:strain,max:21,unit:' / 21',digits:1,color:'#ff9a52'}],
+    center:{value:rec==null?'–':fmtN(rec,0)+'%',label:'RECOVERY',color:zc(rec)}});
+  HudViz.pulse($('hvPulse'),{bpm:rhr,color:'#ff5a7a',label:'Ruhepuls im Takt'});
+  const t=ALL.slice(-14);
+  HudViz.strip($('hvS1'),{values:t.map(r=>r.rec),colors:t.map(r=>zc(r.rec)),max:100});
+  HudViz.strip($('hvS2'),{values:t.map(r=>r.hrv),color:'#4cc9ff'});
+  HudViz.strip($('hvS3'),{values:t.map(r=>r.asleep),color:'#9d8cff',max:10});
+}
 function renderTop(){
+  try{renderHud()}catch(e){}
   const sc=ALL.filter(r=>r.rec!=null),lastRec=sc[sc.length-1];
   const hero=$('heroCard');hero.replaceChildren();
   if(lastRec){
@@ -490,6 +508,7 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL
   }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
 })();
 </script>
-</main><script src="theme.js?v=1"></script>
+</main><script src="theme.js?v=2"></script>
+<script src="hud-viz.js?v=1"></script>
 <script src="jarvis.js?v=1"></script>
 </body></html>
