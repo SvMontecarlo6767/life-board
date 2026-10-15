@@ -9,7 +9,7 @@ const root=document.documentElement;
 const $=(t,a,c)=>{const e=document.createElement(t);if(a)Object.assign(e,a);(c||[]).forEach(x=>e.append(x));return e};
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const loadScript=src=>new Promise((res,rej)=>{if(document.querySelector('script[data-jv="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.dataset.jv=src;s.onload=res;s.onerror=()=>rej(new Error('Laden fehlgeschlagen: '+src));document.head.append(s)});
-const css=document.createElement('link');css.rel='stylesheet';css.href='jarvis.css?v=1';document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href='jarvis.css?v=3';document.head.append(css);
 const ST=()=>(window.LBUI&&LBUI.settings)||{speak:true};
 const snd=n=>{try{window.LBUI&&LBUI.sound(n)}catch(e){}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -177,6 +177,68 @@ function buildPlat(r,n){
   other.forEach((a,i)=>(i<half?L:R).append(mk(a,i)));
   pl.append(L,$('div',{className:'sp'}),R);r.prepend(pl);if(!r.querySelector('#jv-band'))r.prepend($('div',{id:'jv-band'}));
 }
+
+/* ---------- Hub-Modus: Jarvis in der Mitte, alle Knöpfe schweben als Plattformen darum ---------- */
+const isIndex=(()=>{const f=location.pathname.split('/').pop();return !f||f==='index.html'})();
+const hubOn=()=>{const h=document.getElementById('hub');return isIndex&&!!h&&!h.hidden};
+const IC={
+  imp:'<path d="M12 3v11M7 10l5 5 5-5M4 20h16"/>',chk:'<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
+  who:'<path d="M12 20s-7-4.4-7-10a4 4 0 017-2.6A4 4 0 0119 10c0 5.6-7 10-7 10z"/>',save:'<path d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6"/>',
+  out:'<path d="M10 4H5v16h5M15 8l4 4-4 4M19 12H9"/>'};
+let hubEl=null,lines=null;
+function buildHub(r,n){
+  if(!isIndex)return;
+  if(!document.querySelector('#lb-nav a.tab')){if((n||0)<12)setTimeout(()=>buildHub(r,(n||0)+1),250);return}
+  hubEl=$('div',{id:'jv-hubp'});r.prepend(hubEl);
+  lines=document.createElementNS('http://www.w3.org/2000/svg','svg');lines.id='jv-lines';hubEl.append(lines);
+  const tabs=[...document.querySelectorAll('#lb-nav a.tab')];
+  const svgOf=a=>a.querySelector('svg').outerHTML;
+  const gear=document.querySelector('#lb-gear');
+  const items=[];
+  const T=id=>tabs.find(a=>a.dataset.tab===id);
+  ['heute','recovery','lernen','puzzle'].forEach(id=>{const a=T(id);if(a)items.push({n:a.querySelector('span').textContent,svg:svgOf(a),rgb:a.style.getPropertyValue('--tc'),href:a.getAttribute('href')})});
+  items.push({n:'Import',svg:'<svg viewBox="0 0 24 24">'+IC.imp+'</svg>',rgb:'150 175 205',href:'import.html?v=2'});
+  items.push({n:'Habits',svg:'<svg viewBox="0 0 24 24">'+IC.chk+'</svg>',rgb:'120 140 160',off:'bald'});
+  items.push({n:'Whoop',svg:'<svg viewBox="0 0 24 24">'+IC.who+'</svg>',rgb:'255 90 122',sheet:'wh'});
+  items.push({n:'Sichern',svg:'<svg viewBox="0 0 24 24">'+IC.save+'</svg>',rgb:'255 214 100',sheet:'bk'});
+  items.push({n:'Optionen',svg:gear?gear.querySelector('svg').outerHTML:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>',rgb:'58 215 255',fn:()=>gear&&gear.click()});
+  items.push({n:'Abmelden',svg:'<svg viewBox="0 0 24 24">'+IC.out+'</svg>',rgb:'255 130 110',fn:()=>{const b=document.getElementById('logoutBtn');if(b)b.click()}});
+  items.forEach((it,i)=>{
+    const c=$(it.href?'a':'button',it.href?{href:it.href}:{type:'button'});c.className='hp'+(it.off?' off':'');c.style.setProperty('--tc',it.rgb);c.style.setProperty('--d',(i*0.55)+'s');
+    c.innerHTML='<u class="hp-base"></u><span class="hp-in"><i class="hp-sh"></i><i class="hp-t1"></i><i class="hp-t2"></i><span class="hp-ic">'+it.svg+'</span><span class="hp-n">'+it.n+'</span></span>'+(it.off?'<em>'+it.off+'</em>':'');
+    if(it.sheet)c.onclick=()=>openSheet(it.sheet);
+    if(it.fn)c.onclick=it.fn;
+    if(it.off)c.setAttribute('aria-disabled','true');
+    hubEl.append(c);
+  });
+  const back=$('div',{id:'hub-back'});back.hidden=true;document.body.append(back);back.onclick=closeSheet;
+  ['wh','bk'].forEach(id=>{const s=document.getElementById(id);if(!s)return;const x=$('button',{className:'sheetx',type:'button',textContent:'✕',ariaLabel:'Schließen'});x.onclick=closeSheet;s.prepend(x)});
+  addEventListener('resize',layoutHub);addEventListener('orientationchange',()=>setTimeout(layoutHub,300));
+  const h=document.getElementById('hub');
+  if(h)new MutationObserver(applyHub).observe(h,{attributes:true,attributeFilter:['hidden']});
+  applyHub();setTimeout(layoutHub,400);setTimeout(layoutHub,1500);
+}
+function openSheet(id){closeSheet();const s=document.getElementById(id);if(!s)return;s.classList.add('sheet-open');document.getElementById('hub-back').hidden=false;LBUI.sound&&LBUI.sound('on')}
+function closeSheet(){document.querySelectorAll('.sheet-open').forEach(s=>s.classList.remove('sheet-open'));const b=document.getElementById('hub-back');if(b)b.hidden=true}
+function applyHub(){const on=hubOn();root.toggleAttribute('data-hubmode',on);if(on)layoutHub()}
+function layoutHub(){
+  if(!hubEl||!hubOn())return;
+  const W=innerWidth,H=innerHeight,dop=document.getElementById('dop'),top=document.querySelector('#hub .top');
+  const tb=Math.max(dop?dop.getBoundingClientRect().bottom:0,top?top.getBoundingClientRect().bottom:0,70)+10;
+  const items=[...hubEl.querySelectorAll('.hp')],n=items.length;
+  const pw=W<700?92:126,ph=W<700?80:104;
+  const availH=H-tb-14,cy=tb+availH/2;
+  const ry=Math.max(110,availH/2-ph/2-6),rx=Math.min(W*0.44,W/2-pw/2-8,470);
+  const osz=Math.max(150,Math.min(300,ry*1.05,rx*0.7));
+  const st=document.documentElement.style;st.setProperty('--hcy',cy+'px');st.setProperty('--hos',osz+'px');
+  items.forEach((c,i)=>{const a=(-90+18+i*(360/n))*Math.PI/180;
+    c.style.width=pw+'px';c.style.height=ph+'px';
+    c.style.left=(W/2+Math.cos(a)*rx-pw/2)+'px';c.style.top=(cy+Math.sin(a)*ry-ph/2)+'px'});
+  if(lines){lines.setAttribute('viewBox','0 0 '+W+' '+H);lines.setAttribute('width',W);lines.setAttribute('height',H);
+    lines.innerHTML=items.map((c,i)=>{const a=(-90+18+i*(360/n))*Math.PI/180,px=W/2+Math.cos(a)*rx,py=cy+Math.sin(a)*ry,dx=px-W/2,dy=py-cy,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,r0=osz*0.5,r1=Math.min(pw,ph)*0.55;
+      return '<line x1="'+(W/2+ux*r0)+'" y1="'+(cy+uy*r0)+'" x2="'+(px-ux*r1)+'" y2="'+(py-uy*r1)+'" style="--tc:'+c.style.getPropertyValue('--tc')+';--d:'+(i*0.3)+'s"/>'}).join('')}
+  setTimeout(()=>{if(orb)orb.resize()},60);
+}
 /* ---------- Aufbau ---------- */
 function build(){
   root.setAttribute('data-jarvis','');
@@ -189,8 +251,10 @@ function build(){
    '<div id="jv-bar"><button class="jb" id="jv-mode" aria-pressed="true"></button><button class="jb" id="jv-whoop" aria-pressed="true">Whoop-Daten</button><button class="jb" id="jv-histb">Verlauf</button><button class="jb" id="jv-close">Schließen</button></div></div>';
   document.body.append(r);
   buildPlat(r);
+  setTimeout(()=>buildHub(r),0);
   el={root:r,canvas:r.querySelector('canvas'),orb:r.querySelector('#jv-orb'),hit:r.querySelector('#jv-hit'),hint:r.querySelector('#jv-hint'),you:r.querySelector('#jv-you'),say:r.querySelector('#jv-say'),
       form:r.querySelector('#jv-form'),input:r.querySelector('#jv-in'),hist:r.querySelector('#jv-hist'),hbody:r.querySelector('#jv-hbody'),conf:r.querySelector('#jv-confirm'),mode:r.querySelector('#jv-mode'),whoop:r.querySelector('#jv-whoop')};
+  try{new ResizeObserver(()=>{if(orb)orb.resize()}).observe(el.orb)}catch(e){}
   /* Push-to-talk auf dem Kern */
   const o=el.orb;
   o.addEventListener('contextmenu',e=>e.preventDefault());
