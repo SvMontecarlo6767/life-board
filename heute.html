@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heute – Life Board</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--bd:#e2e0d8;--ac:#2f6f4f;--ac2:#e8f2ec;--bad:#b3413a;--bad2:#f8e9e7;--warn:#9a6b00;--gold:#b8860b;
+ --rS:#b8860b;--rA:#2f6f4f;--rB:#3b6ea5;--rC:#8a8981}
+@media (prefers-color-scheme:dark){:root{--bg:#161715;--card:#20211f;--tx:#eeede8;--mu:#a09f97;--bd:#34352f;--ac:#6fbf94;--ac2:#243128;--bad:#e07a72;--bad2:#33201e;--warn:#e0b04a;--gold:#e6c35c;
+ --rS:#e6c35c;--rA:#6fbf94;--rB:#7fb0e6;--rC:#9d9c94}}
+*{box-sizing:border-box}
+html{scroll-padding-top:96px}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.35 system-ui,-apple-system,Segoe UI,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:1100px;margin:0 auto;padding:0 20px 80px}
+button{font:inherit;color:var(--tx);background:var(--ac2);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;cursor:pointer;min-height:44px}
+button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+button:disabled{opacity:.5}
+a{color:var(--ac)}
+[hidden]{display:none!important}
+/* sticky Leiste */
+.bar{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--bd);padding:10px 20px}
+.bar .in{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar .back{text-decoration:none;font-size:14px;color:var(--mu);white-space:nowrap}
+.dnav{display:flex;align-items:center;gap:6px}
+.dnav button{padding:0 12px}
+.dnav .dt{min-width:150px;text-align:center;font-weight:600}
+.dnav .dt small{display:block;font-weight:400;color:var(--mu);font-size:12px}
+.sp{flex:1}
+.net{font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.net.pos{color:var(--ac)}.net.neg{color:var(--bad)}
+.rank{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:20px;color:#fff}
+.rank.S{background:var(--rS)}.rank.A{background:var(--rA)}.rank.B{background:var(--rB)}.rank.C{background:var(--rC)}
+.ringw{position:relative;width:46px;height:46px}
+.ringw svg{width:46px;height:46px;transform:rotate(-90deg)}
+.ringw b{position:absolute;inset:0;display:grid;place-items:center;font-size:15px}
+.save{font-size:12px;color:var(--mu);min-width:70px;text-align:right}
+.save.err{color:var(--bad)}
+/* Hero */
+.hero{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin:16px 0}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px 16px}
+.card h3{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+.big{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+.mu{color:var(--mu);font-size:13.5px}
+.bar2{height:8px;background:var(--bd);border-radius:99px;overflow:hidden;margin:8px 0 4px}
+.bar2 i{display:block;height:100%;background:var(--ac);border-radius:99px;transition:width .4s}
+.info{margin:0 0 12px;padding:12px 14px;border-radius:12px;background:var(--ac2);border:1px solid var(--bd);font-size:14px}
+.info.warn{background:var(--bad2);color:var(--bad)}
+.puz{display:flex;justify-content:space-between;align-items:center;gap:10px}
+/* Werkzeugleiste */
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+.tools input[type=search]{flex:1;min-width:180px;font:inherit;padding:10px 12px;min-height:44px;border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx)}
+.tools label{display:flex;align-items:center;gap:6px;font-size:14px;min-height:44px}
+.cats{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+.cats a{font-size:13px;text-decoration:none;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:99px;padding:7px 12px;min-height:34px;display:inline-flex;align-items:center;gap:6px}
+.cats a em{font-style:normal;color:var(--mu);font-size:12px}
+.cats a.has{border-color:var(--ac)}
+/* Raster */
+section.cat{margin:22px 0 0}
+section.cat>h2{font-size:18px;margin:0 0 8px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+section.cat>h2 small{color:var(--mu);font-weight:400;font-size:13px}
+.grp{border:1px dashed var(--bd);border-radius:14px;padding:8px;margin:0 0 8px}
+.grp>.gl{font-size:12px;color:var(--mu);margin:0 4px 6px}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:8px}
+.chip{position:relative;display:flex;gap:8px;align-items:flex-start;text-align:left;width:100%;min-height:56px;padding:10px 12px;background:var(--card);border:1px solid var(--bd);border-radius:14px;color:var(--tx);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none}
+.chip .t{flex:1;font-size:14.5px;line-height:1.3}
+.chip .t small{display:block;color:var(--mu);font-size:11.5px;margin-top:3px}
+.chip .p{font-weight:700;font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ac)}
+.chip.neg .p{color:var(--bad)}.chip.zero .p{color:var(--mu)}
+.chip.on{background:var(--ac2);border-color:var(--ac);box-shadow:inset 0 0 0 1px var(--ac)}
+.chip.neg.on{background:var(--bad2);border-color:var(--bad);box-shadow:inset 0 0 0 1px var(--bad)}
+.chip.dead{opacity:.5;cursor:default}
+.chip.note{cursor:default;background:transparent;border-style:dashed;margin:0;padding:10px 12px}
+.chip .cnt{position:absolute;right:8px;bottom:6px;display:flex;align-items:center;gap:6px}
+.chip .cnt b{font-size:13px;background:var(--ac);color:#fff;border-radius:99px;padding:1px 8px}
+.chip.neg .cnt b{background:var(--bad)}
+.chip .cnt .minus{min-height:30px;min-width:30px;padding:0;border-radius:99px;line-height:1}
+.chip.hasmax{padding-bottom:30px}
+.chip .z{position:absolute;top:-7px;right:10px;font-size:10.5px;background:var(--bd);color:var(--mu);border-radius:99px;padding:1px 7px}
+.chip.zeroed .p{text-decoration:line-through}
+.empty{color:var(--mu);padding:20px 0}
+/* Abschluss / Einstellungen */
+textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);border-radius:12px;background:var(--bg);color:var(--tx);min-height:70px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+/* Overlays */
+.ov{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);display:grid;place-items:center;padding:20px}
+.ov .box{background:var(--card);border-radius:20px;padding:26px 30px;text-align:center;max-width:420px;width:100%}
+.lvlup .n{font-size:96px;font-weight:800;color:var(--gold);line-height:1;animation:pop .9s cubic-bezier(.2,1.4,.4,1) both}
+.lvlup .ring{width:150px;height:150px;border-radius:50%;margin:0 auto 10px;border:6px solid var(--gold);display:grid;place-items:center;animation:ring 1.6s ease-out both}
+@keyframes pop{0%{transform:scale(.2);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes ring{0%{box-shadow:0 0 0 0 var(--gold)}100%{box-shadow:0 0 0 60px transparent}}
+@media (prefers-reduced-motion:reduce){.lvlup .n,.lvlup .ring{animation:none}.bar2 i{transition:none}}
+.sum ul{list-style:none;padding:0;margin:10px 0;text-align:left;font-size:14px}
+.sum li{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--bd)}
+@media (max-width:900px){.hero{grid-template-columns:1fr 1fr}.hero .card:first-child{grid-column:1/-1}.dnav .dt{min-width:120px}.bar .back{display:none}}
+</style></head><body>
+<div class="bar"><div class="in">
+  <a class="back" href="index.html">← Start</a>
+  <div class="dnav"><button id="prev" aria-label="Vortag">‹</button><div class="dt" id="dt">–</div><button id="next" aria-label="Folgetag">›</button></div>
+  <div class="sp"></div>
+  <div class="net" id="netTop">0</div>
+  <div class="rank C" id="rankTop">C</div>
+  <div class="ringw" id="ringTop"></div>
+  <div class="save" id="save"></div>
+</div></div>
+<div class="wrap">
+  <div id="msg"></div>
+  <div class="hero">
+    <div class="card"><h3>Heute</h3><div class="big" id="hNet">0</div><div class="mu" id="hRank"></div><div class="mu" id="hMods"></div></div>
+    <div class="card"><h3>Level</h3><div class="big" id="hLvl">1</div><div class="bar2"><i id="hLvlBar" style="width:0"></i></div><div class="mu" id="hLvlTxt"></div></div>
+    <div class="card"><h3>Dopamin-Konto</h3><div class="big" id="hAcc">0</div><div class="mu" id="hAccTxt"></div></div>
+  </div>
+  <div class="card puz" id="puzCard" style="margin-bottom:12px"></div>
+  <div class="info" id="yFocus" hidden></div>
+  <div class="tools">
+    <input type="search" id="q" placeholder="Aktion suchen (Text oder ID, z. B. SLP-01)" aria-label="Suchen">
+    <label><input type="checkbox" id="onlyOn"> nur getippte</label>
+  </div>
+  <div class="cats" id="cats"></div>
+  <div id="grid"></div>
+
+  <section class="cat" id="abschluss">
+    <h2>Tagesabschluss <small>Fokus für morgen, dann Tag abschließen</small></h2>
+    <div class="card">
+      <textarea id="focus" placeholder="Worauf konzentrierst du dich morgen?" aria-label="Fokus für morgen"></textarea>
+      <div class="row"><button class="primary" id="closeBtn">Tag abschließen</button><span class="mu" id="closeInfo"></span></div>
+    </div>
+  </section>
+
+  <section class="cat" id="settings">
+    <h2>Einstellungen</h2>
+    <div class="card">
+      <div class="mu" id="setInfo"></div>
+      <div class="row"><button id="exportBtn">Alles als JSON exportieren</button><span class="mu" id="exportInfo"></span></div>
+    </div>
+  </section>
+</div>
+<div class="ov" id="ov" hidden></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="fb.js"></script>
+<script src="engine.js"></script>
+<script src="puzzle-dop.js"></script>
+<script>
+(async function(){
+const E=window.LBEngine, PD=window.PuzzleDop;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=E.fmt;
+const RULES={};            // Version -> Regelwerk
+let user,base,today,cur;
+let DAYS={};               // yyyy-mm-dd -> Tagesdokument
+let PUZ={};                // yyyy-mm-dd -> Puzzle-Tageswert
+let SETTINGS={};
+let saveTimer=null,lastLevel=null;
+const filt={q:'',on:false};
+
+function showMsg(html,warn){ $('msg').innerHTML=html?'<div class="info'+(warn?' warn':'')+'">'+html+'</div>':'' }
+function setSave(t,err){const s=$('save');s.textContent=t;s.className='save'+(err?' err':'')}
+async function rulesFor(v){
+  if(RULES[v])return RULES[v];
+  const r=await fetch('rules/v'+v+'.json?c='+v,{cache:'no-cache'});
+  if(!r.ok)throw new Error('Regelwerk v'+v+' nicht ladbar ('+r.status+')');
+  return RULES[v]=await r.json();
+}
+const CURV=1;
+function dayDoc(k){return DAYS[k]||null}
+function counts(k){return (DAYS[k]&&DAYS[k].a)||{}}
+function puzFor(k){
+  const d=DAYS[k];
+  if(d&&d.closed&&d.puz!==undefined)return d.puz;       // abgeschlossene Tage bleiben eingefroren
+  return PUZ[k]===undefined?null:PUZ[k];
+}
+function rulesOfDay(k){const v=(DAYS[k]&&DAYS[k].rulesVersion)||CURV;return RULES[v]||RULES[CURV]}
+/* Aktionen, die in Woche/Monat schon an einem anderen Tag gezählt wurden */
+function blockedFor(k,rules){
+  const b={};
+  for(const a of rules.actions){
+    if(!a.period)continue;
+    const pk=E.periodKey(a.period,k);
+    for(const d of Object.keys(DAYS)){
+      if(d===k)continue;
+      if(E.periodKey(a.period,d)===pk&&(counts(d)[a.id]|0)>0){b[a.id]=d;break}
+    }
+  }
+  return b;
+}
+function calc(k){
+  const rules=rulesOfDay(k);const blocked=blockedFor(k,rules);
+  const res=E.computeDay(rules,counts(k),{puz:puzFor(k),blocked});
+  return{rules,blocked,res};
+}
+function priorAccount(k){let s=0;for(const d of Object.keys(DAYS)){if(d!==k)s+=(DAYS[d].net||0)}return s}
+
+/* ---------- Speichern ---------- */
+function persist(){
+  const {res}=calc(cur);
+  const old=DAYS[cur]||{};
+  const doc={date:cur,rulesVersion:old.rulesVersion||CURV,a:counts(cur),puz:puzFor(cur),net:res.net,rank:res.rank,
+    closed:!!old.closed,focus:old.focus||'',updatedAt:Date.now()};
+  if(old.closedAt)doc.closedAt=old.closedAt;
+  DAYS[cur]=doc;
+  setSave('speichert …');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>flush(cur),500);
+}
+function flushNow(){if(saveTimer){clearTimeout(saveTimer);saveTimer=null}return flush(cur)}
+async function flush(k){
+  try{
+    await fs.doc(base+'/days/'+k).set(DAYS[k]);
+    setSave('gespeichert ✓');
+  }catch(e){
+    setSave('Fehler',true);
+    if(e&&e.code==='permission-denied')showMsg('Firestore verweigert das Schreiben nach <code>users/'+esc(user.uid)+'/days</code>. Die Regeln müssen alle Unterordner von <code>users/{uid}</code> erlauben: <code>match /users/{uid}/{document=**} { allow read, write: if request.auth.uid == uid; }</code>',true);
+    else showMsg('Speichern fehlgeschlagen: '+esc(e.message||e),true);
+  }
+}
+window.addEventListener('pagehide',()=>{if(saveTimer){clearTimeout(saveTimer);saveTimer=null;flush(cur)}});
+
+/* ---------- Tippen ---------- */
+function tap(id,delta){
+  const {rules,blocked}=calc(cur);
+  const a=rules.actions.find(x=>x.id===id);if(!a||a.kind==='rule'||a.kind==='puzzle')return;
+  if(blocked[id]&&(counts(cur)[id]|0)===0)return;
+  const before=levelOf(cur);
+  const c=Object.assign({},counts(cur));
+  const n=c[id]|0,max=a.max||1;
+  if(delta==null){                      // normales Tippen
+    if(max>1){ if(n<max)c[id]=n+1; else return; }
+    else if(n>0)delete c[id];
+    else{
+      if(a.group)rules.actions.forEach(x=>{if(x.group===a.group)delete c[x.id]});
+      c[id]=1;
+    }
+  }else{                                // Minus-Knopf
+    if(n<=1)delete c[id];else c[id]=n-1;
+  }
+  const old=DAYS[cur]||{};
+  DAYS[cur]=Object.assign({},old,{a:c,date:cur,rulesVersion:old.rulesVersion||CURV});
+  persist();render(true);
+  const after=levelOf(cur);
+  if(after>before)levelUp(after);
+}
+function levelOf(k){const {rules,res}=calc(k);return E.levelInfo(rules,priorAccount(k)+res.net).level}
+
+/* ---------- Anzeige ---------- */
+function ring(frac,lvl,size){
+  const r=19,c=2*Math.PI*r;
+  return '<svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="'+r+'" fill="none" stroke="var(--bd)" stroke-width="5"/><circle cx="23" cy="23" r="'+r+'" fill="none" stroke="var(--ac)" stroke-width="5" stroke-linecap="round" stroke-dasharray="'+(c*frac).toFixed(1)+' '+c.toFixed(1)+'"/></svg><b>'+lvl+'</b>';
+}
+function dateLabel(k){
+  const [y,m,d]=k.split('-').map(Number);
+  const dt=new Date(Date.UTC(y,m-1,d));
+  const wd=new Intl.DateTimeFormat('de-DE',{weekday:'short',timeZone:'UTC'}).format(dt);
+  return wd+', '+String(d).padStart(2,'0')+'.'+String(m).padStart(2,'0')+'.';
+}
+function renderSummary(){
+  const {rules,res}=calc(cur);
+  const prior=priorAccount(cur),acc=prior+res.net;
+  const li=E.levelInfo(rules,acc),rp=E.rankProgress(rules,res.net);
+  $('dt').innerHTML=dateLabel(cur)+'<small>'+(cur===today?'heute':cur)+'</small>';
+  $('next').disabled=cur>=today;
+  const cls=res.net>0?'pos':res.net<0?'neg':'';
+  $('netTop').textContent=fmt(res.net,true);$('netTop').className='net '+cls;
+  $('rankTop').textContent=res.rank;$('rankTop').className='rank '+res.rank;
+  $('ringTop').innerHTML=ring(li.frac,li.level);
+  $('hNet').textContent=fmt(res.net,true);$('hNet').className='big '+cls;
+  $('hRank').textContent='Rang '+res.rank+(rp.next?' · noch '+fmt(rp.toNext)+' bis '+rp.next:' · höchster Rang');
+  $('hMods').textContent=res.modInfo&&res.modInfo.factor!==1?'Sport ×'+String(res.modInfo.factor.toFixed(2)).replace('.',',')+' ('+fmt(res.modDelta,true)+')':'';
+  $('hLvl').textContent='Level '+li.level;
+  $('hLvlBar').style.width=(li.frac*100).toFixed(1)+'%';
+  $('hLvlTxt').textContent=li.max?'Höchstes Level erreicht':fmt(li.into)+' / '+fmt(li.need)+' · noch '+fmt(li.toNext)+' bis Level '+(li.level+1);
+  $('hAcc').textContent=fmt(acc);
+  $('hAccTxt').textContent='davor '+fmt(prior)+' · heute '+fmt(res.net,true);
+  const p=puzFor(cur);
+  $('puzCard').innerHTML='<div><b>🧩 Puzzle-Tracker (PUZ-01)</b><div class="mu">'+(p==null?'Für diesen Tag steht noch kein Puzzle im Tracker.':'Tageswert aus dem Tracker, 1:1 übernommen'+(DAYS[cur]&&DAYS[cur].closed?' (eingefroren)':''))+'</div></div><div style="display:flex;align-items:center;gap:12px"><span class="big" style="font-size:24px">'+(p==null?'–':fmt(p,true))+'</span><a href="puzzle.html" class="mu">öffnen</a></div>';
+  const yf=(DAYS[E.addDays(cur,-1)]||{}).focus;
+  $('yFocus').hidden=!yf;if(yf)$('yFocus').innerHTML='<b>Fokus von gestern Abend:</b> '+esc(yf);
+  const d=DAYS[cur]||{};
+  if(document.activeElement!==$('focus'))$('focus').value=d.focus||'';
+  $('closeBtn').textContent=d.closed?'Wieder öffnen':'Tag abschließen';
+  $('closeInfo').textContent=d.closed?'Tag abgeschlossen'+(d.closedAt?' um '+new Date(d.closedAt).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}):''):'Setzt „Tagesabschluss ausgefüllt“ und – falls Fokus eingetragen – „Fokus für morgen gesetzt“.';
+}
+function chipHtml(a,state){
+  const n=state.counts[a.id]|0,on=n>0;
+  const line=state.lineMap[a.id];
+  const blocked=state.blocked[a.id]&&!on;
+  const pts=a.points||0;
+  let p='';
+  if(a.kind==='modifier')p='× '+String(a.mod.factor).replace('.',',')+(pts?' · '+fmt(pts,true):'');
+  else if(a.kind==='mode')p='Modus';
+  else if(a.kind==='puzzle')return '';
+  else p=fmt(pts,true);
+  if(a.kind==='rule')return '<div class="chip note" data-id="'+a.id+'"><span class="t">Regel: höchstens '+a.rule.prMaxPerDay+' PRs pro Tag zählen<small>'+a.id+'</small></span></div>';
+  const cls=['chip',pts<0?'neg':pts===0?'zero':'',on?'on':'',blocked?'dead':'',(a.max||1)>1?'hasmax':'',on&&line&&line.note?'zeroed':''].filter(Boolean).join(' ');
+  const meta=[a.id];
+  if(a.period)meta.push(a.period==='week'?'einmal pro Woche':'einmal pro Monat');
+  if(a.src!=='tap')meta.push({whoop:'später: Whoop',shortcut:'später: Kurzbefehl','whoop+tap':'Whoop + Tap',notion:'später: Notion','notion+tap':'Notion + Tap'}[a.src]||a.src);
+  if(a.unit)meta.push(a.unit);
+  if(blocked)meta.push('schon am '+state.blocked[a.id].slice(8)+'.'+state.blocked[a.id].slice(5,7)+'.');
+  let cnt='';
+  if((a.max||1)>1)cnt='<span class="cnt">'+(on?'<button class="minus" data-minus="'+a.id+'" aria-label="eins weniger">−</button>':'')+'<b>'+n+' / '+a.max+'</b></span>';
+  const z=on&&line&&line.note?'<span class="z">'+esc(line.note)+'</span>':'';
+  return '<div class="'+cls+'" role="button" tabindex="0" data-id="'+a.id+'" aria-pressed="'+on+'"><span class="t">'+esc(a.text)+'<small>'+esc(meta.join(' · '))+'</small></span><span class="p">'+p+'</span>'+cnt+z+'</div>';
+}
+function render(keepScroll){
+  renderSummary();
+  const {rules,blocked,res}=calc(cur);
+  const state={counts:counts(cur),blocked,lineMap:Object.fromEntries(res.lines.map(l=>[l.id,l]))};
+  const q=filt.q.trim().toLowerCase();
+  const match=a=>{
+    if(filt.on&&!(state.counts[a.id]>0))return false;
+    if(q&&!(a.text.toLowerCase().includes(q)||a.id.toLowerCase().includes(q)))return false;
+    return true;
+  };
+  let html='',nav='';
+  for(const cat of rules.categories){
+    const acts=rules.actions.filter(a=>a.cat===cat.id);
+    const shown=acts.filter(match);
+    const nOn=acts.filter(a=>state.counts[a.id]>0).length;
+    nav+='<a href="#c-'+cat.id+'" class="'+(nOn?'has':'')+'">'+esc(cat.name)+(nOn?' <em>'+nOn+'</em>':'')+'</a>';
+    if(!shown.length)continue;
+    const catSum=res.lines.filter(l=>l.id.startsWith(cat.id+'-')).reduce((s,l)=>s+l.pts,0);
+    html+='<section class="cat" id="c-'+cat.id+'"><h2>'+esc(cat.name)+'<small>'+(nOn?nOn+' getippt · '+fmt(catSum,true):acts.length+' Aktionen')+'</small></h2>';
+    let i=0;
+    while(i<shown.length){
+      const a=shown[i];
+      if(a.group){
+        let j=i;const items=[];
+        while(j<shown.length&&shown[j].group===a.group){items.push(shown[j]);j++}
+        const label=a.group.split(':')[1];
+        html+='<div class="grp"><div class="gl">'+esc(label)+' – nur eine Stufe zählt</div><div class="chips">'+items.map(x=>chipHtml(x,state)).join('')+'</div></div>';
+        i=j;
+      }else{
+        let j=i;const items=[];
+        while(j<shown.length&&!shown[j].group){items.push(shown[j]);j++}
+        html+='<div class="chips">'+items.map(x=>chipHtml(x,state)).join('')+'</div>';
+        i=j;
+      }
+    }
+    html+='</section>';
+  }
+  $('cats').innerHTML=nav;
+  $('grid').innerHTML=html||'<div class="empty">Nichts gefunden.</div>';
+}
+
+/* ---------- Overlays ---------- */
+function overlay(html,ms){
+  const o=$('ov');o.innerHTML='<div class="box">'+html+'</div>';o.hidden=false;
+  const close=()=>{o.hidden=true;clearTimeout(t)};
+  const t=ms?setTimeout(close,ms):null;
+  o.onclick=close;
+}
+function levelUp(lv){overlay('<div class="lvlup"><div class="ring"><div class="n">'+lv+'</div></div><h2 style="margin:6px 0 2px">Level '+lv+'!</h2><div class="mu">Aufgestiegen. Tippen zum Schließen.</div></div>',3000)}
+
+async function closeDay(){
+  const d=DAYS[cur]||{};
+  if(d.closed){DAYS[cur]=Object.assign({},d,{closed:false});delete DAYS[cur].closedAt;persist();flushNow();render();return}
+  const before=levelOf(cur);
+  const c=Object.assign({},counts(cur));
+  const focus=$('focus').value.trim();
+  c['ABD-01']=1; if(focus)c['ABD-02']=1;
+  DAYS[cur]=Object.assign({},d,{a:c,focus,closed:true,closedAt:Date.now(),puz:PUZ[cur]===undefined?null:PUZ[cur],date:cur,rulesVersion:d.rulesVersion||CURV});
+  persist();flushNow();render();
+  const {rules,res}=calc(cur);
+  const acc=priorAccount(cur)+res.net,li=E.levelInfo(rules,acc);
+  const act=Object.fromEntries(rules.actions.map(a=>[a.id,a]));
+  const lines=res.lines.filter(l=>l.pts!==0).sort((a,b)=>Math.abs(b.pts)-Math.abs(a.pts)).slice(0,5);
+  overlay('<div class="sum"><div class="rank '+res.rank+'" style="margin:0 auto 8px;width:64px;height:64px;font-size:34px">'+res.rank+'</div><div class="big">'+fmt(res.net,true)+'</div><div class="mu">Level '+li.level+' · Konto '+fmt(acc)+'</div><ul>'+lines.map(l=>'<li><span>'+esc(act[l.id].text)+(l.count>1?' ×'+l.count:'')+'</span><b>'+fmt(l.pts,true)+'</b></li>').join('')+'</ul><button class="primary" id="ovOk">Fertig</button></div>');
+  if(li.level>before)setTimeout(()=>levelUp(li.level),150);
+}
+
+/* ---------- Export ---------- */
+async function doExport(){
+  try{
+    const snap=await fs.collection(base+'/days').get();
+    const days={};snap.docs.forEach(x=>{days[x.id]=x.data()});
+    const settings=(await fs.doc(base+'/settings/main').get()).data()||{};
+    const versions=[...new Set(Object.values(days).map(d=>d.rulesVersion||CURV).concat([CURV]))];
+    const rules={};for(const v of versions)rules[v]=await rulesFor(v);
+    const out={v:1,app:'life-board-heute',exported:new Date().toISOString(),days,settings,rules};
+    const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=url;a.download='life-board-heute-'+today+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+    SETTINGS.lastExport=Date.now();await fs.doc(base+'/settings/main').set(SETTINGS,{merge:true});
+    setInfo();$('exportInfo').textContent=Object.keys(days).length+' Tage exportiert';
+  }catch(e){$('exportInfo').textContent='Export fehlgeschlagen: '+(e.message||e)}
+}
+function setInfo(){
+  const r=RULES[CURV];
+  let t='Regelwerk v'+CURV+' · '+r.actions.length+' Aktionen · Tageswechsel '+String(r.day.changeHour).padStart(2,'0')+':00 '+r.day.timezone+'.';
+  if(SETTINGS.lastExport){const d=Math.floor((Date.now()-SETTINGS.lastExport)/864e5);t+=' Letzter Export vor '+d+(d===1?' Tag':' Tagen')+'.'}
+  else t+=' Noch nie exportiert.';
+  $('setInfo').textContent=t;
+}
+
+/* ---------- Events ---------- */
+$('grid').addEventListener('click',e=>{
+  const m=e.target.closest('[data-minus]');if(m){e.stopPropagation();tap(m.dataset.minus,-1);return}
+  const c=e.target.closest('.chip[data-id]');if(c)tap(c.dataset.id);
+});
+$('grid').addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches('.chip[data-id]')){e.preventDefault();tap(e.target.dataset.id)}});
+$('q').addEventListener('input',e=>{filt.q=e.target.value;render()});
+$('onlyOn').addEventListener('change',e=>{filt.on=e.target.checked;render()});
+$('focus').addEventListener('input',()=>{const d=DAYS[cur]||{};DAYS[cur]=Object.assign({},d,{focus:$('focus').value,date:cur,rulesVersion:d.rulesVersion||CURV});persist();renderSummary()});
+$('closeBtn').addEventListener('click',closeDay);
+$('exportBtn').addEventListener('click',doExport);
+$('ov').addEventListener('click',e=>{if(e.target.id==='ovOk')$('ov').hidden=true});
+async function go(k){
+  if(saveTimer){clearTimeout(saveTimer);saveTimer=null;await flush(cur)}
+  cur=k;const v=(DAYS[k]&&DAYS[k].rulesVersion)||CURV;
+  try{await rulesFor(v)}catch(e){showMsg(esc(e.message),true)}
+  render();window.scrollTo(0,0);
+}
+$('prev').addEventListener('click',()=>go(E.addDays(cur,-1)));
+$('next').addEventListener('click',()=>{if(cur<today)go(E.addDays(cur,1))});
+
+/* ---------- Start ---------- */
+try{
+  try{await fs.enablePersistence({synchronizeTabs:true})}catch(e){}
+  user=await requireUser();base='users/'+user.uid;
+  await rulesFor(CURV);
+  const r=RULES[CURV];
+  today=E.dayKey(new Date(),r.day.timezone,r.day.changeHour);cur=today;
+  const [ps,ds,ss]=await Promise.all([fs.collection(base+'/puzzle').get(),fs.collection(base+'/days').get(),fs.doc(base+'/settings/main').get()]);
+  const D={};ps.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id)){const v=x.data()||{};if(v.g)D[x.id]=v.g}});
+  PUZ=PD.puzzleDayValues(D);
+  ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))DAYS[x.id]=x.data()});
+  SETTINGS=ss.exists?ss.data():{};
+  for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||CURV)))await rulesFor(v);
+  setInfo();render();setSave('');
+}catch(e){
+  if(e&&e.code==='permission-denied')showMsg('Firestore verweigert den Zugriff. Die Regeln müssen alle Unterordner von <code>users/{uid}</code> erlauben (siehe Hinweis unten).',true);
+  else showMsg('Laden fehlgeschlagen: '+esc(e.message||e),true);
+}
+})();
+</script>
+</body></html>

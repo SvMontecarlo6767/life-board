@@ -1,0 +1,3427 @@
+{
+ "version": 1,
+ "name": "Regelwerk v1",
+ "created": "2026-10-15",
+ "source": "Planungsdokument \"Life Board – Vorbereitung für morgen früh\" (14.10.2026), Teil E (Dein Urteil angewandt) und Teil F",
+ "day": {
+  "timezone": "Europe/Berlin",
+  "changeHour": 4
+ },
+ "dopamine": {
+  "dailyCap": null,
+  "note": "Kein Tagesdeckel; nur Maxima pro Aktion."
+ },
+ "ranks": [
+  {
+   "id": "S",
+   "min": 18000
+  },
+  {
+   "id": "A",
+   "min": 11000
+  },
+  {
+   "id": "B",
+   "min": 5000
+  },
+  {
+   "id": "C",
+   "min": null
+  }
+ ],
+ "level": {
+  "formula": "c(2)=6000, c(3)=9000, c(n)=c(n-1)*f(n), f(n)=1.025+0.475*0.81^(n-3)",
+  "maxLevel": 100,
+  "costs": [
+   0,
+   6000,
+   9000,
+   12688,
+   16959,
+   21664,
+   26635,
+   31713,
+   36760,
+   41673,
+   46383,
+   50850,
+   55057,
+   59009,
+   62720,
+   66213,
+   69515,
+   72652,
+   75653,
+   78544,
+   81348,
+   84087,
+   86780,
+   89443,
+   92091,
+   94737,
+   97391,
+   100065,
+   102765,
+   105499,
+   108274,
+   111094,
+   113967,
+   116895,
+   119882,
+   122934,
+   126052,
+   129241,
+   132503,
+   135842,
+   139259,
+   142759,
+   146343,
+   150013,
+   153774,
+   157627,
+   161574,
+   165620,
+   169765,
+   174013,
+   178367,
+   182829,
+   187402,
+   192089,
+   196893,
+   201816,
+   206863,
+   212035,
+   217337,
+   222771,
+   228341,
+   234050,
+   239901,
+   245899,
+   252047,
+   258348,
+   264807,
+   271427,
+   278213,
+   285169,
+   292298,
+   299605,
+   307096,
+   314773,
+   322642,
+   330708,
+   338976,
+   347451,
+   356137,
+   365040,
+   374166,
+   383521,
+   393109,
+   402936,
+   413010,
+   423335,
+   433918,
+   444766,
+   455885,
+   467283,
+   478965,
+   490939,
+   503212,
+   515793,
+   528687,
+   541905,
+   555452,
+   569338,
+   583572,
+   598161
+  ],
+  "cumulative": [
+   0,
+   6000,
+   15000,
+   27688,
+   44647,
+   66311,
+   92946,
+   124659,
+   161419,
+   203092,
+   249475,
+   300325,
+   355383,
+   414392,
+   477112,
+   543325,
+   612840,
+   685492,
+   761145,
+   839690,
+   921038,
+   1005125,
+   1091905,
+   1181347,
+   1273438,
+   1368175,
+   1465566,
+   1565631,
+   1668395,
+   1773894,
+   1882168,
+   1993262,
+   2107229,
+   2224123,
+   2344006,
+   2466940,
+   2592992,
+   2722233,
+   2854737,
+   2990579,
+   3129838,
+   3272597,
+   3418939,
+   3568953,
+   3722726,
+   3880353,
+   4041928,
+   4207547,
+   4377312,
+   4551326,
+   4729692,
+   4912521,
+   5099923,
+   5292012,
+   5488904,
+   5690721,
+   5897583,
+   6109618,
+   6326955,
+   6549726,
+   6778067,
+   7012116,
+   7252018,
+   7497917,
+   7749964,
+   8008312,
+   8273119,
+   8544546,
+   8822759,
+   9107928,
+   9400226,
+   9699831,
+   10006927,
+   10321700,
+   10644342,
+   10975050,
+   11314027,
+   11661477,
+   12017614,
+   12382654,
+   12756821,
+   13140341,
+   13533450,
+   13936386,
+   14349396,
+   14772731,
+   15206649,
+   15651415,
+   16107301,
+   16574583,
+   17053548,
+   17544487,
+   18047699,
+   18563492,
+   19092179,
+   19634083,
+   20189536,
+   20758874,
+   21342446,
+   21940607
+  ],
+  "note": "costs[n-1] = Kosten, um von Level n-1 auf n zu kommen (Level 1 = Start = 0); cumulative[n-1] = Dopamin-Summe bis Level n."
+ },
+ "streak": {
+  "formula": "M(n)=1+0.5*(1-exp(-n/12))",
+  "maxBonus": 0.5,
+  "tau": 12,
+  "habits": [
+   "Schlafziel",
+   "Sport",
+   "Lernen",
+   "Handy unter Limit",
+   "Tagesabschluss"
+  ],
+  "milestones": {
+   "7": 1000,
+   "14": 2000,
+   "30": 5000,
+   "60": 10000,
+   "100": 16000,
+   "200": 30000,
+   "365": 60000
+  },
+  "onBreak": "halve",
+  "sickPauses": true,
+  "phase": 5
+ },
+ "drops": {
+  "chance": 0.18,
+  "maxPerDay": 2,
+  "pityDays": 7,
+  "tiers": [
+   {
+    "id": "klein",
+    "weight": 0.6,
+    "value": 100
+   },
+   {
+    "id": "mittel",
+    "weight": 0.28,
+    "value": 300
+   },
+   {
+    "id": "selten",
+    "weight": 0.1,
+    "value": 700
+   },
+   {
+    "id": "episch",
+    "weight": 0.02,
+    "value": 1800
+   }
+  ],
+  "triggers": [
+   "Training",
+   "Lernblock",
+   "Wiederholungsrunde",
+   "Tagesabschluss",
+   "Streak-Meilenstein"
+  ],
+  "phase": 5
+ },
+ "levelLoss": {
+  "maxDailyDropShareOfLevelCost": 0.4,
+  "graceDays": 3,
+  "maxLevelsPerDay": 1,
+  "checkpointEvery": 10,
+  "sickPauses": true,
+  "phase": 5
+ },
+ "inflation": {
+  "prLimitPerWeekPerExercise": 1,
+  "prMaxPerDay": 2,
+  "recalibrateEveryWeeks": 8,
+  "recalibrateIfAvgAbove": 12000,
+  "habitGraduationFactor": 0.5
+ },
+ "sport": {
+  "categories": [
+   "SPK",
+   "ISO",
+   "SPS",
+   "SPA",
+   "SPB",
+   "SPU"
+  ],
+  "note": "Multiplikatoren (kind=modifier) wirken auf die positiven Punkte dieser Kategorien."
+ },
+ "categories": [
+  {
+   "id": "MOR",
+   "name": "Morgenroutine"
+  },
+  {
+   "id": "SLP",
+   "name": "Schlaf"
+  },
+  {
+   "id": "REC",
+   "name": "Recovery"
+  },
+  {
+   "id": "STR",
+   "name": "Strain-Logik"
+  },
+  {
+   "id": "SPK",
+   "name": "Sport: Krafttraining"
+  },
+  {
+   "id": "ISO",
+   "name": "Sport: Isometrie und Waden"
+  },
+  {
+   "id": "SPS",
+   "name": "Sport: Sprint und Schnelligkeit"
+  },
+  {
+   "id": "SPA",
+   "name": "Sport: Ausdauer und Laufen"
+  },
+  {
+   "id": "SPB",
+   "name": "Sport: Spinning-Bike"
+  },
+  {
+   "id": "SPU",
+   "name": "Sport: Schulsport und weitere Bewegung"
+  },
+  {
+   "id": "SPP",
+   "name": "PRs und Bestzeiten"
+  },
+  {
+   "id": "MOB",
+   "name": "Mobilität und Regeneration"
+  },
+  {
+   "id": "ERN",
+   "name": "Ernährung"
+  },
+  {
+   "id": "ALK",
+   "name": "Alkohol"
+  },
+  {
+   "id": "LRN",
+   "name": "Lernen"
+  },
+  {
+   "id": "WDH",
+   "name": "Wiederholen und Quiz"
+  },
+  {
+   "id": "LES",
+   "name": "Lesen"
+  },
+  {
+   "id": "HND",
+   "name": "Handyzeit"
+  },
+  {
+   "id": "PUZ",
+   "name": "Puzzles"
+  },
+  {
+   "id": "ABD",
+   "name": "Abendritual"
+  },
+  {
+   "id": "FOK",
+   "name": "Fokus und Pausen"
+  },
+  {
+   "id": "ORD",
+   "name": "Ordnung und Haushalt"
+  },
+  {
+   "id": "GES",
+   "name": "Gesundheit und Körper"
+  },
+  {
+   "id": "PLN",
+   "name": "Planung und Reflexion"
+  },
+  {
+   "id": "SON",
+   "name": "Sonstiges und Modi"
+  }
+ ],
+ "actions": [
+  {
+   "id": "MOR-01",
+   "cat": "MOR",
+   "text": "Bett gemacht",
+   "points": 60,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-02",
+   "cat": "MOR",
+   "text": "Glas Wasser direkt nach dem Aufstehen",
+   "points": 60,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-03",
+   "cat": "MOR",
+   "text": "Proteinshake oder proteinreiches Frühstück (≥ 25 g)",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-04",
+   "cat": "MOR",
+   "text": "Tageslicht in den ersten 30 Min (draußen oder am offenen Fenster, ≥ 5 Min)",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-05",
+   "cat": "MOR",
+   "text": "10 Min draußen (Spaziergang, Weg, Balkon)",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-06",
+   "cat": "MOR",
+   "text": "Mobility/Dehnen 5 Min",
+   "points": 175,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-07",
+   "cat": "MOR",
+   "text": "Erste 30 Min nach dem Aufstehen ohne Social Media",
+   "points": 375,
+   "capture": "Kurzbefehl (Tap als Ersatz)",
+   "src": "shortcut"
+  },
+  {
+   "id": "MOR-08",
+   "cat": "MOR",
+   "text": "Kalte Dusche (30–60 s am Ende)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-10",
+   "cat": "MOR",
+   "text": "Tagesfokus aus gestern Abend angesehen",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-12",
+   "cat": "MOR",
+   "text": "Frühstück ohne Bildschirm",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-13",
+   "cat": "MOR",
+   "text": "Routine in ≤ 45 Min fertig",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-14",
+   "cat": "MOR",
+   "text": "Vollständige Morgenroutine (alle Pflichtbausteine abgehakt) – Bonus",
+   "points": 1500,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-15",
+   "cat": "MOR",
+   "text": "Wochenend-Light-Routine (mind. 4 von 6 Bausteinen) – Bonus",
+   "points": 900,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-17",
+   "cat": "MOR",
+   "text": "10 Min vor Schul-/Uni-Beginn da",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-20",
+   "cat": "MOR",
+   "text": "Handy > 15 Min im Bett nach dem Aufstehen",
+   "points": -225,
+   "capture": "Kurzbefehl (Tap als Ersatz)",
+   "src": "shortcut"
+  },
+  {
+   "id": "MOR-21",
+   "cat": "MOR",
+   "text": "Zu spät zu Schule/Uni/Training",
+   "points": -225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-22",
+   "cat": "MOR",
+   "text": "Morgenroutine komplett ausgelassen (kein Baustein)",
+   "points": -300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOR-23",
+   "cat": "MOR",
+   "text": "Schulsachen/Sporttasche vergessen",
+   "points": -90,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SLP-01",
+   "cat": "SLP",
+   "text": "Schlaf 9:15–9:45 h (Zielfenster)",
+   "points": 1650,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-02",
+   "cat": "SLP",
+   "text": "Schlaf 9:00–9:14 oder 9:46–10:15 h",
+   "points": 1350,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-03",
+   "cat": "SLP",
+   "text": "Schlaf 8:00–8:59 h",
+   "points": 750,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-04",
+   "cat": "SLP",
+   "text": "Schlaf 7:00–7:59 h",
+   "points": 225,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-05",
+   "cat": "SLP",
+   "text": "Schlaf 6:00–6:59 h",
+   "points": -525,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-06",
+   "cat": "SLP",
+   "text": "Schlaf 5:00–5:59 h",
+   "points": -1050,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-07",
+   "cat": "SLP",
+   "text": "Schlaf unter 5 h",
+   "points": -1500,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-08",
+   "cat": "SLP",
+   "text": "Länger als 10:15 h (Ausschlafen am Wochenende)",
+   "points": 600,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Dauer"
+  },
+  {
+   "id": "SLP-09",
+   "cat": "SLP",
+   "text": "Einschlafen ±30 Min um Zielzeit",
+   "points": 750,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Bettzeit Mo–Fr"
+  },
+  {
+   "id": "SLP-10",
+   "cat": "SLP",
+   "text": "Einschlafen ±60 Min um Zielzeit",
+   "points": 150,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Bettzeit Mo–Fr"
+  },
+  {
+   "id": "SLP-11",
+   "cat": "SLP",
+   "text": "Mehr als 90 Min daneben",
+   "points": -375,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Bettzeit Mo–Fr"
+  },
+  {
+   "id": "SLP-12",
+   "cat": "SLP",
+   "text": "Mehr als 150 Min daneben",
+   "points": -750,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Bettzeit Mo–Fr"
+  },
+  {
+   "id": "SLP-13",
+   "cat": "SLP",
+   "text": "Einschlafen 0:00–1:30 (Zielfenster ca. 0:30)",
+   "points": 525,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Bettzeit Wochenende"
+  },
+  {
+   "id": "SLP-14",
+   "cat": "SLP",
+   "text": "Nach 2:30 Uhr eingeschlafen",
+   "points": -450,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "SLP:Bettzeit Wochenende"
+  },
+  {
+   "id": "SLP-15",
+   "cat": "SLP",
+   "text": "Whoop Sleep Consistency ≥ 80 %",
+   "points": 450,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SLP-16",
+   "cat": "SLP",
+   "text": "Whoop Sleep Performance ≥ 100 %",
+   "points": 600,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SLP-17",
+   "cat": "SLP",
+   "text": "Whoop Sleep Performance 85–99 %",
+   "points": 375,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SLP-18",
+   "cat": "SLP",
+   "text": "Whoop Sleep Performance unter 70 %",
+   "points": -300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SLP-19",
+   "cat": "SLP",
+   "text": "Schlafeffizienz ≥ 90 %",
+   "points": 150,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SLP-20",
+   "cat": "SLP",
+   "text": "Tiefschlaf ≥ 90 Min",
+   "points": 150,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SLP-21",
+   "cat": "SLP",
+   "text": "REM-Schlaf ≥ 90 Min",
+   "points": 150,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SLP-22",
+   "cat": "SLP",
+   "text": "Handy 30 Min vor Bett im Flugmodus oder in anderem Raum",
+   "points": 375,
+   "capture": "Kurzbefehl (Tap als Ersatz)",
+   "src": "shortcut"
+  },
+  {
+   "id": "SLP-23",
+   "cat": "SLP",
+   "text": "Kein Bildschirm in den letzten 30 Min vor Bett",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SLP-24",
+   "cat": "SLP",
+   "text": "Mittagsschlaf 15 Min (vor 16 Uhr)",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SLP-25",
+   "cat": "SLP",
+   "text": "Koffein nach 14 Uhr",
+   "points": -150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SLP-26",
+   "cat": "SLP",
+   "text": "Energy Drink",
+   "points": -225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SLP-27",
+   "cat": "SLP",
+   "text": "Nachts > 10 Min am Handy",
+   "points": -225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SLP-29",
+   "cat": "SLP",
+   "text": "Schlafzimmer dunkel und kühl vorbereitet",
+   "points": 75,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SLP-30",
+   "cat": "SLP",
+   "text": "Schlafwochen-Bonus: 5 von 7 Nächten im Zielfenster",
+   "points": 900,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "REC-01",
+   "cat": "REC",
+   "text": "Recovery grün (67–99 %)",
+   "points": 1150,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "REC:Zone"
+  },
+  {
+   "id": "REC-02",
+   "cat": "REC",
+   "text": "Recovery gelb (34–66 %)",
+   "points": 500,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "REC:Zone"
+  },
+  {
+   "id": "REC-03",
+   "cat": "REC",
+   "text": "Recovery rot (1–33 %)",
+   "points": 0,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "group": "REC:Zone"
+  },
+  {
+   "id": "REC-04",
+   "cat": "REC",
+   "text": "HRV über dem 7-Tage-Schnitt",
+   "points": 300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "REC-05",
+   "cat": "REC",
+   "text": "Ruhepuls unter dem 7-Tage-Schnitt",
+   "points": 200,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "REC-06",
+   "cat": "REC",
+   "text": "Recovery ≥ 67 % an 3 Tagen in Folge",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "REC-07",
+   "cat": "REC",
+   "text": "Recovery mindestens 20 Punkte besser als am Vortag",
+   "points": 300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "REC-08",
+   "cat": "REC",
+   "text": "Rot und bewusst Ruhetag oder leichte Einheit gewählt (Vernunft-Bonus)",
+   "points": 200,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "REC-09",
+   "cat": "REC",
+   "text": "Atemfrequenz/Hauttemperatur auffällig: Krankmodus-Vorschlag angezeigt (nur Hinweis)",
+   "points": 0,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "REC-10",
+   "cat": "REC",
+   "text": "Recovery-Check morgens angesehen und Tagesplan angepasst",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "REC-11",
+   "cat": "REC",
+   "text": "Woche mit Ø-Recovery über deinem 28-Tage-Schnitt",
+   "points": 775,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "REC-12",
+   "cat": "REC",
+   "text": "Recovery-Einbruch (≥ 30 Punkte unter Schnitt) ohne Alkohol/Krankheit erklärt (Notiz)",
+   "points": 100,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "STR-01",
+   "cat": "STR",
+   "text": "Grün + Strain 14–17: Sport voll gewertet, Bonus „Grün genutzt“",
+   "points": 400,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "STR-02",
+   "cat": "STR",
+   "text": "Grün + Strain ≥ 18 (All Out)",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "STR-03",
+   "cat": "STR",
+   "text": "Grün + Strain unter 10 ohne geplanten Ruhetag („Grün verschenkt“)",
+   "points": -300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "STR-04",
+   "cat": "STR",
+   "text": "Gelb + Strain 10–13 (Treffer)",
+   "points": 300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "STR-06",
+   "cat": "STR",
+   "text": "Rot + Strain ≤ 9 (Erholung ernst genommen)",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "STR-07",
+   "cat": "STR",
+   "text": "Rot + Strain 10–13: Sport-Punkte × 0,6",
+   "points": 0,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "kind": "modifier",
+   "mod": {
+    "type": "mult",
+    "factor": 0.6
+   }
+  },
+  {
+   "id": "STR-08",
+   "cat": "STR",
+   "text": "Rot + Strain ≥ 14: Sport-Punkte × 0,3 und Zusatzabzug",
+   "points": -575,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "kind": "modifier",
+   "mod": {
+    "type": "mult",
+    "factor": 0.3
+   }
+  },
+  {
+   "id": "STR-09",
+   "cat": "STR",
+   "text": "Alkohol am Vorabend: Sport-Punkte höchstens × 0,5",
+   "points": 0,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap",
+   "kind": "modifier",
+   "mod": {
+    "type": "cap",
+    "factor": 0.5
+   }
+  },
+  {
+   "id": "STR-10",
+   "cat": "STR",
+   "text": "Schlaf unter 6 h: Sport-Punkte × 0,7",
+   "points": 0,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "kind": "modifier",
+   "mod": {
+    "type": "mult",
+    "factor": 0.7
+   }
+  },
+  {
+   "id": "STR-11",
+   "cat": "STR",
+   "text": "Wichtige Einheit (bewusst, auch bei wenig Strain): Sport-Punkte × 1,0 trotz Regel",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap",
+   "kind": "modifier",
+   "mod": {
+    "type": "override",
+    "factor": 1.0
+   }
+  },
+  {
+   "id": "STR-12",
+   "cat": "STR",
+   "text": "Technik-/Skill-Einheit (wenig Strain, hohe Qualität, selbst bewertet)",
+   "points": 400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "STR-13",
+   "cat": "STR",
+   "text": "Tages-Strain im empfohlenen Bereich zur Recovery (Strain-Coach-Logik)",
+   "points": 500,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "STR-14",
+   "cat": "STR",
+   "text": "3 Tage in Folge Strain ≥ 14 ohne Pause (Überlastungs-Hinweis)",
+   "points": -400,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "STR-15",
+   "cat": "STR",
+   "text": "Woche mit mindestens 1 Tagen Strain unter 10",
+   "points": 400,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "STR-16",
+   "cat": "STR",
+   "text": "Geplanter Ruhetag bei gelber/roter Recovery",
+   "points": 675,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPK-01",
+   "cat": "SPK",
+   "text": "Krafttraining abgeschlossen (Whoop erkennt Strength-Trainer-Einheit, ≥ 30 Min)",
+   "points": 1750,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPK-02",
+   "cat": "SPK",
+   "text": "Einheit ≥ 45 Min",
+   "points": 200,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPK-03",
+   "cat": "SPK",
+   "text": "Einheit ≥ 60 Min",
+   "points": 300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPK-04",
+   "cat": "SPK",
+   "text": "Sätze/Wdh/Gewicht ins Board eingetragen (Whoop liefert sie nicht)",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-05",
+   "cat": "SPK",
+   "text": "Besser als beim letzten Mal",
+   "points": 775,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "SPK:Bewertung"
+  },
+  {
+   "id": "SPK-06",
+   "cat": "SPK",
+   "text": "Gleich wie beim letzten Mal",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "SPK:Bewertung"
+  },
+  {
+   "id": "SPK-07",
+   "cat": "SPK",
+   "text": "Schlechter als beim letzten Mal (Abzug nur bei grüner Recovery)",
+   "points": -100,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "SPK:Bewertung"
+  },
+  {
+   "id": "SPK-08",
+   "cat": "SPK",
+   "text": "Alle geplanten Übungen gemacht",
+   "points": 400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-09",
+   "cat": "SPK",
+   "text": "Aufwärmen ≥ 8 Min",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-10",
+   "cat": "SPK",
+   "text": "Cooldown/Dehnen nach dem Training",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-11",
+   "cat": "SPK",
+   "text": "Hauptübung: +2,5 kg gegenüber letztem Mal",
+   "points": 500,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-12",
+   "cat": "SPK",
+   "text": "Gleiches Gewicht, mehr Wiederholungen",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-13",
+   "cat": "SPK",
+   "text": "Neue Übung gelernt",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-14",
+   "cat": "SPK",
+   "text": "Core-Block 5 Min",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-15",
+   "cat": "SPK",
+   "text": "Schulter-/Rücken-Prehab 5 Min",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-16",
+   "cat": "SPK",
+   "text": "Beintag nicht ausgelassen",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-17",
+   "cat": "SPK",
+   "text": "Training mit Freund/Partner",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-18",
+   "cat": "SPK",
+   "text": "Deload-Woche bewusst eingehalten",
+   "points": 775,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "SPK-19",
+   "cat": "SPK",
+   "text": "Geplante Einheit ohne Grund ausgelassen",
+   "points": -975,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPK-20",
+   "cat": "SPK",
+   "text": "Woche: 2 Kraft-Einheiten",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "SPK-21",
+   "cat": "SPK",
+   "text": "Woche: 3 Kraft-Einheiten",
+   "points": 1150,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "SPK-22",
+   "cat": "SPK",
+   "text": "Woche: 4 Kraft-Einheiten",
+   "points": 1550,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "SPK-23",
+   "cat": "SPK",
+   "text": "Woche ohne Kraft-Einheit (nicht krank)",
+   "points": -1550,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "SPK-24",
+   "cat": "SPK",
+   "text": "Gefühl der Einheit 1–5 notiert",
+   "points": 60,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-01",
+   "cat": "ISO",
+   "text": "Isometrische Einheit ≥ 15 Min (Minuten selbst eintragen)",
+   "points": 775,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-02",
+   "cat": "ISO",
+   "text": "Isometrische Einheit ≥ 30 Min (Minuten selbst eintragen)",
+   "points": 1450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-03",
+   "cat": "ISO",
+   "text": "Wadenübungen-Block ≥ 10 Min (Calf Raises, Treppe, einbeinig)",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-04",
+   "cat": "ISO",
+   "text": "Wadenübungen isometrisch (Halten) ≥ 5 Min gesamt",
+   "points": 400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-05",
+   "cat": "ISO",
+   "text": "Halteübung ≥ 2 Min am Stück (z. B. Wandsitz, Plank)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-06",
+   "cat": "ISO",
+   "text": "Isometrie plus Waden am selben Tag (Kombi-Bonus)",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-07",
+   "cat": "ISO",
+   "text": "Neue isometrische Übung ausprobiert",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ISO-08",
+   "cat": "ISO",
+   "text": "Woche: 3 Isometrie- oder Waden-Einheiten",
+   "points": 975,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "ISO-09",
+   "cat": "ISO",
+   "text": "Woche: 5 Isometrie- oder Waden-Einheiten",
+   "points": 1550,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "ISO-10",
+   "cat": "ISO",
+   "text": "Geplante Waden-/Isometrie-Einheit ausgelassen (nur wenn im Plan)",
+   "points": -300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-01",
+   "cat": "SPS",
+   "text": "Sprint-Einheit abgeschlossen (≥ 6 Sprints à 10–40 m)",
+   "points": 1550,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-02",
+   "cat": "SPS",
+   "text": "Lange Pausen eingehalten (≥ 90 s zwischen Sprints)",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-03",
+   "cat": "SPS",
+   "text": "Lauf-ABC/Aufwärmprogramm",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-04",
+   "cat": "SPS",
+   "text": "Zeiten gemessen (Lichtschranke, Stoppuhr, Video)",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-05",
+   "cat": "SPS",
+   "text": "Alle Sprints innerhalb 95 % der Bestzeit",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-06",
+   "cat": "SPS",
+   "text": "Plyometrie/Sprünge 30–40 Min",
+   "points": 500,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-07",
+   "cat": "SPS",
+   "text": "Technik-Drills (Armarbeit, Kniehub, Start)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-08",
+   "cat": "SPS",
+   "text": "Agility (Leiter, Hütchen, Richtungswechsel)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-09",
+   "cat": "SPS",
+   "text": "Beschleunigungsläufe 6 × 10–20 m",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-10",
+   "cat": "SPS",
+   "text": "Sprint ohne Aufwärmen",
+   "points": -400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPS-11",
+   "cat": "SPS",
+   "text": "Sprint-Einheit bei roter Recovery (zusätzlich zur Strain-Regel)",
+   "points": -300,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPS-12",
+   "cat": "SPS",
+   "text": "Sprint-Test (Bestzeit-Messung) durchgeführt",
+   "points": 400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPA-01",
+   "cat": "SPA",
+   "text": "Lauf ≥ 20 Min",
+   "points": 1150,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-02",
+   "cat": "SPA",
+   "text": "Lauf ≥ 40 Min",
+   "points": 1750,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-03",
+   "cat": "SPA",
+   "text": "Zone-2-Lauf (≥ 30 Min in Zone 2)",
+   "points": 1350,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-04",
+   "cat": "SPA",
+   "text": "Intervalllauf (z. B. 4 × 4 Min hart, oder 8 × 1 Min)",
+   "points": 1750,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPA-05",
+   "cat": "SPA",
+   "text": "Dauerlauf ≥ 5 km überwiegend in Zone 3–4",
+   "points": 1150,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPA-06",
+   "cat": "SPA",
+   "text": "Dauerlauf ≥ 10 km überwiegend in Zone 3–4",
+   "points": 2150,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPA-07",
+   "cat": "SPA",
+   "text": "Intervalllauf mit Zone-5-Anteil (Whoop: ≥ 5 Min in Zone 5)",
+   "points": 2550,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-08",
+   "cat": "SPA",
+   "text": "Zeit in Zone 4–5 ≥ 15 Min (Whoop)",
+   "points": 775,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-09",
+   "cat": "SPA",
+   "text": "Lauf-Strain laut Whoop 8–11 (zusätzlich)",
+   "points": 300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-10",
+   "cat": "SPA",
+   "text": "Lauf-Strain laut Whoop 12–15 (zusätzlich)",
+   "points": 675,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-11",
+   "cat": "SPA",
+   "text": "Lauf-Strain laut Whoop ≥ 16 (zusätzlich)",
+   "points": 1150,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-12",
+   "cat": "SPA",
+   "text": "Strecke ≥ 5 km",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-13",
+   "cat": "SPA",
+   "text": "Strecke ≥ 10 km",
+   "points": 1150,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPA-14",
+   "cat": "SPA",
+   "text": "Gleiche Strecke schneller als beim letzten Mal",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPA-15",
+   "cat": "SPA",
+   "text": "Cooper-Test/12-Minuten-Lauf durchgeführt",
+   "points": 775,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPA-16",
+   "cat": "SPA",
+   "text": "Lauf bei Regen oder unter 5 °C („Wetter-Trotz“)",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPA-17",
+   "cat": "SPA",
+   "text": "Lauf mit anderen",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPA-18",
+   "cat": "SPA",
+   "text": "Wochenumfang ≥ 15 km",
+   "points": 775,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "SPA-19",
+   "cat": "SPA",
+   "text": "Wochenmix ca. 80/20 (locker/hart) eingehalten",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "SPA-20",
+   "cat": "SPA",
+   "text": "Neue Strecke erkundet",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPB-01",
+   "cat": "SPB",
+   "text": "Spinning 40–59 Min (Minuten selbst eintragen)",
+   "points": 1350,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPB-02",
+   "cat": "SPB",
+   "text": "Spinning 60–79 Min (Minuten selbst eintragen)",
+   "points": 1950,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPB-03",
+   "cat": "SPB",
+   "text": "Spinning ≥ 80 Min (Minuten selbst eintragen)",
+   "points": 2550,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPB-04",
+   "cat": "SPB",
+   "text": "Spinning-Strain laut Whoop 8–11 (zusätzlich)",
+   "points": 300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPB-05",
+   "cat": "SPB",
+   "text": "Spinning-Strain laut Whoop 12–15 (zusätzlich)",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPB-06",
+   "cat": "SPB",
+   "text": "Spinning-Strain laut Whoop ≥ 16 (zusätzlich)",
+   "points": 975,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPB-07",
+   "cat": "SPB",
+   "text": "Zone-2-Block ≥ 30 Min",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPB-08",
+   "cat": "SPB",
+   "text": "Intervalle (z. B. 6 × 1 Min hart)",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPB-09",
+   "cat": "SPB",
+   "text": "Höhere Durchschnittsleistung oder neues Level als beim letzten Mal",
+   "points": 400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPB-10",
+   "cat": "SPB",
+   "text": "Spinning-Kurs mit Gruppe",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPB-11",
+   "cat": "SPB",
+   "text": "Spinning bei roter Recovery, Strain ≥ 14 (Strain-Regel greift zusätzlich)",
+   "points": 0,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPB-12",
+   "cat": "SPB",
+   "text": "Woche: 2 Ausdauer-Einheiten (Lauf/Spinning)",
+   "points": 575,
+   "capture": "Whoop auto",
+   "src": "whoop",
+   "period": "week"
+  },
+  {
+   "id": "SPU-01",
+   "cat": "SPU",
+   "text": "Schulsportstunde aktiv mitgemacht",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPU-02",
+   "cat": "SPU",
+   "text": "Fußballtraining",
+   "points": 1050,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPU-03",
+   "cat": "SPU",
+   "text": "Fußballspiel",
+   "points": 1200,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPU-04",
+   "cat": "SPU",
+   "text": "Schwimmen ≥ 20 Min",
+   "points": 900,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPU-05",
+   "cat": "SPU",
+   "text": "Wandern/Walken ≥ 60 Min",
+   "points": 750,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPU-06",
+   "cat": "SPU",
+   "text": "Radfahren im Alltag ≥ 30 Min (oder mit dem Rad zur Schule)",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPU-07",
+   "cat": "SPU",
+   "text": "Klettern, Tennis, Kampfsport, Basketball o. Ä. ≥ 45 Min",
+   "points": 900,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "SPU-08",
+   "cat": "SPU",
+   "text": "Yoga/Mobility-Kurs ≥ 30 Min",
+   "points": 525,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPU-09",
+   "cat": "SPU",
+   "text": "Neue Sportart ausprobiert",
+   "points": 750,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPU-10",
+   "cat": "SPU",
+   "text": "Spontan Sport mit Freunden",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPU-11",
+   "cat": "SPU",
+   "text": "Schritte ≥ 8.000",
+   "points": 300,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPU-12",
+   "cat": "SPU",
+   "text": "Schritte ≥ 12.000",
+   "points": 600,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPU-13",
+   "cat": "SPU",
+   "text": "Ungeplanter Tag ohne Training und unter 4.000 Schritte („kein Sport“)",
+   "points": -600,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPU-14",
+   "cat": "SPU",
+   "text": "Geplanter Ruhetag (Strain unter 10): neutral",
+   "points": 0,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPP-01",
+   "cat": "SPP",
+   "text": "Kraft-PR Hauptübung (Gewicht × Wdh, geschätzte 1RM)",
+   "points": 1150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-02",
+   "cat": "SPP",
+   "text": "Kraft-PR Nebenübung",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-03",
+   "cat": "SPP",
+   "text": "Wiederholungs-PR bei festem Gewicht",
+   "points": 500,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-07",
+   "cat": "SPP",
+   "text": "Schulsport-Bestzeit (z. B. 50 m, 100 m, Staffel)",
+   "points": 1150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-08",
+   "cat": "SPP",
+   "text": "Bestzeit 1.000 m / 3.000 m / 5 km",
+   "points": 1350,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-09",
+   "cat": "SPP",
+   "text": "Neuer Bestwert im Cooper-Test",
+   "points": 975,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-10",
+   "cat": "SPP",
+   "text": "Längster Lauf bisher",
+   "points": 775,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "SPP-11",
+   "cat": "SPP",
+   "text": "Spinning-Bestleistung (30 Min)",
+   "points": 775,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-12",
+   "cat": "SPP",
+   "text": "Max-Wiederholungen (Liegestütze, Klimmzüge)",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-13",
+   "cat": "SPP",
+   "text": "Plank-Bestzeit",
+   "points": 400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-14",
+   "cat": "SPP",
+   "text": "Standweit-/Hochsprung-Bestwert",
+   "points": 575,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-15",
+   "cat": "SPP",
+   "text": "Jahresbestwert (nicht Allzeit)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-16",
+   "cat": "SPP",
+   "text": "Erste Messung (Baseline) einer Disziplin",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SPP-17",
+   "cat": "SPP",
+   "text": "Maximal 2 PRs pro Tag zählen (Inflationsschutz, keine Punkte, nur Regel)",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap",
+   "kind": "rule",
+   "rule": {
+    "prMaxPerDay": 2
+   }
+  },
+  {
+   "id": "MOB-01",
+   "cat": "MOB",
+   "text": "Dehnen/Mobility 10 Min",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-02",
+   "cat": "MOB",
+   "text": "Dehnen/Mobility 20 Min",
+   "points": 525,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-03",
+   "cat": "MOB",
+   "text": "Foam-Rolling 5 Min",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-04",
+   "cat": "MOB",
+   "text": "Yoga 20 Min",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-05",
+   "cat": "MOB",
+   "text": "Kalte Dusche 30–60 s",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-06",
+   "cat": "MOB",
+   "text": "Eisbad/kaltes Wasser ≥ 2 Min",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-07",
+   "cat": "MOB",
+   "text": "Sauna",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-08",
+   "cat": "MOB",
+   "text": "Atemübung 5 Min (z. B. Box Breathing)",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-09",
+   "cat": "MOB",
+   "text": "Meditation 10 Min",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-10",
+   "cat": "MOB",
+   "text": "Aktiver Ruhetag (Spaziergang + Mobility)",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-11",
+   "cat": "MOB",
+   "text": "Kurzer Dehn-Break beim Lernen (alle 50 Min)",
+   "points": 90,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-12",
+   "cat": "MOB",
+   "text": "Selbstmassage morgens",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "MOB-13",
+   "cat": "MOB",
+   "text": "Haltungsübung (Nacken/Brust), pro 10min",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap",
+   "max": 6,
+   "maxAssumed": true,
+   "unit": "pro 10 Min"
+  },
+  {
+   "id": "ERN-01",
+   "cat": "ERN",
+   "text": "Frühstück gegessen",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-02",
+   "cat": "ERN",
+   "text": "Obst-Portion (max. 3 pro Tag zählen)",
+   "points": 90,
+   "capture": "Tap",
+   "src": "tap",
+   "max": 3
+  },
+  {
+   "id": "ERN-03",
+   "cat": "ERN",
+   "text": "Gemüse-Portion (max. 3 pro Tag zählen)",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap",
+   "max": 3
+  },
+  {
+   "id": "ERN-04",
+   "cat": "ERN",
+   "text": "5 Portionen Obst/Gemüse erreicht",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-05",
+   "cat": "ERN",
+   "text": "Thunfisch-Abendessen",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-06",
+   "cat": "ERN",
+   "text": "Anderes proteinreiches Abendessen (Fisch, Quark, Eier, Hähnchen, Linsen)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-07",
+   "cat": "ERN",
+   "text": "Protein-Tagesziel erreicht (ca. 1,6 g pro kg Körpergewicht, geschätzt)",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-08",
+   "cat": "ERN",
+   "text": "Eiweiß-Snack innerhalb 60 Min nach dem Training",
+   "points": 175,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-09",
+   "cat": "ERN",
+   "text": "Skyr, Quark oder Joghurt",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-10",
+   "cat": "ERN",
+   "text": "Vollkorn oder Hülsenfrüchte",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-11",
+   "cat": "ERN",
+   "text": "Handvoll Nüsse",
+   "points": 75,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-12",
+   "cat": "ERN",
+   "text": "Selbst gekocht",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-13",
+   "cat": "ERN",
+   "text": "Neues gesundes Rezept ausprobiert",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-16",
+   "cat": "ERN",
+   "text": "Kein Zucker-Tag (keine Süßigkeiten, keine Softdrinks)",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-17",
+   "cat": "ERN",
+   "text": "Keine Softdrinks/Energy Drinks",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-18",
+   "cat": "ERN",
+   "text": "Letzte große Mahlzeit ≥ 3 h vor Bettzeit",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-19",
+   "cat": "ERN",
+   "text": "Süßigkeiten pro Portion (max. −675 pro Tag)",
+   "points": -225,
+   "capture": "Tap",
+   "src": "tap",
+   "max": 3
+  },
+  {
+   "id": "ERN-20",
+   "cat": "ERN",
+   "text": "Bewusste, geplante Ausnahme (vorher im Fokus eingetragen)",
+   "points": -75,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-21",
+   "cat": "ERN",
+   "text": "Fast Food (Döner, Burger, Pommes, Pizza vom Lieferdienst)",
+   "points": -450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-22",
+   "cat": "ERN",
+   "text": "Softdrink 0,5 L",
+   "points": -300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-23",
+   "cat": "ERN",
+   "text": "Energy Drink",
+   "points": -375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-24",
+   "cat": "ERN",
+   "text": "Chips/Salzgebäck Portion",
+   "points": -175,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-25",
+   "cat": "ERN",
+   "text": "Große Mahlzeit < 2 h vor dem Schlafen",
+   "points": -225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-26",
+   "cat": "ERN",
+   "text": "Snack nach dem Zähneputzen",
+   "points": -175,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-27",
+   "cat": "ERN",
+   "text": "Kein Obst und Gemüse an dem Tag",
+   "points": -225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-28",
+   "cat": "ERN",
+   "text": "Unter 1 L getrunken",
+   "points": -300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-29",
+   "cat": "ERN",
+   "text": "Kein Mittagessen (nur Snacks)",
+   "points": -150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-30",
+   "cat": "ERN",
+   "text": "Fruchtsaft/Smoothie als Hauptgetränk",
+   "points": -90,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-31",
+   "cat": "ERN",
+   "text": "Mahlzeit bewusst und langsam gegessen (ohne Handy)",
+   "points": 90,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ERN-34",
+   "cat": "ERN",
+   "text": "Woche: 5 Tage ohne Fast Food",
+   "points": 750,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "ALK-01",
+   "cat": "ALK",
+   "text": "Stufe 0: Nüchtern (Normalfall, 0 Punkte)",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "ALK:Stufe"
+  },
+  {
+   "id": "ALK-02",
+   "cat": "ALK",
+   "text": "Auf Party/Treffen bewusst nüchtern geblieben",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ALK-03",
+   "cat": "ALK",
+   "text": "Stufe 1: 1–2 Getränke",
+   "points": -600,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "ALK:Stufe"
+  },
+  {
+   "id": "ALK-04",
+   "cat": "ALK",
+   "text": "Stufe 2: Angetrunken (3–4 Getränke)",
+   "points": -1800,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "ALK:Stufe"
+  },
+  {
+   "id": "ALK-05",
+   "cat": "ALK",
+   "text": "Stufe 3: Viel (5–8 Getränke)",
+   "points": -3800,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "ALK:Stufe"
+  },
+  {
+   "id": "ALK-06",
+   "cat": "ALK",
+   "text": "Stufe 4: Vollrausch/Filmriss",
+   "points": -6800,
+   "capture": "Tap",
+   "src": "tap",
+   "group": "ALK:Stufe"
+  },
+  {
+   "id": "ALK-07",
+   "cat": "ALK",
+   "text": "Folgetag: Recovery rot nach Alkohol",
+   "points": -750,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "ALK-08",
+   "cat": "ALK",
+   "text": "Folgetag: Recovery gelb nach Alkohol",
+   "points": -375,
+   "capture": "Whoop + Tap",
+   "src": "whoop+tap"
+  },
+  {
+   "id": "ALK-10",
+   "cat": "ALK",
+   "text": "Alkohol an einem Schultag (zusätzlich)",
+   "points": -450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ALK-11",
+   "cat": "ALK",
+   "text": "Alkoholfreie Alternative gewählt",
+   "points": 75,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ALK-12",
+   "cat": "ALK",
+   "text": "Wasser im Wechsel mit Alkohol",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ALK-13",
+   "cat": "ALK",
+   "text": "Heimweg sicher organisiert (Taxi/Freunde/Bahn)",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ALK-14",
+   "cat": "ALK",
+   "text": "Woche komplett alkoholfrei",
+   "points": 1200,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "ALK-15",
+   "cat": "ALK",
+   "text": "Monat mit höchstens 2 Anlässen (Monatsbonus)",
+   "points": 2250,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "month"
+  },
+  {
+   "id": "LRN-01",
+   "cat": "LRN",
+   "text": "Neues Thema abgeschlossen (100-Themen-Projekt, Notion-Seite entsteht)",
+   "points": 1950,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "LRN-02",
+   "cat": "LRN",
+   "text": "Thema begonnen, ≥ 20 Min, nicht abgeschlossen",
+   "points": 300,
+   "capture": "Notion + Tap",
+   "src": "notion+tap"
+  },
+  {
+   "id": "LRN-03",
+   "cat": "LRN",
+   "text": "Thema vertieft (Vertiefen-Modus)",
+   "points": 575,
+   "capture": "Notion + Tap",
+   "src": "notion+tap"
+  },
+  {
+   "id": "LRN-04",
+   "cat": "LRN",
+   "text": "Fokusblock Lernen 25 Min ohne Handy",
+   "points": 500,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-05",
+   "cat": "LRN",
+   "text": "Fokusblock Lernen 50 Min",
+   "points": 975,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-06",
+   "cat": "LRN",
+   "text": "Zwei oder mehr Blöcke am Stück (Bonus)",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-07",
+   "cat": "LRN",
+   "text": "Active-Recall-Runde am Ende bestanden (≥ 80 %)",
+   "points": 575,
+   "capture": "Notion + Tap",
+   "src": "notion+tap"
+  },
+  {
+   "id": "LRN-08",
+   "cat": "LRN",
+   "text": "Jemandem erklärt oder laut erklärt (Feynman)",
+   "points": 500,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-09",
+   "cat": "LRN",
+   "text": "Verbindung zu anderem Thema notiert",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-14",
+   "cat": "LRN",
+   "text": "Klausurvorbereitung 45 Min",
+   "points": 875,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-18",
+   "cat": "LRN",
+   "text": "Neues Thema vor 12 Uhr",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-19",
+   "cat": "LRN",
+   "text": "Wochenend-Lernblock ≥ 30 Min",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-21",
+   "cat": "LRN",
+   "text": "Nicht gelernt (kein Block, kein Thema, keine Vokabeln) an einem Schultag",
+   "points": -775,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LRN-22",
+   "cat": "LRN",
+   "text": "Nicht gelernt am Wochenende",
+   "points": -400,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "WDH-01",
+   "cat": "WDH",
+   "text": "Wiederholungsrunde (5 Fragen) abgeschlossen",
+   "points": 575,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-02",
+   "cat": "WDH",
+   "text": "Wiederholungsrunde (10 Fragen) abgeschlossen",
+   "points": 975,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-03",
+   "cat": "WDH",
+   "text": "Einzelne Frage: richtig",
+   "points": 60,
+   "capture": "Notion",
+   "src": "notion",
+   "max": 20,
+   "maxAssumed": true
+  },
+  {
+   "id": "WDH-04",
+   "cat": "WDH",
+   "text": "Einzelne Frage: knapp richtig",
+   "points": 30,
+   "capture": "Notion",
+   "src": "notion",
+   "max": 20,
+   "maxAssumed": true
+  },
+  {
+   "id": "WDH-05",
+   "cat": "WDH",
+   "text": "Einzelne Frage: falsch (Aufwand zählt)",
+   "points": 10,
+   "capture": "Notion",
+   "src": "notion",
+   "max": 20,
+   "maxAssumed": true
+  },
+  {
+   "id": "WDH-06",
+   "cat": "WDH",
+   "text": "Perfekte Runde (alle richtig)",
+   "points": 400,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-07",
+   "cat": "WDH",
+   "text": "Alle heute fälligen Wiederholungen erledigt (Queue = 0)",
+   "points": 1150,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-08",
+   "cat": "WDH",
+   "text": "Rückstau ≥ 10 überfällige Karten am Tagesende",
+   "points": -300,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-09",
+   "cat": "WDH",
+   "text": "Thema „gefestigt“ Stufe 1 (nach 1 Tag richtig)",
+   "points": 400,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-10",
+   "cat": "WDH",
+   "text": "Thema „gefestigt“ Stufe 2 (nach 7 Tagen richtig)",
+   "points": 575,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-11",
+   "cat": "WDH",
+   "text": "Thema „gefestigt“ Stufe 3 (nach 30 Tagen richtig)",
+   "points": 975,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-12",
+   "cat": "WDH",
+   "text": "Transferfrage richtig (neue Situation statt Auswendiglernen)",
+   "points": 225,
+   "capture": "Notion + Tap",
+   "src": "notion+tap"
+  },
+  {
+   "id": "WDH-13",
+   "cat": "WDH",
+   "text": "„Prüfe mich“-Mischrunde (≥ 3 Themen)",
+   "points": 1350,
+   "capture": "Notion",
+   "src": "notion"
+  },
+  {
+   "id": "WDH-14",
+   "cat": "WDH",
+   "text": "Wiederholung vor dem Schlafen (10 Min)",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "WDH-15",
+   "cat": "WDH",
+   "text": "Eigene Lernkarten erstellt (5 Stück)",
+   "points": 200,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-01",
+   "cat": "LES",
+   "text": "Lesen 10 Min",
+   "points": 175,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-02",
+   "cat": "LES",
+   "text": "Lesen 20 Min",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-03",
+   "cat": "LES",
+   "text": "Lesen 40 Min",
+   "points": 750,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-04",
+   "cat": "LES",
+   "text": "Lesen ≥ 60 Min",
+   "points": 1050,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-05",
+   "cat": "LES",
+   "text": "Sachbuch 20 Min (Zuschlag)",
+   "points": 75,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-06",
+   "cat": "LES",
+   "text": "Lesen vor dem Schlafen statt Handy",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-07",
+   "cat": "LES",
+   "text": "Hörbuch 30 Min",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-08",
+   "cat": "LES",
+   "text": "Buch beendet",
+   "points": 2250,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-09",
+   "cat": "LES",
+   "text": "Neues Buch angefangen",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-10",
+   "cat": "LES",
+   "text": "Lieblingszitat/Notiz festgehalten",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-11",
+   "cat": "LES",
+   "text": "Langen Artikel gelesen und kurz zusammengefasst",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-12",
+   "cat": "LES",
+   "text": "Bibliothek/Buchladen besucht",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "LES-13",
+   "cat": "LES",
+   "text": "Woche: 5 von 7 Tage gelesen",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "HND-01",
+   "cat": "HND",
+   "text": "Bildschirmzeit unter 1:30 h",
+   "points": 1050,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Gesamt"
+  },
+  {
+   "id": "HND-02",
+   "cat": "HND",
+   "text": "1:30–2:30 h",
+   "points": 675,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Gesamt"
+  },
+  {
+   "id": "HND-03",
+   "cat": "HND",
+   "text": "2:30–3:30 h",
+   "points": 300,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Gesamt"
+  },
+  {
+   "id": "HND-04",
+   "cat": "HND",
+   "text": "3:30–4:30 h",
+   "points": 0,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Gesamt"
+  },
+  {
+   "id": "HND-05",
+   "cat": "HND",
+   "text": "4:30–6:00 h",
+   "points": -375,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Gesamt"
+  },
+  {
+   "id": "HND-06",
+   "cat": "HND",
+   "text": "über 6:00 h",
+   "points": -900,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Gesamt"
+  },
+  {
+   "id": "HND-07",
+   "cat": "HND",
+   "text": "0 Min",
+   "points": 600,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Instagram"
+  },
+  {
+   "id": "HND-08",
+   "cat": "HND",
+   "text": "unter 15 Min",
+   "points": 450,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Instagram"
+  },
+  {
+   "id": "HND-09",
+   "cat": "HND",
+   "text": "unter 30 Min",
+   "points": 300,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Instagram"
+  },
+  {
+   "id": "HND-10",
+   "cat": "HND",
+   "text": "unter 60 Min",
+   "points": 75,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Instagram"
+  },
+  {
+   "id": "HND-11",
+   "cat": "HND",
+   "text": "60–90 Min",
+   "points": -150,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Instagram"
+  },
+  {
+   "id": "HND-12",
+   "cat": "HND",
+   "text": "90–150 Min",
+   "points": -450,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Instagram"
+  },
+  {
+   "id": "HND-13",
+   "cat": "HND",
+   "text": "über 150 Min",
+   "points": -900,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "group": "HND:Instagram"
+  },
+  {
+   "id": "HND-14",
+   "cat": "HND",
+   "text": "Instagram mindestens 20 % unter deinem eigenen Wochenschnitt",
+   "points": 300,
+   "capture": "Kurzbefehl",
+   "src": "shortcut"
+  },
+  {
+   "id": "HND-15",
+   "cat": "HND",
+   "text": "Pickups unter 60",
+   "points": 225,
+   "capture": "Kurzbefehl",
+   "src": "shortcut"
+  },
+  {
+   "id": "HND-16",
+   "cat": "HND",
+   "text": "Pickups über 150",
+   "points": -225,
+   "capture": "Kurzbefehl",
+   "src": "shortcut"
+  },
+  {
+   "id": "HND-17",
+   "cat": "HND",
+   "text": "Handy außer Reichweite im Fokusblock",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "HND-18",
+   "cat": "HND",
+   "text": "Kein Handy beim Essen",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "HND-19",
+   "cat": "HND",
+   "text": "Digital-Detox-Tag (Social Media 0 Min)",
+   "points": 900,
+   "capture": "Kurzbefehl",
+   "src": "shortcut"
+  },
+  {
+   "id": "HND-20",
+   "cat": "HND",
+   "text": "Doomscrolling > 30 Min am Stück",
+   "points": -300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "HND-21",
+   "cat": "HND",
+   "text": "YouTube Shorts/TikTok über 30 Min",
+   "points": -225,
+   "capture": "Kurzbefehl",
+   "src": "shortcut"
+  },
+  {
+   "id": "HND-22",
+   "cat": "HND",
+   "text": "Benachrichtigungen eingeschränkt (einmalig)",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "HND-23",
+   "cat": "HND",
+   "text": "Social-Media-App-Limit gesetzt (einmalig)",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "HND-24",
+   "cat": "HND",
+   "text": "Woche: Bildschirmzeit mindestens 10 % unter Vorwoche",
+   "points": 600,
+   "capture": "Kurzbefehl",
+   "src": "shortcut",
+   "period": "week"
+  },
+  {
+   "id": "PUZ-01",
+   "cat": "PUZ",
+   "text": "Puzzle-Tracker (Tageswert 1:1 aus dem Tracker)",
+   "points": null,
+   "kind": "puzzle",
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-01",
+   "cat": "ABD",
+   "text": "Tagesabschluss ausgefüllt (Rang S/A/B/C)",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-02",
+   "cat": "ABD",
+   "text": "Fokus für morgen gesetzt",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-07",
+   "cat": "ABD",
+   "text": "Max. 3 Aufgaben für morgen notiert",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-08",
+   "cat": "ABD",
+   "text": "Zimmer-Reset 5 Min",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-09",
+   "cat": "ABD",
+   "text": "Whoop-Akku ≥ 50 % vor dem Schlafen",
+   "points": 125,
+   "capture": "Whoop auto",
+   "src": "whoop"
+  },
+  {
+   "id": "ABD-10",
+   "cat": "ABD",
+   "text": "Wecker gestellt und kontrolliert",
+   "points": 30,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-11",
+   "cat": "ABD",
+   "text": "Abendroutine komplett (≥ 4 Bausteine) – Bonus",
+   "points": 750,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-12",
+   "cat": "ABD",
+   "text": "Wochenrückblick am Sonntag (10 Min)",
+   "points": 900,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "ABD-13",
+   "cat": "ABD",
+   "text": "Zähne/Gesichtspflege",
+   "points": 45,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ABD-14",
+   "cat": "ABD",
+   "text": "Tagesabschluss nicht gemacht",
+   "points": -300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-01",
+   "cat": "FOK",
+   "text": "Fokusblock 25 Min (Hausaufgaben, Projekt, Board bauen)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-02",
+   "cat": "FOK",
+   "text": "Deep-Work-Block 90 Min",
+   "points": 900,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-03",
+   "cat": "FOK",
+   "text": "Bewegungspause 5 Min nach 50 Min Sitzen",
+   "points": 90,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-04",
+   "cat": "FOK",
+   "text": "Mittagspause draußen",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-05",
+   "cat": "FOK",
+   "text": "Aufgeschobene Aufgabe endlich erledigt („Boss-Aufgabe“)",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-06",
+   "cat": "FOK",
+   "text": "Handy im anderen Raum während des Blocks",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-07",
+   "cat": "FOK",
+   "text": "Nur eine Aufgabe gleichzeitig (Block ohne Tab-Wechsel)",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-08",
+   "cat": "FOK",
+   "text": "Gaming/Serien-Marathon > 3 h (optional, nur wenn du es einschaltest)",
+   "points": -300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "FOK-09",
+   "cat": "FOK",
+   "text": "Aufgabe zum dritten Mal verschoben",
+   "points": -150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-01",
+   "cat": "ORD",
+   "text": "Zimmer aufgeräumt 10 Min",
+   "points": 175,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-02",
+   "cat": "ORD",
+   "text": "Wäsche gemacht/aufgehängt",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-03",
+   "cat": "ORD",
+   "text": "Müll/Spülmaschine",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-04",
+   "cat": "ORD",
+   "text": "Küche nach dem Kochen aufgeräumt",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-05",
+   "cat": "ORD",
+   "text": "Schreibtisch frei",
+   "points": 125,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-06",
+   "cat": "ORD",
+   "text": "Rucksack ausgemistet",
+   "points": 75,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-07",
+   "cat": "ORD",
+   "text": "Digital aufgeräumt 10 Min (Fotos, Downloads, Notizen)",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-08",
+   "cat": "ORD",
+   "text": "Besorgung/Erledigung",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-09",
+   "cat": "ORD",
+   "text": "Hausarbeit 30 Min",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-10",
+   "cat": "ORD",
+   "text": "Fahrrad gepflegt/repariert",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "ORD-11",
+   "cat": "ORD",
+   "text": "Große Wochenreinigung",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "GES-01",
+   "cat": "GES",
+   "text": "Sonnenlicht draußen ≥ 20 Min tagsüber",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "GES-02",
+   "cat": "GES",
+   "text": "Spaziergang 20 Min",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "GES-03",
+   "cat": "GES",
+   "text": "Spaziergang 45 Min",
+   "points": 525,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "GES-04",
+   "cat": "GES",
+   "text": "Zahnseide",
+   "points": 45,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "GES-07",
+   "cat": "GES",
+   "text": "Hautpflege/Sonnencreme",
+   "points": 45,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "GES-08",
+   "cat": "GES",
+   "text": "Gewicht/Messung wöchentlich eingetragen (optional)",
+   "points": 90,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "GES-09",
+   "cat": "GES",
+   "text": "Krankmodus aktiv (Streaks pausieren, lockere Regeln)",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap",
+   "kind": "mode",
+   "mode": "sick"
+  },
+  {
+   "id": "GES-10",
+   "cat": "GES",
+   "text": "Verletzungsmodus aktiv (nur betroffene Sportarten pausiert)",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap",
+   "kind": "mode",
+   "mode": "injury"
+  },
+  {
+   "id": "GES-11",
+   "cat": "GES",
+   "text": "Nikotin/Vape (optional, standardmäßig aus)",
+   "points": -750,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "PLN-01",
+   "cat": "PLN",
+   "text": "Wochenplanung am Sonntag",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "week"
+  },
+  {
+   "id": "PLN-02",
+   "cat": "PLN",
+   "text": "Selbstgesetzte Fokus-Quest erfüllt",
+   "points": 750,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "PLN-03",
+   "cat": "PLN",
+   "text": "Fokus-Quest teilweise erfüllt (≥ 50 %)",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "PLN-04",
+   "cat": "PLN",
+   "text": "Monatsziele überprüft",
+   "points": 600,
+   "capture": "Tap",
+   "src": "tap",
+   "period": "month"
+  },
+  {
+   "id": "PLN-05",
+   "cat": "PLN",
+   "text": "Meilenstein eines Langzeitziels erreicht",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "PLN-06",
+   "cat": "PLN",
+   "text": "Lernplan angepasst, weil etwas nicht funktionierte",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "PLN-07",
+   "cat": "PLN",
+   "text": "Auto-Insight des Boards gelesen und darauf reagiert",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "PLN-09",
+   "cat": "PLN",
+   "text": "Stärken-Schwächen-Notiz: eine Sache, die ich morgen anders mache",
+   "points": 225,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-01",
+   "cat": "SON",
+   "text": "Reisetag-Modus (Schlafziele gelockert, Streak pausiert)",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap",
+   "kind": "mode",
+   "mode": "travel"
+  },
+  {
+   "id": "SON-02",
+   "cat": "SON",
+   "text": "Termin/Verabredung vergessen",
+   "points": -150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-03",
+   "cat": "SON",
+   "text": "Whoop nicht getragen/Datenlücke (Tag mit Teilwertung)",
+   "points": -150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-04",
+   "cat": "SON",
+   "text": "Unerwartet früh aufgestanden für etwas Gutes (Sonnenaufgang, Training)",
+   "points": 150,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-05",
+   "cat": "SON",
+   "text": "Gute Tat ohne Gegenleistung",
+   "points": 300,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-06",
+   "cat": "SON",
+   "text": "Mutprobe/Unbequemes erledigt (Gespräch, Anruf, Vortrag)",
+   "points": 450,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-07",
+   "cat": "SON",
+   "text": "Neues erlebt (Ort, Veranstaltung, Essen)",
+   "points": 375,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-08",
+   "cat": "SON",
+   "text": "Tag ohne jeden Eintrag (Board nicht geöffnet): Tag zählt als „unvollständig“",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-09",
+   "cat": "SON",
+   "text": "Zufalls-Bonus-Kiste geöffnet (Inhalt siehe Teil G)",
+   "points": 0,
+   "capture": "Tap",
+   "src": "tap"
+  },
+  {
+   "id": "SON-10",
+   "cat": "SON",
+   "text": "Ehrlichkeits-Bonus: Aktion mit Minuspunkten ehrlich eingetragen (max. 2 pro Tag)",
+   "points": 80,
+   "capture": "Tap",
+   "src": "tap",
+   "max": 2
+  }
+ ]
+}
