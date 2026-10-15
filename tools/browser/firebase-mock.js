@@ -5,10 +5,10 @@
   window.__store = store;
   const docSnap = (id,d)=>({id,exists:d!==undefined,data:()=>d===undefined?undefined:JSON.parse(JSON.stringify(d))});
   const fsApi = {
-    enablePersistence: async()=>{},
-    collection:(p)=>({get:async()=>{const pre=p+'/';const docs=Object.keys(store).filter(k=>k.startsWith(pre)&&!k.slice(pre.length).includes('/')).map(k=>docSnap(k.slice(pre.length),store[k]));return{docs}}}),
+    enablePersistence: async()=>{}, settings:()=>{},
+    collection:(p)=>({get:async()=>{if(localStorage.getItem('__failreads')==='1'){const e=new Error('denied');e.code='permission-denied';throw e}const pre=p+'/';const docs=Object.keys(store).filter(k=>k.startsWith(pre)&&!k.slice(pre.length).includes('/')).map(k=>docSnap(k.slice(pre.length),store[k]));return{docs}}}),
     doc:(p)=>({
-      get:async()=>docSnap(p.split('/').pop(),store[p]),
+      get:async()=>{if(localStorage.getItem('__failreads')==='1'){const e=new Error('denied');e.code='permission-denied';throw e}return docSnap(p.split('/').pop(),store[p])},
       set:async(d,o)=>{ if(window.__failWrites){const e=new Error('denied');e.code='permission-denied';throw e}
         store[p]=o&&o.merge?Object.assign({},store[p]||{},JSON.parse(JSON.stringify(d))):JSON.parse(JSON.stringify(d)); window.__writes=(window.__writes||0)+1; try{localStorage.setItem('__mockstore',JSON.stringify(store))}catch(e){} }
     })

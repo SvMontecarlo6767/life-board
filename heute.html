@@ -139,7 +139,8 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
     <h2>Einstellungen</h2>
     <div class="card">
       <div class="mu" id="setInfo"></div>
-      <div class="row"><label for="bt">Zielzeit Einschlafen (Mo–Fr):</label><input type="time" id="bt"><span class="mu">Ohne Zielzeit zählen die Wochentags-Bettzeit-Punkte nicht.</span></div>
+      <div class="row"><label for="bt">Zielzeit Einschlafen (Mo–Fr):</label><input type="time" id="bt"><span class="mu" id="btInfo">Ohne Zielzeit zählen die Wochentags-Bettzeit-Punkte nicht.</span></div>
+      <div class="mu" id="diag" style="margin-top:10px"></div>
       <div class="row"><button id="exportBtn">Alles als JSON exportieren</button><span class="mu" id="exportInfo"></span></div>
     </div>
   </section>
@@ -255,7 +256,7 @@ function buildDoc(k,over){
 function persist(over){
   const doc=buildDoc(cur,over);
   DAYS[cur]=doc;
-  const p=lsGet();p[cur]=doc;lsSet(p);              // lokale Sicherung, bis Firestore bestätigt hat
+  const p=lsGet();p[cur]=doc;lsSet(p);saveCache();   // lokale Sicherung, bis Firestore bestätigt hat
   flush(cur);
 }
 async function flush(k){
@@ -483,8 +484,10 @@ $('closeBtn').addEventListener('click',closeDay);
 $('exportBtn').addEventListener('click',doExport);
 $('whRefresh').addEventListener('click',refreshWhoop);
 $('bt').addEventListener('change',async()=>{
-  SETTINGS.bedtimeTarget=$('bt').value||null;
-  try{await fs.doc(base+'/settings/main').set({bedtimeTarget:SETTINGS.bedtimeTarget},{merge:true})}catch(e){showMsg('Zielzeit nicht gespeichert: '+esc(e.message||e),true)}
+  SETTINGS.bedtimeTarget=$('bt').value||null;SETTINGS._btLocal=true;saveCache();       // sofort lokal sichern
+  $('btInfo').textContent='speichert …';
+  try{await fs.doc(base+'/settings/main').set({bedtimeTarget:SETTINGS.bedtimeTarget},{merge:true});delete SETTINGS._btLocal;saveCache();$('btInfo').textContent='gespeichert ✓'}
+  catch(e){$('btInfo').textContent='nur auf diesem Gerät gespeichert ('+errText(e)+') – wird beim nächsten Öffnen erneut gesendet'}
   if(DAYS[cur]&&!DAYS[cur].closed)persist();render();
 });
 document.addEventListener('click',e=>{
@@ -500,35 +503,78 @@ $('prev').addEventListener('click',()=>go(E.addDays(cur,-1)));
 $('next').addEventListener('click',()=>{if(cur<today)go(E.addDays(cur,1))});
 
 /* ---------- Start ---------- */
-try{
-  try{await fs.enablePersistence({synchronizeTabs:true})}catch(e){}
-  user=await requireUser();base='users/'+user.uid;
-  await rulesFor(CURV);
-  const r=RULES[CURV];
-  today=E.dayKey(new Date(),r.day.timezone,r.day.changeHour);cur=today;
-  const [ps,ds,ss]=await Promise.all([fs.collection(base+'/puzzle').get(),fs.collection(base+'/days').get(),fs.doc(base+'/settings/main').get()]);
-  const D={};ps.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id)){const v=x.data()||{};if(v.g)D[x.id]=v.g}});
-  PUZ=PD.puzzleDayValues(D);
-  ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))DAYS[x.id]=x.data()});
-  SETTINGS=ss.exists?ss.data():{};
-  for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||1)))await rulesFor(v);
-  // lokal gesicherte, noch nicht bestätigte Tage erneut senden
-  const pend=lsGet();let replay=[];
-  for(const k of Object.keys(pend)){if(!DAYS[k]||(DAYS[k].updatedAt||0)<=(pend[k].updatedAt||0)){DAYS[k]=pend[k];replay.push(k)}}
-  // offene Tage aus Regelwerk v1 auf v2 umstellen (alte Angaben bleiben als legacyV1 erhalten)
+const DIAG={};
+function diag(name,ok,info){DIAG[name]={ok,info};
+  const bad=Object.entries(DIAG).filter(([,v])=>v.ok===false);
+  $('diag').innerHTML=Object.entries(DIAG).map(([n,v])=>'<span style="color:'+(v.ok===false?'var(--bad)':v.ok?'var(--ac)':'var(--mu)')+'">'+(v.ok===false?'✗ ':v.ok?'✓ ':'… ')+esc(n)+(v.info?' ('+esc(v.info)+')':'')+'</span>').join(' · ');
+}
+const tmo=(p,ms,what)=>Promise.race([p,new Promise((_,j)=>setTimeout(()=>j(Object.assign(new Error(what+' antwortet nicht (Zeitüberschreitung)'),{code:'timeout'})),ms))]);
+const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
+function cacheKey(){return 'lb_cache_'+user.uid}
+function saveCache(){try{localStorage.setItem(cacheKey(),JSON.stringify({days:DAYS,puz:PUZ,settings:SETTINGS,at:Date.now()}))}catch(e){}}
+function loadCache(){try{return JSON.parse(localStorage.getItem(cacheKey())||'null')}catch(e){return null}}
+function getUser(){
+  return new Promise(res=>{
+    let done=false;
+    auth.onAuthStateChanged(u=>{ if(done)return; done=true; res(u) });
+    setTimeout(()=>{ if(!done){done=true;res(auth.currentUser||null)} },8000);
+  });
+}
+function migrateV1(replay){   // offene Tage aus Regelwerk v1 auf v2 umstellen (alte Angaben bleiben als legacyV1 erhalten)
   for(const k of Object.keys(DAYS)){const d=DAYS[k];if((d.rulesVersion||1)<2&&!d.closed){
     DAYS[k]=Object.assign({},d,{rulesVersion:2,in:{},a:{},x:{},legacyV1:{a:d.a||{},net:d.net||0},updatedAt:Date.now()});
-    const p=lsGet();p[k]=DAYS[k];lsSet(p);replay.push(k)}}
-  setInfo();render();setSave('');
+    const p=lsGet();p[k]=DAYS[k];lsSet(p);if(replay)replay.push(k)}}
+}
+async function boot(){
+  try{fs.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}   // iPad/Safari: bei hängenden Verbindungen auf Long-Polling ausweichen
+  user=await getUser();
+  if(!user){showMsg('Du bist nicht angemeldet. <a href="index.html">Zur Startseite und anmelden</a>',true);return}
+  base='users/'+user.uid;
+  diag('Anmeldung',true);
+  try{await rulesFor(CURV);diag('Regelwerk',true,'v'+CURV)}catch(e){diag('Regelwerk',false,errText(e));showMsg('Regelwerk nicht ladbar: '+esc(errText(e)),true);return}
+  const r=RULES[CURV];
+  today=E.dayKey(new Date(),r.day.timezone,r.day.changeHour);cur=today;
+  // 1) sofort aus dem lokalen Speicher anzeigen, damit nie eine leere Seite erscheint
+  const cache=loadCache();
+  if(cache){DAYS=cache.days||{};PUZ=cache.puz||{};SETTINGS=cache.settings||{}}
+  const pend=lsGet();
+  for(const k of Object.keys(pend)){if(!DAYS[k]||(DAYS[k].updatedAt||0)<=(pend[k].updatedAt||0))DAYS[k]=pend[k]}
+  for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||1)))await rulesFor(v).catch(()=>{});
+  const replay0=[];migrateV1(replay0);
+  setInfo();render();
+  // 2) vom Server nachladen – jeder Teil einzeln, damit ein Fehler nicht alles blockiert
+  try{
+    const ps=await tmo(fs.collection(base+'/puzzle').get(),10000,'Puzzle');
+    const D={};ps.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id)){const v=x.data()||{};if(v.g)D[x.id]=v.g}});
+    PUZ=PD.puzzleDayValues(D);diag('Puzzle',true,Object.keys(D).length+' Tage');
+  }catch(e){diag('Puzzle',false,errText(e))}
+  let replay=[];
+  try{
+    const ds=await tmo(fs.collection(base+'/days').get(),10000,'Tage');
+    const server={};ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))server[x.id]=x.data()});
+    DAYS=server;
+    for(const k of Object.keys(pend)){if(!DAYS[k]||(DAYS[k].updatedAt||0)<=(pend[k].updatedAt||0)){DAYS[k]=pend[k];replay.push(k)}}
+    migrateV1(replay);diag('Tage',true,Object.keys(DAYS).length);
+  }catch(e){diag('Tage',false,errText(e));showMsg('<b>Tage konnten nicht geladen werden:</b> '+esc(errText(e))+'. Es wird der zuletzt gespeicherte Stand dieses Geräts gezeigt. Falls das ein Regel-Problem ist: Firebase → Firestore → Regeln: <code>match /users/{uid}/{document=**} { allow read, write: if request.auth != null &amp;&amp; request.auth.uid == uid; }</code>',true)}
+  try{
+    const ss=await tmo(fs.doc(base+'/settings/main').get(),10000,'Einstellungen');
+    const sv=ss.exists?ss.data():{};
+    SETTINGS=Object.assign({},SETTINGS,sv);
+    diag('Einstellungen',true);
+  }catch(e){diag('Einstellungen',false,errText(e))}
+  for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||1)))await rulesFor(v).catch(()=>{});
+  // lokal gesicherte, noch nicht bestätigte Eingaben erneut senden
+  replay0.forEach(k=>{if(!replay.includes(k))replay.push(k)});
   replay.forEach(k=>flush(k));
-  await loadWhoop();
+  if(SETTINGS.bedtimeTarget&&SETTINGS._btLocal)fs.doc(base+'/settings/main').set({bedtimeTarget:SETTINGS.bedtimeTarget},{merge:true}).then(()=>{delete SETTINGS._btLocal;saveCache()}).catch(()=>{});
+  saveCache();setInfo();render();setSave('');
+  try{await tmo(loadWhoop(),15000,'Whoop')}catch(e){WHSTATE='err';WHMSG=errText(e)}
+  diag('Whoop',WHSTATE==='ok',WHSTATE==='ok'?'':WHMSG);
   const c=calc(cur);
   if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&versionOf(cur)>=2&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
-  render();writeState();
-}catch(e){
-  if(e&&e.code==='permission-denied')showMsg('Firestore verweigert den Zugriff. Die Regeln müssen alle Unterordner von <code>users/{uid}</code> erlauben.',true);
-  else showMsg('Laden fehlgeschlagen: '+esc(e.message||e),true);
+  saveCache();render();writeState();
 }
+boot().catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
 </body></html>

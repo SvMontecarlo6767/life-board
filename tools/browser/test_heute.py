@@ -46,7 +46,7 @@ def run(p,w,h):
         return r.fulfill(headers=hd,body=json.dumps({'days':whoop}))
     ctx.route(re.compile(r'life-board-whoop\.momo-haskamp\.workers\.dev'),worker)
     pg=ctx.new_page(); errs=[]
-    pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m:errs.append(m.text) if m.type=='error' else None)
+    pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m:(errs.append(m.text) if m.type=='error' else None) or (print('LOG',m.text[:300]) if 'PERSIST' in m.text else None))
     pg.clock.set_fixed_time('2026-10-14T12:00:00+02:00')
     pg.goto(URL); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'")
     t=f'[{w}px] '
@@ -113,6 +113,14 @@ def run(p,w,h):
     state['fail']=True; pg.reload(); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='nicht erreichbar'")
     ck(t+'Whoop aus, Tag offen: Punkte und Konto bleiben (gespeicherter Whoop-Stand)',pg.inner_text('#netTop')==open_net and pg.inner_text('#hAcc')==acc,(open_net,pg.inner_text('#netTop'),acc,pg.inner_text('#hAcc')))
     state['fail']=False; pg.reload(); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'")
+    # Firestore-Lesen verboten/kaputt: Seite zeigt trotzdem Knöpfe, Punkte und Zielzeit aus dem lokalen Stand
+    pg.evaluate("localStorage.setItem('__failreads','1')"); pg.reload(); pg.wait_for_selector('.chip[data-b]')
+    pg.wait_for_function("document.getElementById('diag').textContent.includes('✗ Tage')")
+    ck(t+'Lesen verboten: Knöpfe + Punkte + Konto bleiben (lokaler Stand)',pg.locator('.chip[data-b]').count()==28 and pg.inner_text('#netTop')==open_net and pg.inner_text('#hAcc')==acc,(open_net,pg.inner_text('#netTop')))
+    ck(t+'Lesen verboten: Zielzeit bleibt eingetragen',pg.input_value('#bt')=='22:15',pg.input_value('#bt'))
+    ck(t+'Lesen verboten: klare Meldung','Tage konnten nicht geladen werden' in pg.inner_text('#msg'))
+    pg.evaluate("localStorage.removeItem('__failreads')"); pg.reload(); pg.wait_for_selector('.chip[data-b]'); pg.wait_for_function("document.getElementById('whState').textContent==='verbunden'")
+    ck(t+'Zielzeit nach Reload noch da (Server)',pg.input_value('#bt')=='22:15')
     # Startseite zeigt das Konto
     hub=ctx.new_page(); hub.goto(URL.replace('heute.html','index.html')); hub.wait_for_function("document.getElementById('dopTxt').textContent.includes('Dopamin insgesamt')",timeout=8000)
     ck(t+'Startseite zeigt Konto + Level + heute',all(x in hub.inner_text('#dopTxt') for x in('Level 3','Heute (14.10.)','Rang')),hub.inner_text('#dopTxt').replace('\n',' '))
@@ -155,5 +163,7 @@ def run(p,w,h):
     ck(t+'Buttons mindestens 44px',small>=44,round(small))
     b.close()
 with sync_playwright() as p:
-    for w,h in((1024,768),(820,1180)): run(p,w,h)
+    for w,h in((1024,768),(820,1180)):
+        try: run(p,w,h)
+        except Exception as ex: print('ABBRUCH',w,str(ex)[:200]); fails+=1; break
 print('\n'.join(res)); print('\n%d Fehler'%fails if fails else '\nALLE OK'); sys.exit(1 if fails else 0)
