@@ -198,3 +198,5 @@ html[data-tab="puzzle"] h1,html[data-tab="puzzle"] h2{background:linear-gradient
 html[data-tab="puzzle"] button{border-radius:14px}
 html[data-tab="puzzle"] button:active{transform:scale(.93) rotate(-1deg)}
 html[data-tab="puzzle"] button.primary,html[data-tab="puzzle"] button.pri{background:linear-gradient(135deg,rgb(var(--pz1)),rgb(var(--pz2)));color:#190a10;border-color:transparent}
+
+#lb-fps{position:fixed;left:8px;bottom:6px;z-index:200;padding:3px 8px;border-radius:8px;background:rgba(0,0,0,.65);color:#7dffb0;font:600 12px ui-monospace,Menlo,monospace;pointer-events:none}

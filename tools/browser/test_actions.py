@@ -89,7 +89,7 @@ with sync_playwright() as p:
         ck(t+'Puzzle: Rückmeldung von Jarvis','Krillion' in pg.inner_text('#jv-say'),pg.inner_text('#jv-say'))
         pg.screenshot(path=f'{shots}/actions_{w}_puzzle.png')
         pg.evaluate("document.querySelectorAll('.msoverlay').forEach(o=>{o.classList.remove('on','open','show');o.style.display='none'})"); pg.wait_for_timeout(300)
-        say('CALL set_puzzle {"game":"Krillion","score":900}'); pg.tap('#jv-yes'); pg.wait_for_timeout(1500)
+        say('CALL set_puzzle {"game":"Krillion","score":900}'); pg.evaluate("document.getElementById('jv-yes').click()"); pg.wait_for_timeout(1500)
         ck(t+'Puzzle: unmöglicher Score wird abgelehnt','0 bis 700' in pg.inner_text('#jv-say'),pg.inner_text('#jv-say'))
         ck(t+'Keine Konsolenfehler',not errs,errs[:3])
         b.close()

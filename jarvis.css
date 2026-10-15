@@ -57,34 +57,8 @@ html[data-jarvis] body{padding-bottom:150px!important}
 html[data-perf] #jv-orb::before{animation:none}
 @media (prefers-reduced-motion:reduce){#jv-orb::before,#jv[data-open="1"] #jv-name{animation:none}}
 
-/* Plattformen */
-#jv-plat{position:absolute;left:50%;bottom:calc(14px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(620px,96vw);height:156px;display:flex;align-items:center;justify-content:center;pointer-events:none;transition:opacity .35s,transform .45s cubic-bezier(.2,.8,.2,1)}
-#jv-plat .sp{flex:0 0 170px}
-#jv-plat .g{display:flex;gap:12px;flex:1;align-items:center}
-#jv-plat .g.l{justify-content:flex-end}#jv-plat .g.r{justify-content:flex-start}
-#jv-plat a.pl{pointer-events:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;width:88px;height:70px;border-radius:18px;text-decoration:none;color:rgb(var(--tc));
-  background:linear-gradient(160deg,rgb(var(--tc) / .2),rgba(8,12,20,.78));border:1px solid rgb(var(--tc) / .6);box-shadow:0 0 18px rgb(var(--tc) / .3),0 14px 18px -10px rgba(0,0,0,.8),inset 0 0 14px rgb(var(--tc) / .12);
-  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);font:700 12px 'Rajdhani',system-ui,sans-serif;letter-spacing:.14em;text-transform:uppercase;animation:jvFloat 5s ease-in-out infinite;animation-delay:var(--d,0s);-webkit-tap-highlight-color:transparent}
-#jv-plat a.pl::after{content:"";position:absolute;left:18%;right:18%;bottom:-12px;height:8px;border-radius:50%;background:radial-gradient(ellipse,rgb(var(--tc) / .45),transparent 70%);filter:blur(3px)}
-#jv-plat a.pl{position:relative}
-#jv-plat .g.l a.pl:last-child,#jv-plat .g.r a.pl:first-child{margin-bottom:14px}
-#jv-plat .g.l a.pl:first-child,#jv-plat .g.r a.pl:last-child{margin-top:18px}
-#jv-plat a.pl svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
-#jv-plat a.pl:active{transform:scale(.94);box-shadow:0 0 28px rgb(var(--tc) / .7)}
-@keyframes jvFloat{0%,100%{translate:0 0}50%{translate:0 -7px}}
-#jv[data-open="1"] #jv-plat{opacity:0;transform:translateX(-50%) scale(.85)}
-#jv[data-open="1"] #jv-plat a.pl{pointer-events:none}
-html[data-perf] #jv-plat a.pl{animation:none;-webkit-backdrop-filter:none;backdrop-filter:none}
-@media(prefers-reduced-motion:reduce){#jv-plat a.pl{animation:none}}
-@media(max-width:620px){#jv-plat .sp{flex-basis:132px}#jv-plat a.pl{width:68px;height:62px;font-size:10px;letter-spacing:.08em}#jv-plat .g{gap:6px}}
-
-#jv-band{position:absolute;left:0;right:0;bottom:0;height:calc(186px + env(safe-area-inset-bottom));background:linear-gradient(to top,rgba(3,7,13,.97) 0,rgba(3,7,13,.93) 62%,rgba(3,7,13,0));pointer-events:auto;transition:opacity .35s;touch-action:pan-y}
-#jv-band::before{content:"";position:absolute;left:8%;right:8%;top:30%;height:1px;background:linear-gradient(90deg,transparent,rgb(var(--jv) / .5),transparent)}
-#jv[data-open="1"] #jv-band{opacity:0;pointer-events:none}
-@media(max-width:620px){#jv-plat .sp{flex-basis:150px}}
-
 /* ===== Hub-Modus: Kern in der Mitte, alle Knöpfe als schwebende Plattformen ===== */
-html[data-hubmode] #lb-nav,html[data-hubmode] #jv-plat,html[data-hubmode] #jv-band{display:none!important}
+html[data-hubmode] #lb-nav{display:none!important}
 html[data-hubmode],html[data-hubmode] body{overflow:hidden!important;height:100%}
 html[data-jarvis][data-hubmode] body{padding:16px clamp(14px,3vw,30px) 0!important}
 html[data-hubmode] main{max-width:1100px}
@@ -137,3 +111,8 @@ html[data-perf] #jv-hubp .hp,html[data-perf] #jv-hubp .hp-sh,html[data-perf] #jv
 html[data-hubmode] #wh.sheet-open,html[data-hubmode] #bk.sheet-open{display:block;position:fixed;z-index:95;left:50%;top:50%;transform:translate(-50%,-50%);width:min(640px,92vw);max-height:84vh;overflow:auto;margin:0}
 .sheetx{position:absolute;top:8px;right:8px;min-width:44px;min-height:44px;padding:0!important;border-radius:12px;display:grid!important;place-items:center}
 html[data-hubmode] #lb-set{top:50%;left:50%;right:auto;transform:translate(-50%,-50%);z-index:96}
+
+/* Performance: nichts animieren, was gerade nicht zu sehen ist */
+#jv[data-open="1"] #jv-hubp .hp,#jv[data-open="1"] #jv-hubp .hp *,#jv[data-open="1"] #jv-hubp .hp::before,#jv[data-open="1"] #jv-lines line{animation-play-state:paused!important}
+html.lb-hidden #jv-hubp .hp,html.lb-hidden #jv-hubp .hp *,html.lb-hidden #jv-lines line{animation-play-state:paused!important}
+#jv-hubp .hp{will-change:translate}

@@ -22,7 +22,7 @@ const TABS=[
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
 const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];
 /* ---------- Einstellungen (localStorage + Firestore best effort) ---------- */
-const DEF={perf:false,sounds:true,tilt:false,speak:true};
+const DEF={perf:false,sounds:true,tilt:false,speak:true,fps:false};
 let S=Object.assign({},DEF);
 try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('lb_ui')||'{}'))}catch(e){}
 const listeners=[];
@@ -76,7 +76,7 @@ function buildNav(){
   document.body.prepend(nav);
   const panel=document.createElement('div');panel.id='lb-set';panel.hidden=true;
   const row=(k,t,sub)=>'<div class="r"><div>'+t+(sub?'<small>'+sub+'</small>':'')+'</div><button class="lb-sw" role="switch" data-k="'+k+'" aria-checked="'+!!S[k]+'" aria-label="'+t+'"></button></div>';
-  panel.innerHTML='<h4>Einstellungen</h4>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('speak','Jarvis spricht','Aus = Jarvis antwortet nur als Text');
+  panel.innerHTML='<h4>Einstellungen</h4>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('speak','Jarvis spricht','Aus = Jarvis antwortet nur als Text')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
   document.body.append(panel);
   nav.querySelector('#lb-gear').onclick=()=>{panel.hidden=!panel.hidden;sound(panel.hidden?'off':'on')};
   document.addEventListener('pointerdown',e=>{if(!panel.hidden&&!panel.contains(e.target)&&!nav.querySelector('#lb-gear').contains(e.target))panel.hidden=true},true);
@@ -108,6 +108,21 @@ function reveal(){
   els.forEach((e,i)=>{if(e.classList.contains('rv'))return;e.classList.add('rv');e.style.setProperty('--d',Math.min(i,8)*0.04+'s');io.observe(e)});
   setTimeout(()=>els.forEach(e=>e.classList.add('in')),2500);   // Sicherung: nichts bleibt unsichtbar
 }
+
+/* ---------- FPS-Anzeige (nur wenn eingeschaltet) + Pause, wenn die Seite verborgen ist ---------- */
+let fpsEl=null,fpsRaf=0;
+function fpsLoop(){
+  if(!S.fps){if(fpsEl){fpsEl.remove();fpsEl=null}fpsRaf=0;return}
+  if(!fpsEl){fpsEl=document.createElement('div');fpsEl.id='lb-fps';document.body.append(fpsEl)}
+  let n=0,t0=performance.now(),worst=0,last=t0;
+  (function f(now){
+    if(!S.fps){fpsLoop();return}
+    n++;worst=Math.max(worst,now-last);last=now;
+    if(now-t0>=1000){fpsEl.textContent=Math.round(n*1000/(now-t0))+' fps · max '+Math.round(worst)+' ms';n=0;worst=0;t0=now}
+    fpsRaf=requestAnimationFrame(f);
+  })(t0);
+}
+document.addEventListener('visibilitychange',()=>root.classList.toggle('lb-hidden',document.hidden));
 /* ---------- Hochzählen ---------- */
 function countUp(el,to,opt){
   opt=opt||{};const from=opt.from!=null?opt.from:0,dur=S.perf?0:(opt.dur||800),fmt=opt.fmt||(n=>String(Math.round(n)));
@@ -137,7 +152,8 @@ function start(){
   requestAnimationFrame(()=>root.classList.add('lb-ready'));
   setTimeout(reveal,60);
   bg();
-  listeners.push(s=>{if(!s.perf)bg()});
+  listeners.push(s=>{if(!s.perf)bg();if(s.fps&&!fpsRaf)fpsLoop();});
+  if(S.fps)fpsLoop();
   // gespeicherte Einstellungen vom Server holen, wenn lokal noch nichts gespeichert wurde
   try{if(typeof auth!=='undefined')auth.onAuthStateChanged(async u=>{if(!u)return;UID=u.uid;if(localStorage.getItem('lb_ui')){pushSettings();return}try{const d=await fs.doc('users/'+u.uid+'/settings/main').get();const ui=d.exists&&d.data().ui;if(ui){S=Object.assign({},DEF,ui);localStorage.setItem('lb_ui',JSON.stringify(S));applySettings();document.querySelectorAll('#lb-set .lb-sw').forEach(b=>b.setAttribute('aria-checked',!!S[b.dataset.k]))}}catch(e){}})}catch(e){}
 }

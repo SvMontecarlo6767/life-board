@@ -24,7 +24,7 @@ def run(p,w,h):
     for i,(f,n) in enumerate([('1.5','4'),('2.5','3'),('1.0','5'),('3.0','4'),('2.0','2')]):
         seed['users/u1/puzzle/2026-10-%02d'%(10+i)]={'g':{'fermi':{'s':f,'w':1},'ner':{'s':n,'w':1}}}
     seed['users/u1/days/2026-10-14']={'date':'2026-10-14','net':800,'rank':'B','closed':False,'in':{},'rulesVersion':2}
-    ctx.add_init_script('window.__seed='+json.dumps(seed)+';')
+    ctx.add_init_script('window.__seed='+json.dumps(seed)+';try{localStorage.setItem("lb_classic_ai","1")}catch(e){};')
     for n,body in(('app',mock),('auth',''),('firestore','')):
         ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%n),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))
     st={'qcalls':0,'noion':False,'ask':[]}

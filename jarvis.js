@@ -9,7 +9,7 @@ const root=document.documentElement;
 const $=(t,a,c)=>{const e=document.createElement(t);if(a)Object.assign(e,a);(c||[]).forEach(x=>e.append(x));return e};
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const loadScript=src=>new Promise((res,rej)=>{if(document.querySelector('script[data-jv="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.dataset.jv=src;s.onload=res;s.onerror=()=>rej(new Error('Laden fehlgeschlagen: '+src));document.head.append(s)});
-const css=document.createElement('link');css.rel='stylesheet';css.href='jarvis.css?v=4';document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href='jarvis.css?v=5';document.head.append(css);
 const ST=()=>(window.LBUI&&LBUI.settings)||{speak:true};
 const snd=n=>{try{window.LBUI&&LBUI.sound(n)}catch(e){}};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
@@ -87,14 +87,17 @@ async function handle(text,via){
     if(RE_SPEAK.test(text)){LBUI.setSetting('speak',true);const a='Gerne. Ab jetzt spreche ich wieder mit dir.';await Assistant.chat.add(text,a);await present(a,via==='voice',true);return}
     if(RE_TEXT.test(text)){LBUI.setSetting('speak',false);const a='Verstanden. Ab jetzt antworte ich nur noch schriftlich.';await Assistant.chat.add(text,a);await present(a,false,true);return}
     if(pending&&await answerPending(text))return;
+    if(pending){pending=null;el.conf.classList.remove('on')}   // neue Frage: offene Rückfrage verfällt
     setState('thinking');hint('Ich denke nach …');
     const wantVoice=via==='voice'&&ST().speak;
     let tl=null;try{if(window.JarvisActions)tl=await JarvisActions.tools()}catch(e){}
     const r=await Assistant.ask(text,'',Assistant.chat.history(10),{voice:wantVoice,tools:tl});
     if(r.calls&&r.calls.length&&window.JarvisActions&&await JarvisActions.handle(r,text))return;
+    if(!r.answer){const a='Das kann ich noch nicht. Frag mich nach deinen Daten oder sag mir, was ich eintragen soll.';await Assistant.chat.add(text,a);await present(a,false,true);return}
     const saved=await Assistant.chat.add(text,r.answer);
     if(saved===false)hint('Chat nur auf diesem Gerät gesichert');
     await present(r.answer,wantVoice,false);
+    if(r.model&&open)hint('Modell: '+r.model.replace(/^models\//,''));
     if(r.used&&r.limit&&r.used>=r.limit-10)hint('Heute '+r.used+' von '+r.limit+' KI-Anfragen');
   }catch(e){err(netMsg(e))}
   finally{busy=false}
@@ -166,20 +169,6 @@ async function showHist(tab){
     }catch(e){body.innerHTML='';body.append($('div',{className:'empty',textContent:'Chats konnten nicht geladen werden: '+e.message}))}
   }
 }
-/* ---------- Schwebende Reiter-Plattformen um den Kern ---------- */
-function buildPlat(r,n){
-  const tabs=[...document.querySelectorAll('#lb-nav a.tab')];
-  if(!tabs.length){if((n||0)<12)setTimeout(()=>buildPlat(r,(n||0)+1),250);return}
-  let pl=r.querySelector('#jv-plat');if(pl)pl.remove();
-  pl=$('nav',{id:'jv-plat'});pl.setAttribute('aria-label','Reiter');
-  const other=tabs.filter(a=>!a.classList.contains('act'));
-  const mk=(a,i)=>{const c=$('a',{className:'pl',href:a.getAttribute('href')});c.style.setProperty('--tc',a.style.getPropertyValue('--tc'));c.style.setProperty('--d',(i*0.7)+'s');
-    c.innerHTML=a.querySelector('svg').outerHTML+'<span>'+a.querySelector('span').textContent+'</span>';return c};
-  const half=Math.ceil(other.length/2),L=$('div',{className:'g l'}),R=$('div',{className:'g r'});
-  other.forEach((a,i)=>(i<half?L:R).append(mk(a,i)));
-  pl.append(L,$('div',{className:'sp'}),R);r.prepend(pl);if(!r.querySelector('#jv-band'))r.prepend($('div',{id:'jv-band'}));
-}
-
 /* ---------- Hub-Modus: Jarvis in der Mitte, alle Knöpfe schweben als Plattformen darum ---------- */
 const isIndex=(()=>{const f=location.pathname.split('/').pop();return !f||f==='index.html'})();
 const hubOn=()=>{const h=document.getElementById('hub');return isIndex&&!!h&&!h.hidden};
