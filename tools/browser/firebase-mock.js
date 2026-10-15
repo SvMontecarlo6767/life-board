@@ -15,7 +15,7 @@
   };
   window.firebase = {
     initializeApp(){},
-    auth:()=>({onAuthStateChanged:(cb)=>{setTimeout(()=>cb({uid:'u1',email:'test@example.com'}),0);return()=>{}}}),
+    auth:()=>({onAuthStateChanged:(cb)=>{setTimeout(()=>cb({uid:'u1',email:'test@example.com',getIdToken:async()=>'test-token'}),0);return()=>{}}}),
     firestore:()=>fsApi
   };
 })();

@@ -81,8 +81,42 @@ function rankProgress(rules,net){
   const nxt=rs.filter(r=>r.min>net).sort((a,b)=>a.min-b.min)[0];
   return{rank:cur,next:nxt?nxt.id:null,toNext:nxt?nxt.min-net:0};
 }
+
+/* ---------- Regelwerk v2: Knöpfe -> Aktions-IDs ---------- */
+function buttonIds(b,v){
+  v=v|0;if(v<1)return[];
+  if(b.kind==='toggle')return b.ids.slice();
+  if(b.kind==='count')return b.ids.slice();
+  if(b.kind==='choice'){const o=b.options[v-1];return o?o.ids.slice():[]}
+  if(b.kind==='amount'){
+    const ok=b.tiers.filter(t=>v>=t.min);if(!ok.length)return[];
+    return b.mode==='all'?[].concat(...ok.map(t=>t.ids)):ok[ok.length-1].ids.slice();
+  }
+  return[];
+}
+/* inputs: {knopfId: Wert}; skip: {knopfId:true} (Whoop liefert diesen Knopf) -> {ID: Anzahl} */
+function deriveCounts(rules,inputs,skip){
+  const c={};
+  for(const b of rules.ui.buttons){
+    if(skip&&skip[b.id])continue;
+    const v=inputs&&inputs[b.id]|0;if(v<1)continue;
+    buttonIds(b,v).forEach(id=>{c[id]=b.kind==='count'?v:1});
+  }
+  return c;
+}
+function mergeCounts(a,b){const o=Object.assign({},a);for(const k of Object.keys(b||{}))o[k]=Math.max(o[k]|0,b[k]|0);return o}
+/* nächster Wert beim Tippen: toggle 0/1, amount/choice durch Voreinstellungen, danach aus; count zählt hoch bis max */
+function nextValue(b,v,max){
+  v=v|0;
+  if(b.kind==='toggle')return v?0:1;
+  if(b.kind==='count')return v<(max||1)?v+1:v;
+  if(b.kind==='choice')return v>=b.options.length?0:v+1;
+  if(b.kind==='amount'){const i=b.presets.indexOf(v);return v===0?b.presets[0]:i<0||i>=b.presets.length-1?0:b.presets[i+1]}
+  return 0;
+}
+
 const nf=new Intl.NumberFormat('de-DE');
 function fmt(n,sign){const s=nf.format(Math.round(n)).replace('-','−');return sign&&n>0?'+'+s:s}
-const api={dayKey,addDays,weekKey,monthKey,periodKey,computeDay,rankOf,levelInfo,rankProgress,fmt};
+const api={buttonIds,deriveCounts,mergeCounts,nextValue,dayKey,addDays,weekKey,monthKey,periodKey,computeDay,rankOf,levelInfo,rankProgress,fmt};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LBEngine=api;
 })(typeof window!=='undefined'?window:globalThis);
