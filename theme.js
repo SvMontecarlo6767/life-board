@@ -24,7 +24,7 @@ const TABS=[
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
 const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];
 /* ---------- Einstellungen (localStorage + Firestore best effort) ---------- */
-const DEF={perf:false,sounds:true,tilt:false,speak:true,fps:false};
+const DEF={perf:false,sounds:true,tilt:false,speak:true,fps:false,provider:'gemini'};
 let S=Object.assign({},DEF);
 try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('lb_ui')||'{}'))}catch(e){}
 const listeners=[];
@@ -78,8 +78,9 @@ function buildNav(){
   document.body.prepend(nav);
   const panel=document.createElement('div');panel.id='lb-set';panel.hidden=true;
   const row=(k,t,sub)=>'<div class="r"><div>'+t+(sub?'<small>'+sub+'</small>':'')+'</div><button class="lb-sw" role="switch" data-k="'+k+'" aria-checked="'+!!S[k]+'" aria-label="'+t+'"></button></div>';
-  panel.innerHTML='<h4>Einstellungen</h4>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('speak','Jarvis spricht','Aus = Jarvis antwortet nur als Text')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
+  panel.innerHTML='<h4>Einstellungen</h4>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('speak','Jarvis spricht','Aus = Jarvis antwortet nur als Text')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad')+'<div class="r"><div>KI-Anbieter<small>Für Chat und Jarvis. Stimme und Spracherkennung bleiben bei Gemini.</small></div><select id="lb-prov" aria-label="KI-Anbieter" style="min-height:40px;border-radius:10px;background:rgba(6,12,22,.7);color:inherit;border:1px solid var(--edge);padding:0 8px">'+[['gemini','Gemini'],['groq','Groq (Llama)'],['openrouter','OpenRouter'],['mistral','Mistral']].map(p=>'<option value="'+p[0]+'"'+(S.provider===p[0]?' selected':'')+'>'+p[1]+'</option>').join('')+'</select></div>';
   document.body.append(panel);
+  panel.querySelector('#lb-prov').onchange=e=>{setSetting('provider',e.target.value);sound('on')};
   nav.querySelector('#lb-gear').onclick=()=>{panel.hidden=!panel.hidden;sound(panel.hidden?'off':'on')};
   document.addEventListener('pointerdown',e=>{if(!panel.hidden&&!panel.contains(e.target)&&!nav.querySelector('#lb-gear').contains(e.target))panel.hidden=true},true);
   panel.querySelectorAll('.lb-sw').forEach(b=>b.onclick=async()=>{

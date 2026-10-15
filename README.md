@@ -18,6 +18,12 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Wetter und Ortssuche: einziger externer Abruf der Seite (Open-Meteo, nur Ort und Rennen-Datum).
 - Tests: `node tools/test-training.mjs`, `node worker/test.mjs`, Browser: `node tools/browser/gen_training_seed.mjs seed.json` und `python3 tools/browser/test_training.py <Ordner> seed.json`.
 
+## KI-Anbieter umstellen
+In **Optionen → KI-Anbieter** zwischen Gemini (Standard), Groq (Llama), OpenRouter und Mistral wählen. Der Chat und Jarvis' Antworten laufen dann über den gewählten Anbieter, inklusive Aktionen mit Rückfrage. Spracheingabe (STT) und Sprachausgabe (TTS) bleiben bei Gemini.
+- Im Cloudflare-Worker als Secret anlegen (nie im Chat posten): `GROQ_KEY`, `OPENROUTER_KEY`, `MISTRAL_KEY`. Optional Modelle per Variable `GROQ_MODEL`, `OPENROUTER_MODEL`, `MISTRAL_MODEL`.
+- Aktuelle `worker/worker.js` deployen. Fehlt ein Schlüssel, meldet die KI das im Chat.
+- Nur mit Mocks getestet.
+
 ## Jarvis
 - Antippen öffnet, **halten = sprechen, loslassen = senden**. Tippen im Textfeld antwortet nur schriftlich.
 - Schalter „Jarvis spricht“ (Optionen) bzw. „nur schriftlich“ / „sprich mit mir“ per Zuruf.

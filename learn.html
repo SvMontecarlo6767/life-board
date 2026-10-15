@@ -52,7 +52,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=4"></script>
+<script src="assistant.js?v=5"></script>
 <script src="engine.js"></script>
 <script src="learn-core.js"></script>
 <script>
@@ -213,6 +213,6 @@ $('sync').onclick=syncNotion;
 $('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
 if(!list().length)syncNotion();
 })();
-</script><script src="theme.js?v=6"></script>
+</script><script src="theme.js?v=7"></script>
 <script src="jarvis.js?v=7"></script>
 </body></html>

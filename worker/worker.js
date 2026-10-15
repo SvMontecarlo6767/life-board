@@ -332,7 +332,36 @@ async function geminiGenerate(env, payload) {
 }
 const textOf = (d) => { const p = (((d.candidates || [])[0] || {}).content || {}).parts; return p ? p.map(x => x.text || '').join('') : ''; };
 function needKey(env) { if (!env.GEMINI_KEY) { const e = new Error('GEMINI_KEY fehlt'); e.code = 'NO_AI'; throw e; } }
+// Weitere KI-Anbieter (OpenAI-kompatibel). Schlüssel als Secret im Worker: GROQ_KEY, OPENROUTER_KEY, MISTRAL_KEY.
+const PROVIDERS = {
+  groq: { name: 'Groq', url: 'https://api.groq.com/openai/v1/chat/completions', key: 'GROQ_KEY', model: 'llama-3.3-70b-versatile', modelVar: 'GROQ_MODEL' },
+  openrouter: { name: 'OpenRouter', url: 'https://openrouter.ai/api/v1/chat/completions', key: 'OPENROUTER_KEY', model: 'meta-llama/llama-3.3-70b-instruct:free', modelVar: 'OPENROUTER_MODEL' },
+  mistral: { name: 'Mistral', url: 'https://api.mistral.ai/v1/chat/completions', key: 'MISTRAL_KEY', model: 'mistral-small-latest', modelVar: 'MISTRAL_MODEL' }
+};
+async function askOther(env, body, pv) {
+  const P = PROVIDERS[pv];
+  if (!env[P.key]) { const e = new Error(P.key + ' fehlt im Worker – als Secret in Cloudflare eintragen oder in den Optionen auf Gemini zurückstellen'); e.code = 'NO_AI'; throw e; }
+  const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
+  if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
+  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 150;
+  const used = await aiCount(env, 'ai', limit);
+  const tools = (Array.isArray(body.tools) ? body.tools : []).slice(0, 12).filter(t => t && /^[a-z_]{1,40}$/.test(t.name || '')).map(t => ({ type: 'function', function: { name: t.name, description: String(t.description || '').slice(0, 2500), parameters: t.parameters || { type: 'object', properties: {} } } }));
+  const sys = AI_SYSTEM + (body.voice ? AI_VOICE : '') + (tools.length ? AI_TOOLS : '') + '\n\n' + String(body.context || '').slice(0, 40000);
+  const model = env[P.modelVar] || P.model;
+  const payload = { model, temperature: 0.4, max_tokens: body.voice ? 300 : 1200, messages: [{ role: 'system', content: sys }].concat(msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 4000) }))) };
+  if (tools.length) { payload.tools = tools; payload.tool_choice = 'auto'; }
+  const r = await fetch(P.url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + env[P.key] }, body: JSON.stringify(payload) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(P.name + ' ' + r.status + (d.error && d.error.message ? ': ' + String(d.error.message).slice(0, 160) : '')); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
+  const m = (((d.choices || [])[0]) || {}).message || {};
+  const out = String(m.content || '').trim();
+  const calls = (m.tool_calls || []).map(c => { let a = {}; try { a = JSON.parse(c.function.arguments || '{}') } catch (e) {} return { name: c.function.name, args: a }; }).slice(0, 3);
+  if (!out && !calls.length) { const e = new Error('Keine Antwort erhalten'); e.code = 'AI'; throw e; }
+  return { answer: out, calls, model: P.name + ' · ' + (d.model || model), used, limit };
+}
 async function askGemini(env, body) {
+  const pv = String(body.provider || '').toLowerCase();
+  if (PROVIDERS[pv]) return askOther(env, body, pv);
   needKey(env);
   const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
   if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
@@ -539,6 +568,7 @@ export default {
         const b = await request.json().catch(() => ({}));
         return json(env, await askGemini(env, b));
       }
+      if (url.pathname === '/ai/providers') return json(env, { gemini: !!env.GEMINI_KEY, ...Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, !!env[p.key]])) });
       if (url.pathname === '/stt' && request.method === 'POST') return json(env, await sttGemini(env, await request.json().catch(() => ({}))));
       if (url.pathname === '/tts' && request.method === 'POST') return json(env, await ttsGemini(env, await request.json().catch(() => ({}))));
       if (url.pathname === '/disconnect' && request.method === 'POST') {

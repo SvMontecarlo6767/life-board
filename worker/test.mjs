@@ -68,6 +68,12 @@ globalThis.fetch = async (url, opts = {}) => {
     if (b.contents[0].parts[0].text === 'tool') return ok({ candidates: [{ content: { parts: [{ functionCall: { name: 'set_habit', args: { button: 'Dusche' } } }] } }] });
     return ok({ candidates: [{ content: { parts: [{ text: 'Antwort ' + b.contents.length }] } }] });
   }
+  if (url.startsWith('https://api.groq.com/')) {
+    if (opts.headers?.Authorization !== 'Bearer GQ') return new Response('{"error":{"message":"bad key"}}', { status: 401 });
+    const b = JSON.parse(opts.body); globalThis.__groq = b;
+    if (b.messages.at(-1).content === 'tool') return ok({ model: 'llama-x', choices: [{ message: { content: null, tool_calls: [{ function: { name: 'set_habit', arguments: '{"button":"Dusche"}' } }] } }] });
+    return ok({ model: 'llama-x', choices: [{ message: { content: 'Groq-Antwort ' + b.messages.length } }] });
+  }
   if (url.startsWith('https://api.notion.com/')) {
     if (opts.headers?.Authorization !== 'Bearer NT' || !opts.headers['Notion-Version']) return new Response('{}', { status: 401 });
     const p = url.replace('https://api.notion.com/v1', '');
@@ -284,5 +290,19 @@ console.log('✓ Zeitraum-Schutz');
   const before = globalThis.__stravaTok; const ac2 = await sc('/strava/activities', { page: 1 }); assert.equal(ac2.status, 200); assert.equal(globalThis.__stravaTok, before + 1, 'Token erneuert');
   assert.equal((await sc('/strava/disconnect', {})).status, 200); assert.equal((await sc('/strava/activities', {})).status, 409, 'nach Trennen: nicht verbunden');
   console.log('✓ Strava');
+}
+{ // andere KI-Anbieter
+  const gq = { ...env, WB: kv(), GEMINI_KEY: 'GK', GROQ_KEY: 'GQ' };
+  const ask = async (b, e = gq) => { const r = await worker.fetch(new Request('https://w.example/ask', { method: 'POST', headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' }, body: JSON.stringify(b) }), e); return { status: r.status, body: await r.json() } };
+  const a1 = await ask({ provider: 'groq', messages: [{ role: 'user', content: 'hi' }] });
+  assert.equal(a1.status, 200); assert.equal(a1.body.answer, 'Groq-Antwort 2'); assert.ok(a1.body.model.startsWith('Groq')); assert.equal(globalThis.__groq.model, 'llama-3.3-70b-versatile');
+  assert.ok(globalThis.__groq.messages[0].content.includes('J.A.R.V.I.S'), 'Persona auch bei Groq');
+  const a2 = await ask({ provider: 'groq', messages: [{ role: 'user', content: 'tool' }], tools: [{ name: 'set_habit', description: 'x', parameters: { type: 'object', properties: {} } }] });
+  assert.deepEqual(a2.body.calls, [{ name: 'set_habit', args: { button: 'Dusche' } }]); assert.equal(globalThis.__groq.tools[0].function.name, 'set_habit');
+  const a3 = await ask({ provider: 'openrouter', messages: [{ role: 'user', content: 'hi' }] }); assert.equal(a3.status, 409); assert.ok(a3.body.error.includes('OPENROUTER_KEY'));
+  const a4 = await ask({ provider: 'groq', messages: [{ role: 'user', content: 'hi' }] }, { ...gq, GROQ_KEY: 'falsch' }); assert.equal(a4.status, 502);
+  const a5 = await ask({ messages: [{ role: 'user', content: 'hi' }] }); assert.equal(a5.status, 200); assert.ok(a5.body.answer.startsWith('Antwort'), 'ohne provider bleibt Gemini');
+  const pr = await worker.fetch(new Request('https://w.example/ai/providers', { headers: { Authorization: 'Bearer ' + token() } }), gq); assert.deepEqual(await pr.json(), { gemini: true, groq: true, openrouter: false, mistral: false });
+  console.log('✓ Weitere KI-Anbieter');
 }
 console.log('Alle Tests bestanden');
