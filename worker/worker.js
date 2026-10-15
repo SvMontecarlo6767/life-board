@@ -300,18 +300,34 @@ async function askGemini(env, body) {
   if (used >= limit) { const e = new Error('Tageslimit für KI-Fragen erreicht (' + limit + ')'); e.code = 'AI_LIMIT'; throw e; }
   await env.WB.put(key, String(used + 1), { expirationTtl: 172800 });
   const contents = msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content || '').slice(0, 4000) }] }));
-  const models = [env.GEMINI_MODEL, 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.6-flash'].filter(Boolean).map(m => String(m).replace(/[^a-z0-9.\-]/gi, ''));
-  let r, d;
-  for (const model of [...new Set(models)]) {   // Modellname nicht gefunden (404) -> nächstes versuchen
-    r = await fetch(GEMINI_API + model + ':generateContent', {
+  const mk = (m) => String(m).replace(/^models\//, '').replace(/[^a-z0-9.\-]/gi, '');
+  const call = async (model) => {
+    const r = await fetch(GEMINI_API + model + ':generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY },
       body: JSON.stringify({ systemInstruction: { parts: [{ text: AI_SYSTEM + '\n\n' + ctx }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: 1200 } })
     });
-    d = await r.json().catch(() => ({}));
-    if (r.status !== 404) break;
+    return { r, d: await r.json().catch(() => ({})) };
+  };
+  const tried = []; let r, d;
+  const cached = await env.WB.get('ai_model');
+  const first = [cached, env.GEMINI_MODEL, 'gemini-3.5-flash-lite', 'gemini-3.8-flash'].filter(Boolean).map(mk);
+  for (const model of [...new Set(first)]) {
+    tried.push(model); ({ r, d } = await call(model));
+    if (r.status !== 404) { if (r.ok) await env.WB.put('ai_model', model); break; }
   }
-  if (!r.ok) { const e = new Error(r.status === 429 ? 'Gemini-Kontingent gerade aufgebraucht, später erneut versuchen' : 'Gemini ' + r.status + (d && d.error && d.error.message ? ': ' + String(d.error.message).slice(0, 160) : '')); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
+  if (r.status === 404) { // Modelle des Keys abfragen und passende Flash-Modelle der Reihe nach probieren
+    const lm = await fetch(GEMINI_API.replace(/models\/$/, 'models') + '?pageSize=200', { headers: { 'x-goog-api-key': env.GEMINI_KEY } });
+    const ld = await lm.json().catch(() => ({}));
+    const avail = (ld.models || []).filter(m => (m.supportedGenerationMethods || []).includes('generateContent') && /flash/i.test(m.name) && !/image|tts|live|audio|embed|thinking|exp|preview|robotics|computer|native/i.test(m.name)).map(m => mk(m.name));
+    avail.sort((x, y) => (/lite/.test(y) ? 1 : 0) - (/lite/.test(x) ? 1 : 0) || (x < y ? 1 : -1));
+    for (const model of avail.filter(m => !tried.includes(m)).slice(0, 4)) {
+      tried.push(model); ({ r, d } = await call(model));
+      if (r.status !== 404) { if (r.ok) await env.WB.put('ai_model', model); break; }
+    }
+    if (r.status === 404) d = { error: { message: 'kein passendes Modell gefunden; vom Key unterstützt: ' + (avail.slice(0, 8).join(', ') || (ld.error && ld.error.message) || 'keine') } };
+  }
+  if (!r.ok) { const e = new Error(r.status === 429 ? 'Gemini-Kontingent gerade aufgebraucht, später erneut versuchen' : 'Gemini ' + r.status + (d && d.error && d.error.message ? ': ' + String(d.error.message).slice(0, 200) : '') + ' (versucht: ' + tried.join(', ') + ')'); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
   const text = (((d.candidates || [])[0] || {}).content || {}).parts;
   const out = text ? text.map(p => p.text || '').join('') : '';
   if (!out) { const e = new Error('Keine Antwort erhalten (evtl. blockiert)'); e.code = 'AI'; throw e; }

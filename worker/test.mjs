@@ -35,7 +35,9 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.startsWith('https://generativelanguage.googleapis.com/')) {
     if (opts.headers?.['x-goog-api-key'] !== 'GK') return new Response('{}', { status: 403 });
-    const b = JSON.parse(opts.body); globalThis.__gem = b; globalThis.__gemUrls = (globalThis.__gemUrls || []).concat(url);
+    if (url.includes('/models?')) return ok({ models: [{ name: 'models/gemini-9-flash', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9-flash-image', supportedGenerationMethods: ['generateContent'] }, { name: 'models/gemini-9-pro', supportedGenerationMethods: ['generateContent'] }] });
+    const b = JSON.parse(opts.body); globalThis.__gem = b;
+    if (globalThis.__gem404 && !url.includes('gemini-9-flash:')) return new Response('{"error":{"message":"not found"}}', { status: 404 }); globalThis.__gemUrls = (globalThis.__gemUrls || []).concat(url);
     if ((url.includes('gemini-3.5-flash-lite') || url.includes('gemini-2.5')) && globalThis.__gem404) return new Response('{"error":{"message":"not found"}}', { status: 404 });
     if (b.contents[0].parts[0].text === '429') return new Response('{}', { status: 429 });
     return ok({ candidates: [{ content: { parts: [{ text: 'Antwort ' + b.contents.length }] } }] });
@@ -187,7 +189,11 @@ console.log('✓ Zeitraum-Schutz');
   globalThis.__gem404 = true; globalThis.__gemUrls = [];
   const a4 = await post({ messages: [{ role: 'user', content: 'x' }] }, { ...aenv, WB: kv(), GEMINI_MODEL: 'gemini-2.5-flash' });
   assert.equal(a4.status, 200, JSON.stringify(a4.body));
-  assert.ok(globalThis.__gemUrls[0].includes('gemini-2.5-flash') && globalThis.__gemUrls.at(-1).includes('gemini-3.8-flash'), 'Fallback auf nächstes Modell: ' + globalThis.__gemUrls.join(' '));
+  assert.ok(globalThis.__gemUrls.at(-1).includes('gemini-9-flash:'), 'passendes Modell aus ListModels gewählt (ohne image/pro): ' + globalThis.__gemUrls.join(' '));
+  const wb = kv(); const a5 = await post({ messages: [{ role: 'user', content: 'x' }] }, { ...aenv, WB: wb }); const n5 = globalThis.__gemUrls.length;
+  await post({ messages: [{ role: 'user', content: 'y' }] }, { ...aenv, WB: wb });
+  assert.ok(globalThis.__gemUrls[n5].includes('gemini-9-flash:'), 'gefundenes Modell wird gemerkt');
+  globalThis.__gem404 = 'all';
   console.log('✓ KI-Assistent');
 }
 console.log('Alle Tests bestanden');
