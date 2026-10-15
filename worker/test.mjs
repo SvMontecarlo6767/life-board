@@ -33,6 +33,15 @@ globalThis.fetch = async (url, opts = {}) => {
     if (body.get('grant_type') === 'refresh_token') { refreshCount++; if (body.get('refresh_token') !== 'R' + refreshCount) return new Response('{"error":"invalid_grant"}', { status: 400 }); return ok({ access_token: 'A' + (refreshCount + 1), refresh_token: 'R' + (refreshCount + 1), expires_in: 3600 }); }
     return ok({ access_token: 'A1', refresh_token: 'R1', expires_in: 3600 });
   }
+  if (url.startsWith('https://api.notion.com/')) {
+    if (opts.headers?.Authorization !== 'Bearer NT' || !opts.headers['Notion-Version']) return new Response('{}', { status: 401 });
+    const p = url.replace('https://api.notion.com/v1', '');
+    const P = (t, ...x) => ({ type: t, [t]: { rich_text: [{ plain_text: x.join('') }] } });
+    if (p.startsWith('/blocks/6a5dedb8b8174ab49d70d6097bcd0e39/children')) return ok({ results: [{ type: 'callout', callout: { rich_text: [{ plain_text: 'x' }] } }, { type: 'child_page', id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', last_edited_time: '2026-10-07T19:29:00.000Z', child_page: { title: 'Thema 66' } }], has_more: false });
+    if (p.startsWith('/blocks/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/children')) return ok({ results: [P('heading_2', 'KERNIDEE'), P('paragraph', 'Dominante Strategie'), P('bulleted_list_item', 'Punkt'), P('heading_2', 'ACTIVE RECALL'), P('numbered_list_item', 'Frage A?'), P('numbered_list_item', 'Frage B?'), P('heading_2', 'MERKSATZ'), P('paragraph', 'Satz')], has_more: false });
+    if (p.startsWith('/pages/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')) return ok({ last_edited_time: '2026-10-07T19:29:00.000Z', properties: { title: { type: 'title', title: [{ plain_text: 'Thema 66' }] } } });
+    return new Response('{}', { status: 404 });
+  }
   if (!String(opts.headers?.Authorization || '').startsWith('Bearer A')) return new Response('no', { status: 401 });
   if (url.includes('/v2/cycle')) return ok({ records: cycles });
   if (url.includes('/v2/recovery')) return ok({ records: recoveries });
@@ -131,5 +140,23 @@ console.log('✓ Zeitraum-Schutz');
   assert.equal(dd['2026-10-04'].recovery.score.recovery_score, 53, 'veralteter Eintrag wurde ersetzt');
   assert.equal(dd['2026-09-30'].recovery.score.recovery_score, 2, 'Tage außerhalb des Zeitraums bleiben unberührt');
   console.log('✓ Keine Lücken bei wechselnder Schlafenszeit, veraltete Einträge werden ersetzt');
+}
+
+// 7) Notion (nur lesen)
+{
+  const nenv = { ...env, WB: kv() };
+  const c = async (path, e = nenv) => { const r = await worker.fetch(req(path), e); return { status: r.status, body: await r.json() } };
+  const no = await c('/notion/pages'); assert.equal(no.status, 409); assert.equal(no.body.code, 'NO_NOTION');
+  nenv.NOTION_TOKEN = 'NT';
+  const pg = await c('/notion/pages'); assert.equal(pg.status, 200, JSON.stringify(pg.body));
+  assert.deepEqual(pg.body.pages, [{ id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', title: 'Thema 66', edited: '2026-10-07T19:29:00.000Z' }]);
+  const q = await c('/notion/questions?id=aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'); assert.equal(q.status, 200, JSON.stringify(q.body));
+  assert.deepEqual(q.body.questions, ['Frage A?', 'Frage B?']);
+  assert.ok(q.body.ref.includes('Dominante Strategie') && !q.body.ref.includes('Frage A'));
+  assert.equal(q.body.title, 'Thema 66');
+  assert.equal((await c('/notion/questions?id=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')).status, 403, 'fremde Seite abgelehnt');
+  assert.equal((await c('/notion/questions?id=xyz')).status, 400);
+  assert.equal((await worker.fetch(req('/notion/pages', { tok: 'abc' }), nenv)).status, 401);
+  console.log('✓ Notion-Endpunkte');
 }
 console.log('Alle Tests bestanden');

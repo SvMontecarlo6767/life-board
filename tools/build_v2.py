@@ -27,6 +27,7 @@ for a in v1['actions']:
     elif a['id'] in close: a['use']='abschluss'
     elif a['id']=='PUZ-01': a['use']='puzzle'
     else: a['use']='inaktiv'
+    if a['id'] in ('WDH-01','WDH-13'): a['max']=3   # bis zu 3 volle Lernrunden pro Tag (Lernen-Seite)
     acts.append(a)
 v2['actions']=acts
 v2['whoopAuto']={'ids':cfg['autoIds'],'finalIds':cfg['finalIds'],'note':'finalIds zählen erst, wenn der Tag vorbei oder abgeschlossen ist.'}

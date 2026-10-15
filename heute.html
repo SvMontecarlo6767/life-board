@@ -125,6 +125,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
     <div class="card wh"><div class="facts" id="facts"></div><ul id="whList"></ul><div class="mu" id="whNote" style="margin-top:8px"></div>
       <div class="row"><button id="whRefresh">Whoop jetzt aktualisieren</button></div></div></section>
   <div class="card puz" id="puzCard" style="margin:12px 0"></div>
+  <div class="card puz" id="lrnCard" style="margin:12px 0"></div>
   <div id="grid"></div>
 
   <section class="cat" id="abschluss">
@@ -164,7 +165,7 @@ const fmt=E.fmt;
 const CURV=2;
 const RULES={};
 let user,base,today,cur;
-let DAYS={},PUZ={},SETTINGS={},WH={},WHSTATE='loading',WHMSG='';
+let DAYS={},PUZ={},LEARN={},SETTINGS={},WH={},WHSTATE='loading',WHMSG='';
 let ackTimer=null;
 const LSKEY='lb_pending_days';
 
@@ -191,6 +192,11 @@ function puzFor(k){
   const d=DAYS[k];
   if(d&&d.closed&&d.puz!==undefined)return d.puz;
   return PUZ[k]===undefined?null:PUZ[k];
+}
+function learnFor(k){
+  const d=DAYS[k];
+  if(d&&d.closed&&d.learn!==undefined)return d.learn||{};
+  return LEARN[k]||{};
 }
 function blockedFor(k,rules){
   const b={};
@@ -225,7 +231,7 @@ function calc(k){
     const a=WA.autoDay(WH,k,{final:k<today,target:SETTINGS.bedtimeTarget||null,prevAlcohol:!!(prev&&prev.in&&(prev.in.alkohol|0)>0),manualSport:sportInput(rules,inp)});
     auto=a.counts;why=a.why;row=a.row;have=a.have;
   }else{auto=d.auto||{};why=d.autoWhy||{}}   // Whoop gerade nicht da: zuletzt gespeicherten Whoop-Stand benutzen, nie 0
-  let counts=E.mergeCounts(manual,auto);counts=E.mergeCounts(counts,d.x||{});
+  let counts=E.mergeCounts(manual,auto);counts=E.mergeCounts(counts,d.x||{});counts=E.mergeCounts(counts,learnFor(k));
   const blocked=blockedFor(k,rules);
   const res=E.computeDay(rules,counts,{puz:puzFor(k),blocked});
   return{rules,res,counts,auto,why,whoopHas,legacy:false,blocked,row,have,inp};
@@ -334,6 +340,7 @@ function renderSummary(c){
   $('hAcc').textContent=fmt(acc);
   $('hAccTxt').textContent='davor '+fmt(prior)+' · heute '+fmt(res.net,true)+' · '+Object.keys(DAYS).length+' Tage';
   const p=puzFor(cur);
+  {const lc=learnFor(cur),n=(lc['WDH-01']|0)+(lc['WDH-13']|0);$('lrnCard').innerHTML='<div><b>📚 Lernrunden</b><div class="mu">'+(n?n+' Runde'+(n===1?'':'n')+' heute'+(lc['LRN-07']?', Active Recall bestanden':'')+' – zählt automatisch':'Noch keine Runde an diesem Tag')+'</div></div><a href="learn.html?v=1" class="mu">Lernen öffnen</a>'}
   $('puzCard').innerHTML='<div><b>🧩 Puzzle-Tracker (PUZ-01)</b><div class="mu">'+(p==null?'Für diesen Tag steht noch kein Puzzle im Tracker.':'Tageswert aus dem Tracker, 1:1 übernommen'+(DAYS[cur]&&DAYS[cur].closed?' (eingefroren)':''))+'</div></div><div style="display:flex;align-items:center;gap:12px"><span class="big" style="font-size:24px">'+(p==null?'–':fmt(p,true))+'</span><a href="puzzle.html" class="mu">öffnen</a></div>';
   const yf=(DAYS[E.addDays(cur,-1)]||{}).focus;
   $('yFocus').hidden=!yf;if(yf)$('yFocus').innerHTML='<b>Fokus von gestern Abend:</b> '+esc(yf);
@@ -421,7 +428,7 @@ async function closeDay(){
   const focus=$('focus').value.trim();
   const a=WA.autoDay(WH,cur,{final:true,target:SETTINGS.bedtimeTarget||null,prevAlcohol:!!((DAYS[E.addDays(cur,-1)]||{}).in&&(DAYS[E.addDays(cur,-1)].in.alkohol|0)>0),manualSport:sportInput(RULES[CURV],d.in||{})});
   const x={'ABD-01':1};if(focus)x['ABD-02']=1;
-  persist({focus,x,closed:true,closedAt:Date.now(),auto:a.counts,autoWhy:a.why,puz:PUZ[cur]===undefined?null:PUZ[cur]});
+  persist({focus,x,closed:true,closedAt:Date.now(),auto:a.counts,autoWhy:a.why,puz:PUZ[cur]===undefined?null:PUZ[cur],learn:learnFor(cur)});
   render();
   const c=calc(cur),acc=priorAccount(cur)+c.res.net,li=E.levelInfo(c.rules,acc);
   const act=Object.fromEntries(c.rules.actions.map(a=>[a.id,a]));
@@ -511,7 +518,7 @@ function diag(name,ok,info){DIAG[name]={ok,info};
 const tmo=(p,ms,what)=>Promise.race([p,new Promise((_,j)=>setTimeout(()=>j(Object.assign(new Error(what+' antwortet nicht (Zeitüberschreitung)'),{code:'timeout'})),ms))]);
 const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
 function cacheKey(){return 'lb_cache_'+user.uid}
-function saveCache(){try{localStorage.setItem(cacheKey(),JSON.stringify({days:DAYS,puz:PUZ,settings:SETTINGS,at:Date.now()}))}catch(e){}}
+function saveCache(){try{localStorage.setItem(cacheKey(),JSON.stringify({days:DAYS,puz:PUZ,learn:LEARN,settings:SETTINGS,at:Date.now()}))}catch(e){}}
 function loadCache(){try{return JSON.parse(localStorage.getItem(cacheKey())||'null')}catch(e){return null}}
 function getUser(){
   return new Promise(res=>{
@@ -536,7 +543,7 @@ async function boot(){
   today=E.dayKey(new Date(),r.day.timezone,r.day.changeHour);cur=today;
   // 1) sofort aus dem lokalen Speicher anzeigen, damit nie eine leere Seite erscheint
   const cache=loadCache();
-  if(cache){DAYS=cache.days||{};PUZ=cache.puz||{};SETTINGS=cache.settings||{}}
+  if(cache){DAYS=cache.days||{};PUZ=cache.puz||{};LEARN=cache.learn||{};SETTINGS=cache.settings||{}}
   const pend=lsGet();
   for(const k of Object.keys(pend)){if(!DAYS[k]||(DAYS[k].updatedAt||0)<=(pend[k].updatedAt||0))DAYS[k]=pend[k]}
   for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||1)))await rulesFor(v).catch(()=>{});
@@ -548,6 +555,11 @@ async function boot(){
     const D={};ps.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id)){const v=x.data()||{};if(v.g)D[x.id]=v.g}});
     PUZ=PD.puzzleDayValues(D);diag('Puzzle',true,Object.keys(D).length+' Tage');
   }catch(e){diag('Puzzle',false,errText(e))}
+  try{
+    const ls=await tmo(fs.collection(base+'/learn').get(),10000,'Lernen');
+    const Lm={};ls.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))Lm[x.id]=(x.data()||{}).counts||{}});
+    LEARN=Lm;diag('Lernen',true,Object.keys(Lm).length+' Tage');
+  }catch(e){diag('Lernen',false,errText(e))}
   let replay=[];
   try{
     const ds=await tmo(fs.collection(base+'/days').get(),10000,'Tage');

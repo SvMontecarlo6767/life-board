@@ -2768,7 +2768,8 @@
    "points": 575,
    "capture": "Notion",
    "src": "notion",
-   "use": "button"
+   "use": "button",
+   "max": 3
   },
   {
    "id": "WDH-02",
@@ -2882,7 +2883,8 @@
    "points": 1350,
    "capture": "Notion",
    "src": "notion",
-   "use": "button"
+   "use": "button",
+   "max": 3
   },
   {
    "id": "WDH-14",

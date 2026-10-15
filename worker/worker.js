@@ -226,6 +226,64 @@ async function readRange(env, from, to) {
   return out;
 }
 
+
+// ---------- Notion (nur lesen) ----------
+const NOTION_API = 'https://api.notion.com/v1';
+const NOTION_VERSION = '2022-06-28';
+const DEFAULT_PARENT = '6a5dedb8b8174ab49d70d6097bcd0e39'; // Seite "Lernzusammenfassungen"
+const Q_HEAD = /active\s*recall|mini-?wiederholung/i;
+
+function notionId(s) { const h = String(s || '').replace(/-/g, ''); return /^[0-9a-f]{32}$/i.test(h) ? h.toLowerCase() : null; }
+
+async function notionGet(env, path) {
+  if (!env.NOTION_TOKEN) { const e = new Error('NOTION_TOKEN fehlt'); e.code = 'NO_NOTION'; throw e; }
+  const r = await fetch(NOTION_API + path, { headers: { Authorization: 'Bearer ' + env.NOTION_TOKEN, 'Notion-Version': NOTION_VERSION } });
+  if (!r.ok) { const e = new Error('Notion ' + r.status); e.code = r.status === 404 || r.status === 403 ? 'NOTION_ACCESS' : 'NOTION'; throw e; }
+  return r.json();
+}
+async function notionChildren(env, id) {
+  const out = []; let cursor = null;
+  for (let i = 0; i < 10; i++) {
+    const r = await notionGet(env, '/blocks/' + id + '/children?page_size=100' + (cursor ? '&start_cursor=' + cursor : ''));
+    out.push(...(r.results || []));
+    if (!r.has_more) break; cursor = r.next_cursor;
+  }
+  return out;
+}
+const rt = (b) => { const o = b && b[b.type]; return o && o.rich_text ? o.rich_text.map(t => t.plain_text).join('') : ''; };
+
+// Fragen + Nachschlagetext aus den Blöcken einer Lernseite
+export function parseLearnBlocks(blocks) {
+  const questions = []; const ref = []; let inQ = false, seenQ = false;
+  for (const b of blocks) {
+    const t = rt(b).trim();
+    if (b.type === 'heading_1' || b.type === 'heading_2' || b.type === 'heading_3') {
+      if (Q_HEAD.test(t)) { inQ = true; seenQ = true; continue; }
+      if (inQ) inQ = false;
+    }
+    if (b.type === 'divider') { if (inQ && questions.length) inQ = false; continue; }
+    if (inQ) {
+      if (b.type === 'numbered_list_item' && t) questions.push(t);
+      else if (b.type === 'paragraph' && /^\d+[.)]\s+/.test(t)) questions.push(t.replace(/^\d+[.)]\s+/, ''));
+      continue;
+    }
+    if (!seenQ && t && b.type !== 'callout') ref.push((b.type.startsWith('heading') ? '\n## ' : b.type === 'bulleted_list_item' ? '• ' : '') + t);
+  }
+  return { questions, ref: ref.join('\n').slice(0, 7000) };
+}
+
+async function notionPages(env) {
+  const parent = notionId(env.NOTION_PARENT_ID) || DEFAULT_PARENT;
+  const blocks = await notionChildren(env, parent);
+  return blocks.filter(b => b.type === 'child_page').map(b => ({ id: b.id.replace(/-/g, ''), title: b.child_page.title, edited: b.last_edited_time }));
+}
+async function notionQuestions(env, id) {
+  const blocks = await notionChildren(env, id);
+  const meta = await notionGet(env, '/pages/' + id);
+  const title = Object.values(meta.properties || {}).find(p => p.type === 'title');
+  return { id, title: title ? title.title.map(t => t.plain_text).join('') : '', edited: meta.last_edited_time, ...parseLearnBlocks(blocks) };
+}
+
 // ---------- Routen ----------
 export default {
   async fetch(request, env) {
@@ -281,6 +339,15 @@ export default {
         const from = validDate(url.searchParams.get('from')) ? url.searchParams.get('from') : daysAgo(30);
         return json(env, { days: await readRange(env, from, to) });
       }
+      if (url.pathname === '/notion/pages') return json(env, { pages: await notionPages(env) });
+      if (url.pathname === '/notion/questions') {
+        const id = notionId(url.searchParams.get('id'));
+        if (!id) return json(env, { error: 'ungültige ID' }, 400);
+        // nur Seiten aus der freigegebenen Lernseite zulassen
+        const ok = (await notionPages(env)).some(p => p.id === id);
+        if (!ok) return json(env, { error: 'Seite gehört nicht zu den Lernzusammenfassungen' }, 403);
+        return json(env, await notionQuestions(env, id));
+      }
       if (url.pathname === '/disconnect' && request.method === 'POST') {
         await env.WB.delete('tokens');
         return json(env, { ok: true });
@@ -288,7 +355,7 @@ export default {
       return json(env, { error: 'unbekannt' }, 404);
     } catch (e) {
       const code = e.code || 'ERROR';
-      return json(env, { error: e.message, code }, code === 'NOT_CONNECTED' || code === 'RECONNECT' ? 409 : code === 'RANGE' ? 400 : 502);
+      return json(env, { error: e.message, code }, code === 'NOT_CONNECTED' || code === 'RECONNECT' || code === 'NO_NOTION' ? 409 : code === 'RANGE' ? 400 : 502);
     }
   },
 

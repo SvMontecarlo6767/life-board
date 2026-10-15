@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lernen – Life Board</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--bd:#e2e0d8;--ac:#2f6f4f;--ac2:#e8f2ec;--bad:#b3413a;--bad2:#f8e9e7;--warn:#9a6b00}
+@media (prefers-color-scheme:dark){:root{--bg:#161715;--card:#20211f;--tx:#eeede8;--mu:#a09f97;--bd:#34352f;--ac:#6fbf94;--ac2:#243128;--bad:#e07a72;--bad2:#33201e;--warn:#e0b04a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:900px;margin:0 auto;padding:16px 20px 80px}
+a{color:var(--ac)}
+button{font:inherit;color:var(--tx);background:var(--ac2);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;cursor:pointer;min-height:44px}
+button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+button.ok{background:var(--ac);color:#fff;border-color:var(--ac)}button.bad{background:var(--bad);color:#fff;border-color:var(--bad)}button.fast{background:var(--warn);color:#fff;border-color:var(--warn)}
+button:disabled{opacity:.5}
+[hidden]{display:none!important}
+h1{margin:6px 0 2px;font-size:24px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px 16px;margin:12px 0}
+.card h3{margin:0 0 8px;font-size:13px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+.mu{color:var(--mu);font-size:13.5px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.st b{display:block;font-size:26px;font-variant-numeric:tabular-nums}
+.info{margin:12px 0;padding:12px 14px;border-radius:12px;background:var(--ac2);border:1px solid var(--bd);font-size:14px}
+.info.warn{background:var(--bad2);color:var(--bad)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+select,input,textarea{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;min-height:44px}
+textarea{width:100%;min-height:90px}
+.q{font-size:20px;font-weight:600;margin:6px 0 12px}
+.prog{height:8px;background:var(--bd);border-radius:99px;overflow:hidden;margin:6px 0 12px}.prog i{display:block;height:100%;background:var(--ac)}
+details{margin:10px 0}summary{cursor:pointer;color:var(--ac);min-height:32px}
+.ref{white-space:pre-wrap;font-size:14.5px;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;max-height:340px;overflow:auto}
+table{width:100%;border-collapse:collapse;font-size:14.5px}td,th{padding:7px 4px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mu);font-weight:600;font-size:12.5px}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
+</style></head><body><div class="wrap">
+<div class="top"><div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>📚 Lernen</h1></div><a href="heute.html?v=3" class="mu">zu Heute</a></div>
+<div id="msg"></div>
+<div id="main" hidden>
+  <div class="card" id="stats"></div>
+  <div class="card" id="start"></div>
+  <div class="card" id="round" hidden></div>
+  <div class="card" id="topics"></div>
+  <div class="card"><h3>Einstellungen</h3>
+    <div class="row"><label class="mu" for="flt">Nur Seiten, deren Titel dies enthält (leer = alle):</label><input id="flt" placeholder="z. B. Thema"><button id="fltSave">Speichern</button></div>
+    <div class="row" style="margin-top:10px"><button id="sync">Aus Notion aktualisieren</button><span class="mu" id="syncMsg"></span></div>
+  </div>
+</div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="fb.js"></script>
+<script src="engine.js"></script>
+<script src="learn-core.js"></script>
+<script>
+(async function(){
+const E=window.LBEngine,L=window.LearnCore;
+const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
+const tmo=(p,ms,n)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error(n+': Zeitüberschreitung')),ms))]);
+let user,base,today,QS={},PAGES={},DAY={rounds:[]},SET={},R=null,topic='';
+function showMsg(h,w){$('msg').innerHTML=h?'<div class="info'+(w?' warn':'')+'">'+h+'</div>':''}
+async function wfetch(path){
+  const t=await user.getIdToken();
+  const r=await fetch(WORKER+path,{headers:{Authorization:'Bearer '+t}});
+  let d=null;try{d=await r.json()}catch(e){}
+  if(!r.ok)throw new Error(d&&d.code==='NO_NOTION'?'Notion ist im Worker noch nicht eingerichtet (Secret NOTION_TOKEN fehlt)':(d&&d.code==='NOTION_ACCESS')?'Notion verweigert den Zugriff – ist die Seite „Lernzusammenfassungen“ mit der Integration verbunden?':(d&&d.error)||('Fehler '+r.status));
+  return d;
+}
+const list=()=>Object.values(QS);
+const dayRef=()=>base+'/learn/'+today;
+function render(){
+  const st=L.stats(list(),today),paid=L.dayCounts(DAY.rounds),nr=(DAY.rounds||[]).filter(r=>r.n>=L.ROUND).length;
+  $('stats').innerHTML='<h3>Stand</h3><div class="grid st"><div><b>'+st.due+'</b><span class="mu">fällig'+(st.overdue?' ('+st.overdue+' überfällig)':'')+'</span></div><div><b>'+st.nw+'</b><span class="mu">neu</span></div><div><b>'+(st.stage[2]+st.stage[3]+st.stage[4])+'</b><span class="mu">in Wiederholung</span></div><div><b>'+st.learned+'</b><span class="mu">gelernt (Stufe 4)</span></div></div>'
+   +'<div class="mu" style="margin-top:8px">Stufen: 1 Tag: '+st.stage[1]+' · 7 Tage: '+st.stage[2]+' · 30 Tage: '+st.stage[3]+' · 90 Tage: '+st.stage[4]+'</div>';
+  const topics=[...new Map(list().map(q=>[q.pageId,q.pageTitle])).entries()].sort((a,b)=>a[1]<b[1]?-1:1);
+  if(!list().length){$('start').innerHTML='<h3>Runde starten</h3><div class="mu">Noch keine Fragen geladen. Unten auf „Aus Notion aktualisieren“ tippen.</div>';}
+  else{
+    $('start').innerHTML='<h3>Runde starten</h3><div class="row"><select id="tsel"><option value="">Alle Themen (fällige zuerst)</option>'+topics.map(([id,t])=>'<option value="'+id+'"'+(id===topic?' selected':'')+'>'+esc(t)+'</option>').join('')+'</select>'
+     +'<button class="primary" id="go">5 Fragen</button><button id="gomix">Mischrunde</button></div>'
+     +'<div class="mu" style="margin-top:8px">Heute: '+nr+' Runde'+(nr===1?'':'n')+' fertig · '+Math.min(nr,L.MAX_PAID_ROUNDS)+'/'+L.MAX_PAID_ROUNDS+' mit Punkten'+(paid['WDH-01']||paid['WDH-13']?' · Dopamin: '+Object.entries(paid).map(([k,v])=>k+(v>1?'×'+v:'')).join(', '):'')+(nr>=L.MAX_PAID_ROUNDS?' · weitere Runden geben keine Punkte mehr':'')+'</div>';
+    $('tsel').onchange=e=>{topic=e.target.value};$('go').onclick=()=>begin('std');$('gomix').onclick=()=>begin('mix');
+  }
+  $('topics').innerHTML='<h3>Themen</h3><table><tr><th>Thema</th><th class="n">Fragen</th><th class="n">fällig</th><th class="n">neu</th></tr>'+topics.map(([id,t])=>{const qs=list().filter(q=>q.pageId===id),s=L.stats(qs,today);return'<tr><td>'+esc(t)+'</td><td class="n">'+qs.length+'</td><td class="n">'+s.due+'</td><td class="n">'+s.nw+'</td></tr>'}).join('')+'</table>';
+  $('flt').value=SET.learnFilter||'';
+}
+function begin(type){
+  const qs=list();let pick=type==='mix'?L.mixPick(qs,today,L.ROUND):L.queue(qs,today,topic).all.slice(0,L.ROUND);
+  if(!pick.length){showMsg('Keine fälligen oder neuen Fragen in dieser Auswahl.',false);return}
+  R={type,items:pick,i:0,ratings:[],shown:false};showMsg('');drawRound();
+}
+function drawRound(){
+  const el=$('round');$('start').hidden=true;$('topics').hidden=true;el.hidden=false;
+  if(R.i>=R.items.length){finish();return}
+  const q=R.items[R.i],pg=PAGES[q.pageId]||{};
+  el.innerHTML='<h3>Frage '+(R.i+1)+' von '+R.items.length+' · '+esc(q.pageTitle)+'</h3><div class="prog"><i style="width:'+(R.i/R.items.length*100)+'%"></i></div><div class="q">'+esc(q.text)+'</div>'
+   +'<textarea id="ans" placeholder="Antwort für dich eintippen (bleibt nur hier, wird nicht gespeichert)"'+(R.shown?' readonly':'')+'></textarea>'
+   +(R.shown?'<details open><summary>Nachschlagen: Zusammenfassung der Seite</summary><div class="ref">'+esc(pg.ref||'(Keine Zusammenfassung gespeichert)')+'</div>'+(pg.url?'<div class="mu"><a href="'+esc(pg.url)+'" target="_blank" rel="noopener">In Notion öffnen</a></div>':'')+'</details><div class="row"><button class="ok" data-r="ok">richtig</button><button class="fast" data-r="fast">fast</button><button class="bad" data-r="bad">falsch</button></div>'
+    :'<div class="row" style="margin-top:10px"><button class="primary" id="show">Antwort prüfen</button><button id="abort">Abbrechen</button></div>');
+  if(!R.shown){$('show').onclick=()=>{const v=$('ans').value;R.shown=true;drawRound();$('ans').value=v};$('abort').onclick=abort}
+  el.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>rate(b.dataset.r));
+}
+function abort(){R=null;$('round').hidden=true;$('start').hidden=false;$('topics').hidden=false;render()}
+async function rate(r){
+  const q=R.items[R.i];R.ratings.push(r);
+  const upd=L.schedule(q,r,today);Object.assign(q,upd);
+  try{await tmo(fs.doc(base+'/questions/'+q.id).set(upd,{merge:true}),10000,'Speichern')}catch(e){showMsg('<b>Konnte nicht speichern:</b> '+esc(errText(e)),true)}
+  R.i++;R.shown=false;drawRound();
+}
+async function finish(){
+  const topics=new Set(R.items.map(q=>q.pageId)).size;
+  const rd={type:R.type,n:R.items.length,ratings:R.ratings,topics,at:Date.now()};
+  DAY.rounds=(DAY.rounds||[]).concat([rd]);DAY.counts=L.dayCounts(DAY.rounds);
+  const sc=L.score(R.ratings);
+  let ok=true;
+  try{
+    await tmo(fs.doc(dayRef()).set({rounds:DAY.rounds,counts:DAY.counts,updatedAt:Date.now()}),10000,'Speichern');
+    const back=await tmo(fs.doc(dayRef()).get({source:'server'}),10000,'Prüfen');   // wirklich auf dem Server angekommen?
+    if(!back.exists||(back.data().rounds||[]).length!==DAY.rounds.length)throw new Error('Rückprüfung fehlgeschlagen');
+  }catch(e){ok=false;showMsg('<b>Runde nicht gespeichert:</b> '+esc(errText(e)),true)}
+  try{localStorage.setItem('lb_learn_'+user.uid+'_'+today,JSON.stringify(DAY))}catch(e){}
+  $('round').innerHTML='<h3>Runde fertig</h3><div class="q">'+sc+' von '+rd.n+' richtig</div><div class="mu">'+(ok?'Gespeichert. ':'')+(Object.keys(L.dayCounts([rd])).length&&(DAY.rounds.length<=L.MAX_PAID_ROUNDS)?'Zählt fürs Dopamin-Konto.':'Diese Runde gibt keine Punkte (Tageslimit '+L.MAX_PAID_ROUNDS+' Runden).')+'</div><div class="row" style="margin-top:12px"><button class="primary" id="again">Noch eine Runde</button><button id="done">Fertig</button></div>';
+  $('again').onclick=()=>{R=null;$('round').hidden=true;$('start').hidden=false;$('topics').hidden=false;render();if($('go'))begin(rd.type)};
+  $('done').onclick=abort;
+}
+async function syncNotion(){
+  const btn=$('sync'),msg=$('syncMsg');btn.disabled=true;msg.textContent='Lese Notion …';
+  try{
+    const flt=(SET.learnFilter||'').trim().toLowerCase();
+    const {pages}=await wfetch('/notion/pages');
+    const use=pages.filter(p=>!flt||p.title.toLowerCase().includes(flt));
+    let added=0,pg=0;const seen=new Set();
+    for(let i=0;i<use.length;i++){
+      const p=use[i];msg.textContent='Seite '+(i+1)+' von '+use.length+' …';
+      const old=PAGES[p.id];
+      if(old&&old.edited===p.edited&&old.qcount>0){list().filter(q=>q.pageId===p.id).forEach(q=>seen.add(q.id));continue}
+      const d=await wfetch('/notion/questions?id='+p.id);pg++;
+      const url='https://www.notion.so/'+p.id;
+      PAGES[p.id]={title:p.title,edited:p.edited,ref:d.ref||'',qcount:d.questions.length,url};
+      await fs.doc(base+'/learnpages/'+p.id).set(PAGES[p.id]);
+      for(let j=0;j<d.questions.length;j++){
+        const id=L.qid(p.id,d.questions[j]);seen.add(id);
+        if(QS[id]){QS[id].idx=j;QS[id].pageTitle=p.title;continue}
+        const q={id,pageId:p.id,pageTitle:p.title,idx:j,text:d.questions[j],stage:1,reps:0,due:today};
+        QS[id]=q;added++;
+        await fs.doc(base+'/questions/'+id).set(q);
+      }
+    }
+    msg.textContent=added+' neue Fragen aus '+pg+' Seite'+(pg===1?'':'n')+' geladen ('+use.length+' Seiten insgesamt).';
+    render();
+  }catch(e){msg.textContent='';showMsg('<b>Notion-Abruf fehlgeschlagen:</b> '+esc(errText(e)),true)}
+  btn.disabled=false;
+}
+function getUser(){return new Promise(res=>{let done=false;auth.onAuthStateChanged(u=>{if(done)return;done=true;res(u)});setTimeout(()=>{if(!done){done=true;res(auth.currentUser||null)}},8000)})}
+try{fs.settings({experimentalAutoDetectLongPolling:true,merge:true})}catch(e){}
+user=await getUser();
+if(!user){showMsg('Du bist nicht angemeldet. <a href="index.html">Zur Startseite und anmelden</a>',true);return}
+base='users/'+user.uid;
+today=E.dayKey(new Date(),'Europe/Berlin',4);
+$('main').hidden=false;
+try{DAY=JSON.parse(localStorage.getItem('lb_learn_'+user.uid+'_'+today)||'null')||DAY}catch(e){}
+try{
+  const [qs,ps,dd,ss]=await Promise.all([
+    tmo(fs.collection(base+'/questions').get(),12000,'Fragen'),
+    tmo(fs.collection(base+'/learnpages').get(),12000,'Seiten'),
+    tmo(fs.doc(dayRef()).get(),12000,'Tag'),
+    tmo(fs.doc(base+'/settings/main').get(),12000,'Einstellungen')]);
+  qs.docs.forEach(x=>QS[x.id]=Object.assign({id:x.id},x.data()));
+  ps.docs.forEach(x=>PAGES[x.id]=x.data());
+  if(dd.exists)DAY=dd.data();
+  SET=ss.exists?ss.data():{};
+}catch(e){showMsg('<b>Daten konnten nicht geladen werden:</b> '+esc(errText(e))+'. Falls das ein Regel-Problem ist: Firestore-Regeln müssen alle Unterbereiche von <code>users/{uid}</code> erlauben.',true)}
+render();
+$('sync').onclick=syncNotion;
+$('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
+if(!list().length)syncNotion();
+})();
+</script></body></html>
