@@ -27,7 +27,7 @@ def seed():
     s[f'users/u1/calendar/ev_{y}']={'list':ev}
     s[f'users/u1/calendar/notes_{y}']={'n':{iso(today-dt.timedelta(days=1)):{'t':'Guter Tag','m':4}}}
     yd=iso(today-dt.timedelta(days=1))
-    s[f'users/u1/days/{yd}']={'date':yd,'net':14,'rank':'A','closed':True}
+    s[f'users/u1/days/{yd}']={'date':yd,'net':14,'rank':'A','closed':True,'focus':'Statistik lernen und 5 km laufen'}
     s[f'users/u1/puzzle/{yd}']={'g':{'fermi':{'s':3},'ner':{'s':4}},'t':1}
     s[f'users/u1/learn/{yd}']={'rounds':[{},{}]}
     s[f'users/u1/training/acts_{y}']={'list':[{'i':'a1','t':int(dt.datetime.combine(today-dt.timedelta(days=1),dt.time(18,0),ZoneInfo('Europe/Berlin')).timestamp()*1000),'r':'','n':'Intervalle','k':8.0,'s':2700}]}
@@ -75,6 +75,9 @@ def run(p,w,h,phone):
     ck(t+'Rückblick: Recovery, Training, Puzzle, Lernen',all(x in side for x in ['Recovery','Intervalle','Puzzle: 2','Lernen: 2 Runden']))
     ck(t+'Notiz + Stimmung geladen',pg.input_value('#nt')=='Guter Tag' and pg.locator('#moods .on').count()==1)
     pg.screenshot(path=f'{shots}/cal_{tag}_day_side.png',full_page=True)
+    pg.evaluate(f"CalendarPage.state.sel='{iso(today)}';CalendarPage.refresh()"); pg.wait_for_timeout(300)
+    ck(t+'Plan aus dem Tagesabschluss von gestern erscheint heute','Statistik lernen' in pg.locator('#side').inner_text())
+    pg.evaluate(f"CalendarPage.state.sel='{yd}';CalendarPage.refresh()"); pg.wait_for_timeout(300)
     # Notiz schreiben
     pg.fill('#nt','Guter Tag und Sport'); pg.evaluate("document.getElementById('nt').blur()"); pg.wait_for_timeout(500)
     st=pg.evaluate("window.__store"); nk=[k for k in st if '/notes_' in k][0]

@@ -302,7 +302,7 @@ async function makeOrb(){
 function rebuildOrbIfNeeded(){if(el.canvas&&perfNow!==!!ST().perf)makeOrb()}
 async function init(){
   if(ready)return;ready=true;
-  try{await Promise.all([window.Assistant?Promise.resolve():loadScript('assistant.js?v=8').catch(()=>{}),loadScript('voice.js?v=1'),loadScript('jarvis-actions.js?v=6')])}catch(e){}
+  try{await Promise.all([window.Assistant?Promise.resolve():loadScript('assistant.js?v=8').catch(()=>{}),loadScript('voice.js?v=1'),loadScript('jarvis-actions.js?v=7')])}catch(e){}
   if(!window.Assistant||!window.LBVoice){ready=false;return}
   build();await makeOrb();
 }

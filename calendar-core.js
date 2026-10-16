@@ -189,6 +189,8 @@ function dayFacts(date,src){
   if(N&&N.m)f.push({k:'mood',icon:MOODS[N.m]||'🙂',text:'Stimmung '+N.m+' von 5',v:N.m});
   return f;
 }
+/* Der „Fokus für morgen“ aus dem Tagesabschluss in Heute gilt für den Folgetag */
+function planFor(date,src){const D=((src||{}).days||{})[addDays(date,-1)];return D&&D.focus&&String(D.focus).trim()?String(D.focus).trim():''}
 /* Heatmap-Stufe 1..4 (null = keine Daten). 1 schwach, 4 stark – „stark“ ist je Metrik gut oder viel, nie bewertend gemeint. */
 const METRICS=[{id:'rank',name:'Heute-Rang'},{id:'rec',name:'Recovery'},{id:'strain',name:'Strain'},{id:'training',name:'Training'},{id:'puzzle',name:'Puzzle'},{id:'mood',name:'Stimmung'},{id:'events',name:'Termine'}];
 function heatLevel(metric,date,src,occsByDate){
@@ -249,6 +251,6 @@ function toICS(events,now){
 
 const API={TZ,CATS,catOf,REPS,REMS,MOODS,METRICS,WD,WDL,MONL,dayNum,fromNum,addDays,dowOf,isDate,isTime,daysInMonth,ymd,mk,todayBerlin,nowHM,berlinMs,
   newId,normalize,startsBetween,occurrences,dayList,layoutDay,hm2m,m2hm,remindersDue,minutesUntil,relText,startMs,resolveDate,resolveTime,norm,
-  dateLong,dateShort,occText,agendaText,dayFacts,heatLevel,findEvents,searchText,monthGrid,weekStart,isoWeek,toICS};
+  dateLong,dateShort,occText,agendaText,dayFacts,planFor,heatLevel,findEvents,searchText,monthGrid,weekStart,isoWeek,toICS};
 if(typeof module!=='undefined'&&module.exports)module.exports=API;else root.CalCore=API;
 })(typeof self!=='undefined'?self:this);

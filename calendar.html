@@ -172,7 +172,7 @@ html:not([data-hud]) .ov .box{background:var(--card)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
 <script src="assistant.js?v=8"></script>
-<script src="calendar-core.js?v=1"></script>
+<script src="calendar-core.js?v=2"></script>
 <script src="calendar-store.js?v=1"></script>
 <script>
 (function(){
@@ -195,7 +195,7 @@ async function loadFacts(){
   const u=await requireUser(),b='users/'+u.uid,fail=[];
   const g=async(path,fn)=>{try{const s=await fs.collection(b+'/'+path).get();s.docs.forEach(d=>fn(d.id,d.data()||{}))}catch(e){fail.push(path)}};
   await Promise.all([
-    g('days',(id,x)=>{if(C.isDate(id))SRC.days[id]={net:x.net,rank:x.rank,closed:!!x.closed,sick:!!x.sick}}),
+    g('days',(id,x)=>{if(C.isDate(id))SRC.days[id]={net:x.net,rank:x.rank,focus:x.focus||'',closed:!!x.closed,sick:!!x.sick}}),
     g('puzzle',(id,x)=>{if(C.isDate(id)&&x.g){const n=Object.keys(x.g).length;if(n)SRC.puzzle[id]=n}}),
     g('learn',(id,x)=>{if(C.isDate(id)&&Array.isArray(x.rounds)&&x.rounds.length)SRC.learn[id]=x.rounds.length}),
     g('training',(id,x)=>{
@@ -305,6 +305,8 @@ function renderSide(){
   const d=V.sel,oc=C.dayList(C.occurrences(ST.state.events,d,d),d),facts=C.dayFacts(d,SRC),past=d<=today,note=SRC.notes[d]||{},k=C.isoWeek(d);
   let h='<h2>'+C.dateLong(d)+'</h2><div class="mu">KW '+k.week+(d===today?' · heute':d<today?' · vergangen':' · in '+(C.dayNum(d)-C.dayNum(today))+' Tagen')+'</div>';
   h+='<div class="row2" style="margin-top:8px">'+(V.view!=='day'?'<button data-act="openday">Tag öffnen</button>':'')+'<button class="primary" data-act="addday">＋ Termin</button></div>';
+  const plan=C.planFor(d,SRC);
+  if(plan)h+='<h3>Mein Plan für diesen Tag</h3><div class="info" style="white-space:pre-wrap;border:1px solid var(--bd);border-radius:12px;padding:10px 12px;font-size:14px">🎯 '+esc(plan)+'<div class="mu" style="margin-top:4px">Im Tagesabschluss von '+C.dateShort(C.addDays(d,-1))+' notiert</div></div>';
   h+='<h3>Termine</h3>'+(oc.length?oc.map(itemHtml).join(''):'<div class="mu">Keine Termine.</div>');
   h+='<div class="quick"><input id="qt" placeholder="Neuer Termin …" maxlength="120"><input id="qh" type="time" style="width:110px"><button id="qa" aria-label="Eintragen">＋</button></div><div class="sv err" id="qerr"></div>';
   h+='<h3>Rückblick</h3>';
@@ -337,7 +339,7 @@ function searchHtml(){
 }
 function ctx(){
   const R=range(),oc=C.occurrences(ST.state.events,V.sel,V.sel),f=C.dayFacts(V.sel,SRC).map(x=>x.text);
-  return'KALENDER-SEITE: Ansicht '+V.view+', Zeitraum '+R.from+' bis '+R.to+', ausgewählter Tag '+V.sel+' ('+C.dateLong(V.sel)+'). Termine an dem Tag: '+(oc.length?oc.map(C.occText).join('; '):'keine')+'. Daten des Tages: '+(f.length?f.join('; '):'keine')+'. Notiz: '+((SRC.notes[V.sel]||{}).t||'keine')+'.';
+  return'KALENDER-SEITE: Ansicht '+V.view+', Zeitraum '+R.from+' bis '+R.to+', ausgewählter Tag '+V.sel+' ('+C.dateLong(V.sel)+'). Termine an dem Tag: '+(oc.length?oc.map(C.occText).join('; '):'keine')+'. Eigener Plan (Fokus aus dem Tagesabschluss am Vortag): '+(C.planFor(V.sel,SRC)||'keiner')+'. Daten des Tages: '+(f.length?f.join('; '):'keine')+'. Notiz: '+((SRC.notes[V.sel]||{}).t||'keine')+'.';
 }
 /* ---------- Navigation ---------- */
 function shift(dir){

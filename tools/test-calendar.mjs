@@ -58,6 +58,7 @@ eq([C.resolveTime('15 Uhr'),C.resolveTime('9:30'),C.resolveTime('7.05'),C.resolv
 const src={days:{[T]:{net:12,rank:'A',closed:true}},whoop:{[T]:{rec:72,strain:11.6,asleep:7.4,perf:88,wlist:[{sport:'Running',min:42}]}},training:{[T]:[{name:'Intervalle',km:8,min:50}]},puzzle:{[T]:3},learn:{[T]:2},notes:{[T]:{t:'gut',m:4}}};
 const f=C.dayFacts(T,src);eq(f.map(x=>x.k),['heute','rec','sleep','strain','whoopw','training','puzzle','learn','mood'],'Tagesfakten vollständig und geordnet');eq(C.dayFacts('2026-01-01',src),[],'Tag ohne Daten: keine Fakten (nichts erfunden)');
 eq(['rank','rec','strain','training','puzzle','mood','events'].map(m=>C.heatLevel(m,T,src,{[T]:[1,2]})),[3,3,2,2,2,3,2],'Heatmap-Stufen (Training zählt Whoop+Eintrag nicht doppelt)');eq(C.heatLevel('rank','2026-01-01',src),null,'Keine Daten = null, nicht 0');
+eq([C.planFor('2026-10-17',{days:{'2026-10-16':{focus:' Lernen + Lauf '}}}),C.planFor('2026-10-18',{days:{'2026-10-16':{focus:'x'}}})],['Lernen + Lauf',''],'Plan = Fokus vom Vortag');
 // Suche
 const all=[N({id:'a',title:'Zahnarzt Dr. Meier',date:'2026-10-20',time:'15:00'}),N({id:'b',title:'Zahnreinigung',date:'2026-11-03'})];
 eq(C.findEvents(all,'zahnarzt','2026-10-01','2026-12-31').map(o=>o.id),['a'],'findEvents: Treffer nur Zahnarzt');eq(C.searchText(all,'zahn',T).map(o=>o.id),['a','b'],'Suche über Titel');

@@ -81,7 +81,7 @@ function resolveGame(args){
 }
 /* ---------- Kalender ---------- */
 function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector('script[data-ca="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.dataset.ca=src;s.onload=res;s.onerror=()=>rej(new Error(src+' nicht geladen'));document.head.append(s)})}
-async function ensureCal(){if(!root.CalCore)await loadScript('calendar-core.js?v=1');if(!root.CalStore)await loadScript('calendar-store.js?v=1')}
+async function ensureCal(){if(!root.CalCore)await loadScript('calendar-core.js?v=2');if(!root.CalStore)await loadScript('calendar-store.js?v=1')}
 const CATW={termin:'termin',frist:'frist',deadline:'frist',training:'training',sport:'training',lernen:'lernen',puzzle:'puzzle',privat:'privat'},REPW={none:'none',einmalig:'none',daily:'daily',taeglich:'daily',weekly:'weekly',woechentlich:'weekly',monthly:'monthly',monatlich:'monthly',yearly:'yearly',jaehrlich:'yearly'};
 function calendarPrepare(a,today){
   const C=root.CalCore;a=a||{};
