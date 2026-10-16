@@ -68,3 +68,14 @@ Die Karte „😴 Schlaf-Hebel“ im Recovery-Reiter beantwortet eine Frage: Was
 - **Sicherheitsfrage** (Schnarchen, Atemaussetzer, massive Tagesmüdigkeit): wird nie angenommen. „Ja“ stellt eine ärztliche Abklärung vor jeden Hebel. Keine Diagnose, keine Empfehlung für Melatonin, Schlafmittel oder Supplemente.
 - **Schlaf-Karte** wird in `users/{uid}/sleepcards/{Datum}` gespeichert (Verlauf), Einstellungen in `sleepcfg/main`. Beides ist in der Sicherung enthalten.
 - **Jarvis:** „Was ist mein Schlaf-Hebel?“, „Letzte Mahlzeit war um 21:15“ (mit Rückfrage), Antwort auf die Sicherheitsfrage.
+
+## Graph-Vollbild
+
+Jeder Graph hat oben rechts ein Vergrößern-Symbol (48 px). Es öffnet ein Vollbild im Akzent des Reiters, der Graph wächst dabei aus seinem Platz im Panel; Schließen mit ✕ oder Wischen nach unten am oberen Griff (nie auf der Graphfläche). Das Vollbild liest nur und verändert keine Daten.
+
+- **Zeitreihen** (Recovery: Recovery, HRV, Ruhepuls, Schlafdauer, Schlaf-Performance, Strain, Atemfrequenz, Blutsauerstoff, Hauttemperatur, Kalorien, Schritte; Training: Form, Trainingslast pro Tag, Stunden pro Woche): Tippen zeigt Datum mit Wochentag, Wert und Einheit; Wischen bewegt eine Markierung; Zeitraum 7 Tage / 30 Tage / 3 Monate / 1 Jahr / Alles (nur wo Daten existieren); Zwei-Finger-Zoom und Verschieben; Kalender mit nur wählbaren Tagen mit Daten; Knöpfe Heute, Bestwert, Tiefstwert, Zurücksetzen. Lücken bleiben Lücken (schraffiert, „keine Daten“).
+- **Statistiken** (`graph-stats.js`, deterministisch, immer aus den Originaldaten, Tests: `node tools/test-graphstats.mjs`): Durchschnitt, Median, Bestwert/Tiefstwert (Richtung beachtet), Trend gegen den gleich langen Zeitraum davor, Datenpunkte gegen Tage, Summe, gute Tage und Serie, Wochentage.
+- **Alle übrigen Diagramme** (Radar, Zonen, Gym, Puzzle …) erkennt `GraphFull.auto()` selbst und zeigt sie vergrößert, ohne Zeitachsen-Bedienung und ohne neue Statistik.
+- **Neuer Graph = eine Zeile:** `GraphFull.attach('#id',{id:'x',title:'…',unit:'kg',dir:1,series:()=>[{date:'2026-10-01',value:70}]})`.
+- **Jarvis:** „Jarvis fragen“ übergibt Graph, Zeitraum und die berechneten Werte; Jarvis öffnet Graphen („zeig mir meinen Schlaf der letzten 30 Tage“), wechselt den Zeitraum und springt zu Daten, ohne Rückfrage.
+- Im Performance-Modus oder bei „Bewegung reduzieren“ gibt es nur ein kurzes Einblenden statt der Animation.

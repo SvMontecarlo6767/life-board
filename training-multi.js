@@ -204,7 +204,17 @@ function draw() {
   const q = stats(R, S.ctx.st);
   weeksStack($('m-weeks'), R, q.goal, S.wmode); V.formChart($('c-form'), R, 180); V.gauge($('c-gauge'), R.acwr);
   $('gaugeMini').innerHTML = '<div><span>Rampe</span><b>' + F.signed(R.ramp, 1) + '</b><small>Fitness in 7 Tagen</small></div><div><span>Monotonie</span><b>' + (R.monotony != null ? F.num(R.monotony, 2) : '–') + '</b><small>7 Tage</small></div><div><span>Punkte</span><b>' + f0(R.load7) + '</b><small>letzte 7 Tage</small></div>';
+  attachFull(R);
   V.skyline($('sky'), R, S.skymode); calendar($('c-cal'), R); V.habitGrid($('habit'), habit(R), 'Einheiten'); if (window.TrainingGym) window.TrainingGym.draw();
+}
+/* Graph-Vollbild: Zeitreihen dieser Ansicht (Phase 7) */
+function attachFull(R) {
+  const GF = window.GraphFull; if (!GF || !R || !R.ok) return;
+  const first = R.days.findIndex(d => d.act > 0), days = first < 0 ? [] : R.days.slice(first);
+  const fw = R.weeks.findIndex(w => w.sessions > 0 || w.hours > 0), weeks = fw < 0 ? [] : R.weeks.slice(fw);
+  GF.attach('#c-form', { id: 't-form', title: 'Form (Fitness minus Ermüdung)', alias: ['form', 'trainingsform'], unit: '', dir: 1, digits: 0, series: () => R.series.map(d => ({ date: d.k, value: d.form })), extra: d => { const x = R.series.find(q => q.k === d); return x ? ['Fitness ' + Math.round(x.fit) + ' · Ermüdung ' + Math.round(x.fat)] : [] } });
+  GF.attach('#sky', { id: 't-load', title: 'Trainingslast pro Tag', alias: ['trainingslast', 'skyline', 'load'], unit: 'Last', dir: 0, digits: 0, kind: 'bar', sum: true, series: () => days.map(d => ({ date: d.k, value: d.load })) });
+  GF.attach('#m-weeks', { id: 't-weeks', title: 'Trainingsstunden pro Woche', alias: ['trainingsstunden', 'wochenumfang'], unit: 'h', dir: 1, digits: 1, kind: 'bar', gap: 7, sum: true, series: () => weeks.map(w => ({ date: w.start, value: w.hours })), extra: d => { const w = weeks.find(q => q.start === d); return w ? [w.sessions + ' Einheiten (Woche ab ' + d.slice(8, 10) + '.' + d.slice(5, 7) + '.)'] : [] } });
 }
 function summary(R, st) {
   if (!R || !R.ok) return null; const q = stats(R, st), by = C.SPORTS.filter(s => R.totals.hoursBy[s] > 0).sort((a, b) => R.totals.hoursBy[b] - R.totals.hoursBy[a]).slice(0, 5).map(s => s + ' ' + f0(R.totals.hoursBy[s]) + ' h').join(', ');

@@ -3,7 +3,7 @@
    Liegt die Aktion auf einer anderen Seite, wird sie nach Bestätigung vorgemerkt, die Seite geöffnet und dort ausgeführt. */
 (function(root){
 'use strict';
-const PEND='lb_jv_pending',TABS={hub:'index.html',heute:'heute.html?v=5',recovery:'recovery.html?v=4',lernen:'learn.html?v=2',puzzle:'puzzle.html?v=3',training:'training.html?v=2'};
+const PEND='lb_jv_pending',TABS={hub:'index.html',heute:'heute.html?v=6',recovery:'recovery.html?v=5',lernen:'learn.html?v=2',puzzle:'puzzle.html?v=3',training:'training.html?v=3'};
 const PAGE={set_habit:'heute.html',set_puzzle:'puzzle.html',set_meal:'heute.html'};
 const NAMES={hub:'Hub',heute:'Heute',recovery:'Recovery',lernen:'Lernen',puzzle:'Puzzle-Tracker',training:'Training'};
 const SET={sprachausgabe:['speak','Sprachausgabe'],performance:['perf','Performance-Modus'],sounds:['sounds','UI-Sounds']};
@@ -26,6 +26,9 @@ async function tools(){
    {name:'set_setting',description:'Ändert eine Einstellung: Sprachausgabe von Jarvis, Performance-Modus oder UI-Sounds.',parameters:{type:'object',properties:{name:{type:'string',enum:Object.keys(SET)},value:{type:'boolean',description:'true = an, false = aus'}},required:['name','value']}},
    {name:'set_habit',description:'Trägt eine Aktion im Reiter Heute ein (Sport, Lernen, Alltag-Gewohnheit). Knöpfe: '+list,parameters:{type:'object',properties:{button:{type:'string',description:'Name des Knopfes wie in der Liste'},value:{type:'string',description:'an/aus, Minuten, Anzahl oder Option je nach Knopf. Weglassen, wenn der Nutzer nichts gesagt hat.'},date:{type:'string',description:'heute oder gestern (Standard heute)'}},required:['button']}},
    {name:'set_puzzle',description:'Trägt ein Puzzle-Ergebnis im Puzzle-Tracker ein. Spiele: '+GAMES.map(g=>g[1]).join(', ')+'. Krillion: Score 0–700, höher ist besser. Bei Spielen mit Versuchen ist score die Anzahl der Versuche.',parameters:{type:'object',properties:{game:{type:'string',description:'Name des Spiels'},score:{type:'number',description:'Score bzw. Versuche'},solved:{type:'boolean',description:'false, wenn nicht geschafft'},date:{type:'string',description:'heute oder gestern (Standard heute)'}},required:['game']}},
+   {name:'show_graph',description:'Öffnet einen Graphen im Vollbild (reine Anzeige). Graphen: Recovery, HRV, Ruhepuls, Schlafdauer, Schlaf-Performance, Strain, Atemfrequenz, Blutsauerstoff, Hauttemperatur, Kalorien, Schritte, Form, Trainingsstunden, Trainingslast. Optional Zeitraum und Datum.',parameters:{type:'object',properties:{graph:{type:'string',description:'Name des Graphen'},range:{type:'string',enum:['7','30','90','365','all'],description:'Zeitraum in Tagen (90 = 3 Monate, 365 = 1 Jahr) oder all'},date:{type:'string',description:'Datum YYYY-MM-DD, zu dem gesprungen wird'}},required:['graph']}},
+   {name:'graph_range',description:'Wechselt im geöffneten Graph-Vollbild den Zeitraum (reine Anzeige).',parameters:{type:'object',properties:{range:{type:'string',enum:['7','30','90','365','all']}},required:['range']}},
+   {name:'graph_date',description:'Springt im geöffneten Graph-Vollbild zu einem Datum und markiert es (reine Anzeige).',parameters:{type:'object',properties:{date:{type:'string',description:'YYYY-MM-DD'}},required:['date']}},
    {name:'set_meal',description:'Trägt im Reiter Heute die Uhrzeit der letzten großen Mahlzeit ein (für die Schlaf-Hebel-Analyse).',parameters:{type:'object',properties:{time:{type:'string',description:'Uhrzeit als HH:MM, 24 Stunden, z. B. 21:15'}},required:['time']}},
    {name:'set_sleep_safety',description:'Speichert die Antwort auf die Schlaf-Sicherheitsfrage (Schnarchen, Atemaussetzer, massive Tagesmüdigkeit). Nur die Antwort des Nutzers übernehmen, nie raten.',parameters:{type:'object',properties:{answer:{type:'string',enum:['ja','nein']}},required:['answer']}},
   ];
@@ -133,6 +136,18 @@ async function handle(res,userText){
     if(a.solved!==false&&a.score==null&&g.id!=='hol'){const q='Welchen Score hast du bei '+g.name+'?';await log(q);say(q);return true}
     const q='Eintragen: '+g.name+(a.solved===false?' nicht geschafft':' '+a.score)+(/gestern/i.test(a.date||'')?' (gestern)':' (heute)')+'?';await log(q);
     J.confirm(q,()=>go({name:'set_puzzle',args:a}));return true;
+  }
+  if(call.name==='show_graph'){
+    const a=call.args||{},GF=root.GraphFull;if(!GF){say('Die Graph-Ansicht ist auf dieser Seite nicht geladen.',true);return true}
+    const iso=/^\d{4}-\d\d-\d\d$/.test(a.date||'')?a.date:null;
+    const r=GF.openByName(a.graph,{range:a.range||null,date:iso});
+    const m=r.ok?(r.navigating?'Ich öffne '+r.title+'.':'Hier ist '+r.title+'.'):r.err;await log(m);say(m,!r.ok);return true;
+  }
+  if(call.name==='graph_range'){
+    const GF=root.GraphFull,r=GF?GF.setRange((call.args||{}).range):{ok:false,err:'Kein Graph offen.'};const m=r.ok?'Zeitraum gewechselt.':r.err;await log(m);say(m,!r.ok);return true;
+  }
+  if(call.name==='graph_date'){
+    const GF=root.GraphFull,r=GF?GF.gotoDate((call.args||{}).date):{ok:false,err:'Kein Graph offen.'};const m=r.ok?(r.none?'An dem Tag gibt es keine Daten.':'Markiert.'):r.err;await log(m);say(m,!r.ok);return true;
   }
   if(call.name==='set_meal'){
     const t=String((call.args||{}).time||'').trim().replace(/\s*uhr$/i,'').replace('.',':'),m=/^(\d{1,2})(?::(\d\d))?$/.exec(t);

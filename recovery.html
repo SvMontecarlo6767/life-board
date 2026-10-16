@@ -478,6 +478,22 @@ function renderTop(){
     t.append(d);tiles.append(t);
   });
 }
+function attachFull(){
+  if(!window.GraphFull)return;
+  const by=new Map(ALL.map(r=>[r.date,r])),ser=k=>()=>ALL.map(r=>({date:r.date,value:r[k]!=null?r[k]:null}));
+  const def=(id,host,title,key,o)=>GraphFull.attach('#'+host,Object.assign({id,title,series:ser(key)},o));
+  def('rec','c-rec','Recovery','rec',{unit:'%',dir:1,digits:0,fixed:[0,100],good:{min:67,label:'Grüne Tage'},alias:['erholung'],extra:d=>{const r=by.get(d);return r&&r.rec!=null?[zoneOf(r.rec)[0]+' (Zone)']:[]}});
+  def('hrv','c-hrv','HRV','hrv',{unit:'ms',dir:1,digits:0,alias:['herzratenvariabilitaet']});
+  def('rhr','c-rhr','Ruhepuls','rhr',{unit:'bpm',dir:-1,digits:0});
+  def('sleep','c-sleep','Schlafdauer','asleep',{unit:'h',dir:1,digits:1,kind:'bar',good:{min:7,label:'Nächte ab 7 h'},alias:['schlaf'],extra:d=>{const r=by.get(d);return r&&r.light!=null?['Leicht '+fmtN(r.light)+' h · Tief '+fmtN(r.sws)+' h · REM '+fmtN(r.rem)+' h']:[]}});
+  def('perf','c-perf','Schlaf-Performance','perf',{unit:'%',dir:1,digits:0,fixed:[0,100],good:{min:85,label:'Nächte ab 85 %'},alias:['schlafqualitaet']});
+  def('strain','c-strain','Strain','strain',{unit:'',dir:0,digits:1,kind:'bar',fixed:[0,21],alias:['belastung']});
+  def('resp','c-resp','Atemfrequenz','resp',{unit:'/min',dir:0,digits:1,alias:['atmung']});
+  def('spo2','c-spo2','Blutsauerstoff','spo2',{unit:'%',dir:1,digits:1,alias:['sauerstoff']});
+  def('skin','c-skin','Hauttemperatur','skin',{unit:'°C',dir:0,digits:1,alias:['temperatur']});
+  def('kcal','c-kcal','Kalorien','kcal',{unit:'kcal',dir:0,digits:0,kind:'bar',sum:true});
+  def('steps','c-steps','Schritte','steps',{unit:'',dir:1,digits:0,kind:'bar',sum:true,good:{min:10000,label:'Tage ab 10.000'}});
+}
 function renderCharts(){
   const {dates,rows}=slice();
   renderMore(dates,rows);
@@ -490,6 +506,7 @@ function renderCharts(){
   chart($('c-perf'),{dates,values:colOf(rows,'perf'),kind:'line',fixed:[0,100],unit:' %',label:'Schlaf-Performance pro Nacht'});
   chart($('c-strain'),{dates,values:colOf(rows,'strain'),kind:'bar',fixed:[0,21],unit:'',digits:1,label:'Strain pro Tag',
     extra:i=>{const r=rows[i];return r&&r.workouts?[r.workouts+' Workout'+(r.workouts>1?'s':'')]:[]}});
+  try{attachFull()}catch(e){}
 }
 function renderTable(){
   const {rows}=slice(),box=$('tbl');box.replaceChildren();
@@ -529,7 +546,7 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL
   }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
 })();
 </script>
-</main><script src="theme.js?v=8"></script>
+</main><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=9"></script>
 <script src="hud-viz.js?v=1"></script>
-<script src="jarvis.js?v=9"></script>
+<script src="jarvis.js?v=10"></script>
 </body></html>
