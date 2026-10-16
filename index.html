@@ -52,6 +52,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
   <a class="tile" href="heute.html?v=6" id="dop" style="margin-bottom:12px"><b>🎯 Dopamin-Konto</b><span id="dopTxt">wird geladen …</span></a>
   <div class="grid">
     <a class="tile" href="heute.html?v=6"><div style="font-size:28px">🎯</div><b>Heute</b><span>Aktionen antippen, Dopamin-Konto, Rang und Level</span></a>
+    <a class="tile" href="calendar.html?v=1"><div style="font-size:28px">📅</div><b>Kalender</b><span>Termine, Erinnerungen, Tagesnotiz und Rückblick auf deine Daten</span></a>
     <a class="tile" href="training.html?v=3"><div style="font-size:28px">💪</div><b>Training</b><span>Alle Sportarten, Einheiten eintragen, Form und Wochenziel</span></a>
     <a class="tile" href="puzzle.html?v=3"><div style="font-size:28px">🧩</div><b>Puzzle-Tracker</b><span>Tägliche Puzzles, Rating, Meilensteine, Berichte</span></a>
     <a class="tile" href="import.html?v=2"><div style="font-size:28px">📥</div><b>Daten importieren</b><span>Einmalig: alte Puzzle-Daten einspielen</span></a>
@@ -92,7 +93,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=7"></script>
+<script src="assistant.js?v=8"></script>
 <script>
 const $=id=>document.getElementById(id);
 auth.onAuthStateChanged(u=>{
@@ -122,7 +123,7 @@ try{
 
 // ---- Sicherung ----
 // Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
-const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages','chats','training','sleepcards','sleepcfg'];
+const MODULES=['puzzle','days','state','settings','whoop','habits','learn','questions','learnpages','chats','training','sleepcards','sleepcfg','calendar'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function bkStatus(){
   let last=null;try{last=localStorage.getItem('lb-last-backup')}catch(e){}
@@ -273,6 +274,6 @@ async function dopStatus(u){
 }
 auth.onAuthStateChanged(u=>{if(u)dopStatus(u)});
 </script>
-</main><script src="theme.js?v=9"></script>
-<script src="jarvis.js?v=10"></script>
+</main><script src="theme.js?v=10"></script>
+<script src="jarvis.js?v=11"></script>
 </body></html>

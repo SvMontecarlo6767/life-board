@@ -43,7 +43,7 @@ with sync_playwright() as p:
     ck('Kaputte Datei wird abgelehnt','nicht gelesen' in pg.inner_text('#bkPrev'),pg.inner_text('#bkPrev'))
     ck('Keine Seitenfehler',errs==[],errs[:3])
     # App-Modus
-    for pgname in ['index','heute','recovery','learn','puzzle','training']:
+    for pgname in ['index','heute','recovery','learn','puzzle','training','calendar']:
         s=open(os.path.join(root,pgname+'.html')).read()
         ck(f'{pgname}.html: Manifest, Symbol, App-Tags','rel="manifest"' in s and 'apple-touch-icon' in s and 'apple-mobile-web-app-capable' in s and 'theme-color' in s)
     m=json.load(open(os.path.join(root,'manifest.webmanifest')))
@@ -56,7 +56,7 @@ with sync_playwright() as p:
     ok=pg2.evaluate("""async()=>{try{const r=await navigator.serviceWorker.register('/sw.js');await navigator.serviceWorker.ready;return r.active?true:true}catch(e){return String(e)}}""")
     pg2.wait_for_timeout(1500)
     keys=pg2.evaluate("caches.keys().then(k=>k)")
-    n=pg2.evaluate("caches.open('lb-shell-v4').then(c=>c.keys()).then(k=>k.length)")
-    ck('Service Worker registriert und legt Offline-Kopie an',ok is True and 'lb-shell-v4' in keys and n>=20,(ok,keys,n))
+    n=pg2.evaluate("caches.open('lb-shell-v5').then(c=>c.keys()).then(k=>k.length)")
+    ck('Service Worker registriert und legt Offline-Kopie an',ok is True and 'lb-shell-v5' in keys and n>=20,(ok,keys,n))
     b.close()
 print('\nFEHLER:',fails if fails else 'keine'); sys.exit(1 if fails else 0)

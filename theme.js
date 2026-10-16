@@ -11,11 +11,13 @@ const ICON={
   lernen:'<path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4zM20 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>',
   puzzle:'<path d="M10 4a2 2 0 114 0v2h4v4h-2a2 2 0 100 4h2v4h-4v-2a2 2 0 10-4 0v2H6v-4h2a2 2 0 100-4H6V6h4z"/>',
   training:'<circle cx="15" cy="5" r="2"/><path d="M13 21l-1-6 3-3-2-4-4 2-2 4M12 9l5 3 3-1M9 21l3-6"/>',
+  kalender:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M12 14h2M16 14h2M8 18h2M12 18h2"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2l.4 2.6h4l.4-2.6c.7-.3 1.4-.7 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/>'
 };
 const TABS=[
   {id:'hub',name:'Hub',file:'index.html',href:'index.html',rgb:[58,215,255],rgb2:[120,150,255]},
   {id:'heute',name:'Heute',file:'heute.html',href:'heute.html?v=6',rgb:[58,215,255],rgb2:[120,150,255]},
+  {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=1',rgb:[255,200,70],rgb2:[255,120,90]},
   {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=5',rgb:[52,235,170],rgb2:[58,215,255]},
   {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=2',rgb:[150,125,255],rgb2:[70,140,255]},
   {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=3',rgb:[255,150,60],rgb2:[255,70,170]},
