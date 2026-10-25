@@ -29,6 +29,15 @@ for a in v1['actions']:
     else: a['use']='inaktiv'
     if a['id'] in ('WDH-01','WDH-13'): a['max']=3   # bis zu 3 volle Lernrunden pro Tag (Lernen-Seite)
     acts.append(a)
+# Check-in (checkin.html): Stimmung, Gedanken, 3 gute Dinge – kommen als Zähler wie die Lernrunden
+MEN=[
+  {'id':'MEN-01','cat':'MEN','text':'Morgen-Check (Stimmung und Energie vor dem Blick auf Whoop)','points':400},
+  {'id':'MEN-02','cat':'MEN','text':'Abend-Check mit 3 guten Dingen','points':500},
+  {'id':'MEN-03','cat':'MEN','text':'Stimmung oder Gedanke über den Tag notiert','points':100,'max':3},
+  {'id':'MEN-04','cat':'MEN','text':'Eigene Tracker ausgefüllt','points':150},
+]
+for a in MEN: acts.append(dict(a,capture='Check-in',src='checkin',use='checkin'))
+v2['categories']=v1['categories']+[{'id':'MEN','name':'Mental und Check-in'}]
 v2['actions']=acts
 v2['whoopAuto']={'ids':cfg['autoIds'],'finalIds':cfg['finalIds'],'note':'finalIds zählen erst, wenn der Tag vorbei oder abgeschlossen ist.'}
 json.dump(v2,open(os.path.join(here,'..','rules','v2.json'),'w'),ensure_ascii=False,indent=1)

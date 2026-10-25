@@ -308,7 +308,6 @@ function buildPlan() {
   $('qs').innerHTML = N.qa.map((q, i) => '<button class="chip' + (i === qaIdx ? ' on' : '') + '" data-q="' + i + '">' + esc(q.q) + '</button>').join('');
   $('qs').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { qaIdx = +b.dataset.q; $('qs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); answer(qaIdx) }));
   answer(qaIdx, true);
-  $('askGo').onclick = ownQ; $('askIn').onkeydown = e => { if (e.key === 'Enter') ownQ() };
 }
 let typeT = null;
 function answer(i, instant) {
@@ -318,11 +317,6 @@ function answer(i, instant) {
   box.innerHTML = '<h4>' + esc(q.h) + '</h4><p id="t0" class="cur"></p><p id="t1"></p><div id="tn"></div>';
   const words = [q.p[0].split(' '), q.p[1].split(' ')]; let a = 0, b = 0;
   (function step() { if (a < words[0].length) { $('t0').textContent = words[0].slice(0, ++a).join(' ') } else if (b < words[1].length) { $('t0').classList.remove('cur'); $('t1').classList.add('cur'); $('t1').textContent = words[1].slice(0, ++b).join(' ') } else { $('t1').classList.remove('cur'); $('tn').innerHTML = nums; return } typeT = setTimeout(step, 28) })();
-}
-function ownQ() {
-  const v = $('askIn').value.trim(), m = $('askMsg'); if (!v) return;
-  if (window.Jarvis && Jarvis.ask) { m.textContent = 'Ich frage J.A.R.V.I.S – die Antwort erscheint dort.'; try { Jarvis.open(); Jarvis.ask(v) } catch (e) { m.textContent = 'Konnte J.A.R.V.I.S nicht erreichen.' } $('askIn').value = ''; return }
-  try { navigator.clipboard.writeText(v); m.textContent = 'Frage kopiert – stell sie im KI-Chat des Life Boards.' } catch (e) { m.textContent = 'Stell die Frage im KI-Chat des Life Boards.' }
 }
 
 /* ---------- Material, Daten, Logbuch ---------- */

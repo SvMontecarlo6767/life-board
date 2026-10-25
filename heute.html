@@ -108,7 +108,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 .sum ul{list-style:none;padding:0;margin:10px 0;text-align:left;font-size:14px}
 .sum li{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--bd)}
 @media (max-width:900px){.wh ul{grid-template-columns:1fr}.hero{grid-template-columns:1fr 1fr}.hero .card:first-child{grid-column:1/-1}.dnav .dt{min-width:120px}.bar .back{display:none}}
-</style><link rel="stylesheet" href="theme.css?v=7">
+</style><link rel="stylesheet" href="theme.css?v=8">
 </head><body>
 <div class="bar"><div class="in">
   <a class="back" href="index.html">← Start</a>
@@ -168,10 +168,10 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=8"></script>
 <script src="engine.js"></script>
 <script src="puzzle-dop.js"></script>
 <script src="whoop-auto.js"></script>
+<script src="journal-core.js"></script>
 <script src="dop-account.js"></script>
 <script>
 (async function(){
@@ -183,7 +183,7 @@ const fmt=E.fmt;
 const CURV=2;
 const RULES={};
 let user,base,today,cur;
-let DAYS={},PUZ={},LEARN={},SETTINGS={},WH={},WHSTATE='loading',WHMSG='';
+let DAYS={},PUZ={},LEARN={},JOURNAL={},SETTINGS={},WH={},WHSTATE='loading',WHMSG='';
 let ackTimer=null;
 const LSKEY='lb_pending_days';
 
@@ -204,9 +204,9 @@ async function wfetch(path,opts){
 }
 
 /* ---------- Rechnen (dop-account.js, gemeinsam mit dem Hub) ---------- */
-const A=LBAccount.create({E,WA,CURV,RULES,get DAYS(){return DAYS},get PUZ(){return PUZ},get LEARN(){return LEARN},get SETTINGS(){return SETTINGS},
+const A=LBAccount.create({E,WA,CURV,RULES,get DAYS(){return DAYS},get PUZ(){return PUZ},get LEARN(){return LEARN},get JOURNAL(){return JOURNAL},get SETTINGS(){return SETTINGS},
   get WH(){return WH},get WHSTATE(){return WHSTATE},get today(){return today}});
-const {versionOf,puzFor,learnFor,sportInput,calc,netOf,priorAccount}=A;
+const {versionOf,puzFor,learnFor,journalFor,sportInput,calc,netOf,priorAccount}=A;
 function levelOf(k){const c=calc(k);return E.levelInfo(c.rules,priorAccount(k)+c.res.net).level}
 
 /* ---------- Speichern ---------- */
@@ -284,41 +284,6 @@ function tap(bid,minus){
   const after=levelOf(cur);
   if(after>before)levelUp(after);
 }
-
-/* ---------- Jarvis-Anbindung: gleiche Funktionen wie beim Antippen ---------- */
-window.JarvisHandlers=window.JarvisHandlers||{};
-window.JarvisHandlers.set_habit=async function(args){
-  if(!window.__heuteReady&&performance.now()<15000)return{wait:true};
-  if(!window.JarvisActions)return{wait:true};
-  try{
-    if(/gestern/i.test(args.date||'')&&cur===today)$('prev').click();
-    else if(!/gestern/i.test(args.date||'')&&cur!==today)$('next').click();
-    const c=calc(cur);if(c.legacy)return{err:'Dieser Tag nutzt das alte Regelwerk und lässt sich nicht ändern.'};
-    const x=JarvisActions.resolveHabit(c.rules,args);
-    if(x.err||x.ask)return x.err?{err:x.err}:{ask:x.ask};
-    const b=x.b;
-    if(c.whoopHas[b.whoop])return{err:'„'+b.label+'“ kommt automatisch von Whoop und lässt sich nicht von Hand setzen.'};
-    if(DAYS[cur]&&DAYS[cur].closed)return{err:'Der Tag ist abgeschlossen. Öffne ihn zuerst wieder.'};
-    const act=c.rules.actions.find(a=>a.id===(b.ids||[])[0]);
-    let nv=x.nv;if(b.kind==='count'&&act&&act.max)nv=Math.min(nv,act.max);
-    const before=levelOf(cur),inp=Object.assign({},(DAYS[cur]&&DAYS[cur].in)||{});
-    if(nv)inp[b.id]=nv;else delete inp[b.id];
-    persist({in:inp});render();
-    const after=levelOf(cur);if(after>before)levelUp(after);
-    const r=calc(cur).res;
-    return{say:'Eingetragen: '+x.txt+'. Heute steht jetzt bei '+fmt(r.net,true)+' Punkten, Rang '+r.rank+'.'};
-  }catch(e){if(e instanceof ReferenceError)return{wait:true};return{err:'Das hat nicht geklappt: '+(e.message||e)}}
-};
-
-window.JarvisHandlers.set_meal=async function(args){
-  try{
-    const t=String((args&&args.time)||''),m=/^(\d{2}):(\d{2})$/.exec(t);
-    if(!m||+m[1]>23||+m[2]>59)return{err:'Diese Uhrzeit verstehe ich nicht.'};
-    if(!cur)return{wait:true};
-    persist({meal:t});render();
-    return{say:'Eingetragen: letzte große Mahlzeit um '+t+'.'};
-  }catch(e){if(e instanceof ReferenceError)return{wait:true};return{err:'Das hat nicht geklappt: '+(e.message||e)}}
-};
 
 /* ---------- Anzeige ---------- */
 function ring(frac,lvl){
@@ -442,7 +407,7 @@ async function closeDay(){
   const focus=$('focus').value.trim();
   const a=WA.autoDay(WH,cur,{final:true,target:SETTINGS.bedtimeTarget||null,prevAlcohol:!!((DAYS[E.addDays(cur,-1)]||{}).in&&(DAYS[E.addDays(cur,-1)].in.alkohol|0)>0),manualSport:sportInput(RULES[CURV],d.in||{})});
   const x={'ABD-01':1};if(focus)x['ABD-02']=1;
-  persist({focus,x,closed:true,closedAt:Date.now(),auto:a.counts,autoWhy:a.why,puz:PUZ[cur]===undefined?null:PUZ[cur],learn:learnFor(cur)});
+  persist({focus,x,closed:true,closedAt:Date.now(),auto:a.counts,autoWhy:a.why,puz:PUZ[cur]===undefined?null:PUZ[cur],learn:learnFor(cur),jr:journalFor(cur)});
   render();
   const c=calc(cur),acc=priorAccount(cur)+c.res.net,li=E.levelInfo(c.rules,acc);
   const act=Object.fromEntries(c.rules.actions.map(a=>[a.id,a]));
@@ -537,7 +502,7 @@ function diag(name,ok,info){DIAG[name]={ok,info};
 const tmo=(p,ms,what)=>Promise.race([p,new Promise((_,j)=>setTimeout(()=>j(Object.assign(new Error(what+' antwortet nicht (Zeitüberschreitung)'),{code:'timeout'})),ms))]);
 const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
 function cacheKey(){return 'lb_cache_'+user.uid}
-function saveCache(){try{localStorage.setItem(cacheKey(),JSON.stringify({days:DAYS,puz:PUZ,learn:LEARN,settings:SETTINGS,at:Date.now()}))}catch(e){}}
+function saveCache(){try{localStorage.setItem(cacheKey(),JSON.stringify({days:DAYS,puz:PUZ,learn:LEARN,journal:JOURNAL,settings:SETTINGS,at:Date.now()}))}catch(e){}}
 function loadCache(){try{return JSON.parse(localStorage.getItem(cacheKey())||'null')}catch(e){return null}}
 function getUser(){
   return new Promise(res=>{
@@ -562,7 +527,7 @@ async function boot(){
   today=E.dayKey(new Date(),r.day.timezone,r.day.changeHour);cur=today;
   // 1) sofort aus dem lokalen Speicher anzeigen, damit nie eine leere Seite erscheint
   const cache=loadCache();
-  if(cache){DAYS=cache.days||{};PUZ=cache.puz||{};LEARN=cache.learn||{};SETTINGS=cache.settings||{}}
+  if(cache){DAYS=cache.days||{};PUZ=cache.puz||{};LEARN=cache.learn||{};JOURNAL=cache.journal||{};SETTINGS=cache.settings||{}}
   const pend=lsGet();
   for(const k of Object.keys(pend)){if(!DAYS[k]||(DAYS[k].updatedAt||0)<=(pend[k].updatedAt||0))DAYS[k]=pend[k]}
   for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||1)))await rulesFor(v).catch(()=>{});
@@ -579,6 +544,11 @@ async function boot(){
     const Lm={};ls.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))Lm[x.id]=(x.data()||{}).counts||{}});
     LEARN=Lm;diag('Lernen',true,Object.keys(Lm).length+' Tage');
   }catch(e){diag('Lernen',false,errText(e))}
+  try{
+    const js=await tmo(fs.collection(base+'/journal').get(),10000,'Check-in');
+    const Jm={};js.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))Jm[x.id]=LBJournal.counts(x.data())});
+    JOURNAL=Jm;diag('Check-in',true,Object.keys(Jm).length+' Tage');
+  }catch(e){diag('Check-in',false,errText(e))}
   let replay=[];
   try{
     const ds=await tmo(fs.collection(base+'/days').get(),10000,'Tage');
@@ -624,6 +594,5 @@ window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehle
 boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=11"></script>
-<script src="jarvis.js?v=11"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=12"></script>
 </body></html>

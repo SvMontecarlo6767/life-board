@@ -141,7 +141,7 @@ html:not([data-hud]) .ov .box{background:var(--card)}
   .grid2{grid-template-columns:1fr}
   .ov{align-items:flex-end;padding:0}.ov .box{border-radius:18px 18px 0 0;max-height:94vh}
 }
-</style><link rel="stylesheet" href="theme.css?v=7">
+</style><link rel="stylesheet" href="theme.css?v=8">
 </head><body>
 <main class="wrap">
   <div id="remBanner"></div>
@@ -171,7 +171,6 @@ html:not([data-hud]) .ov .box{background:var(--card)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=8"></script>
 <script src="calendar-core.js?v=2"></script>
 <script src="calendar-store.js?v=1"></script>
 <script>
@@ -478,24 +477,11 @@ function paintRem(){
   $('remBanner').innerHTML=REM.map((r,i)=>'<div class="rem"><span>🔔 '+esc(r.txt)+'</span><button data-rm="'+i+'">OK</button></div>').join('');
 }
 $('remBanner').addEventListener('click',ev=>{const b=ev.target.closest('[data-rm]');if(!b)return;REM.splice(+b.dataset.rm,1);paintRem()});
-/* ---------- Jarvis ---------- */
+/* ---------- Zugriff von außen ---------- */
 window.CalendarPage={
   open(view,date){goto(view||V.view,date||V.sel)},
   refresh(){render(true)},
   state:V,SRC
-};
-window.JarvisHandlers=window.JarvisHandlers||{};
-window.JarvisHandlers.calendar_add=async a=>{
-  if(!ST.state.loaded)return{wait:true};
-  const r=JarvisActions.calendarPrepare(a,today);if(r.err||r.ask)return r;
-  try{const e=await ST.upsert(r.event);V.view=V.view==='year'?'month':V.view;V.sel=e.date;V.cur=e.date;render();return{say:'Eingetragen: '+JarvisActions.calendarSummary(e)+'.'}}
-  catch(x){return{err:'Das hat nicht geklappt: '+(x.message||x)}}
-};
-window.JarvisHandlers.calendar_note=async a=>{
-  if(!ST.state.loaded)return{wait:true};
-  const d=C.resolveDate(a.date||'heute',today);if(!d)return{err:'Welcher Tag?'};
-  const cur=SRC.notes[d]||{},add=String(a.text||'').trim();if(!add)return{ask:'Was soll in die Notiz?'};
-  try{await ST.setNote(d,{t:(cur.t?cur.t+'\n':'')+add,m:cur.m||0});V.sel=d;render();return{say:'Notiz für '+C.dateShort(d)+' ergänzt.'}}catch(x){return{err:'Das hat nicht geklappt: '+(x.message||x)}}
 };
 /* ---------- Start ---------- */
 (async function init(){
@@ -508,7 +494,6 @@ window.JarvisHandlers.calendar_note=async a=>{
 })();
 })();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=11"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=12"></script>
 <script src="hud-viz.js?v=1"></script>
-<script src="jarvis.js?v=11"></script>
 </body></html>

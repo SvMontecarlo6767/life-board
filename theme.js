@@ -6,6 +6,8 @@ const root=document.documentElement;
 /* ---------- Reiter-Konfiguration ---------- */
 const ICON={
   hub:'<path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/>',
+  checkin:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  muster:'<path d="M4 19l5-6 4 3 7-9"/><circle cx="4" cy="19" r="1.5"/><circle cx="9" cy="13" r="1.5"/><circle cx="13" cy="16" r="1.5"/><circle cx="20" cy="7" r="1.5"/>',
   heute:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
   recovery:'<path d="M3 12h4l2-6 4 12 2-6h6"/>',
   lernen:'<path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4zM20 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>',
@@ -16,17 +18,19 @@ const ICON={
 };
 const TABS=[
   {id:'hub',name:'Hub',file:'index.html',href:'index.html',rgb:[58,215,255],rgb2:[120,150,255]},
-  {id:'heute',name:'Heute',file:'heute.html',href:'heute.html?v=6',rgb:[58,215,255],rgb2:[120,150,255]},
+  {id:'checkin',name:'Check-in',file:'checkin.html',href:'checkin.html?v=1',rgb:[255,190,90],rgb2:[255,120,160]},
+  {id:'heute',name:'Heute',file:'heute.html',href:'heute.html?v=7',rgb:[58,215,255],rgb2:[120,150,255]},
   {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=1',rgb:[255,200,70],rgb2:[255,120,90]},
   {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=5',rgb:[52,235,170],rgb2:[58,215,255]},
   {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=2',rgb:[150,125,255],rgb2:[70,140,255]},
   {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=3',rgb:[255,150,60],rgb2:[255,70,170]},
-  {id:'training',name:'Training',file:'training.html',href:'training.html?v=3',rgb:[255,84,96],rgb2:[255,154,92]}
+  {id:'training',name:'Training',file:'training.html',href:'training.html?v=4',rgb:[255,84,96],rgb2:[255,154,92]},
+  {id:'muster',name:'Muster',file:'muster.html',href:'muster.html?v=1',rgb:[120,230,255],rgb2:[180,120,255]}
 ];
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
 const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];
 /* ---------- Einstellungen (localStorage + Firestore best effort) ---------- */
-const DEF={perf:false,sounds:true,tilt:false,speak:true,fps:false,provider:'gemini'};
+const DEF={perf:false,sounds:true,tilt:false,fps:false};
 let S=Object.assign({},DEF);
 try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('lb_ui')||'{}'))}catch(e){}
 const listeners=[];
@@ -80,9 +84,8 @@ function buildNav(){
   document.body.prepend(nav);
   const panel=document.createElement('div');panel.id='lb-set';panel.hidden=true;
   const row=(k,t,sub)=>'<div class="r"><div>'+t+(sub?'<small>'+sub+'</small>':'')+'</div><button class="lb-sw" role="switch" data-k="'+k+'" aria-checked="'+!!S[k]+'" aria-label="'+t+'"></button></div>';
-  panel.innerHTML='<h4>Einstellungen</h4>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('speak','Jarvis spricht','Aus = Jarvis antwortet nur als Text')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad')+'<div class="r"><div>KI-Anbieter<small>Bevorzugt für Chat und Jarvis. Fällt er aus (z. B. Gemini überlastet), springt automatisch der nächste ein. Stimme und Spracherkennung bleiben bei Gemini.</small></div><select id="lb-prov" aria-label="KI-Anbieter" style="min-height:40px;border-radius:10px;background:rgba(6,12,22,.7);color:inherit;border:1px solid var(--edge);padding:0 8px">'+[['gemini','Gemini'],['groq','Groq (Llama)'],['openrouter','OpenRouter'],['mistral','Mistral']].map(p=>'<option value="'+p[0]+'"'+(S.provider===p[0]?' selected':'')+'>'+p[1]+'</option>').join('')+'</select></div>';
+  panel.innerHTML='<h4>Einstellungen</h4>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
   document.body.append(panel);
-  panel.querySelector('#lb-prov').onchange=e=>{setSetting('provider',e.target.value);sound('on')};
   nav.querySelector('#lb-gear').onclick=()=>{panel.hidden=!panel.hidden;sound(panel.hidden?'off':'on')};
   document.addEventListener('pointerdown',e=>{if(!panel.hidden&&!panel.contains(e.target)&&!nav.querySelector('#lb-gear').contains(e.target))panel.hidden=true},true);
   panel.querySelectorAll('.lb-sw').forEach(b=>b.onclick=async()=>{
@@ -144,7 +147,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('vendor/three.min.js?v=150');await loadScript('bg3d.js?v=1')}catch(e){bgStarted=false}
+  try{await loadScript('vendor/three.min.js?v=150');await loadScript('bg3d.js?v=2')}catch(e){bgStarted=false}
 }
 /* ---------- Start ---------- */
 const API={TABS,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
