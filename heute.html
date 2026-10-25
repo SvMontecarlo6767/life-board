@@ -172,6 +172,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 <script src="engine.js"></script>
 <script src="puzzle-dop.js"></script>
 <script src="whoop-auto.js"></script>
+<script src="dop-account.js"></script>
 <script>
 (async function(){
 const E=window.LBEngine, PD=window.PuzzleDop, WA=window.WhoopAuto;
@@ -202,64 +203,10 @@ async function wfetch(path,opts){
   return d;
 }
 
-/* ---------- Rechnen ---------- */
-const dayOf=k=>DAYS[k]||null;
-const versionOf=k=>(DAYS[k]&&DAYS[k].rulesVersion)||CURV;
-function puzFor(k){
-  const d=DAYS[k];
-  if(d&&d.closed&&d.puz!==undefined)return d.puz;
-  return PUZ[k]===undefined?null:PUZ[k];
-}
-function learnFor(k){
-  const d=DAYS[k];
-  if(d&&d.closed&&d.learn!==undefined)return d.learn||{};
-  return LEARN[k]||{};
-}
-function blockedFor(k,rules){
-  const b={};
-  for(const a of rules.actions){
-    if(!a.period)continue;
-    const pk=E.periodKey(a.period,k);
-    for(const d of Object.keys(DAYS)){
-      if(d===k)continue;
-      const dc=DAYS[d].a||{};
-      if(E.periodKey(a.period,d)===pk&&(dc[a.id]|0)>0){b[a.id]=d;break}
-    }
-  }
-  return b;
-}
-function sportInput(rules,inp){return rules.ui.buttons.some(b=>b.group==='sport'&&(inp[b.id]|0)>0)}
-/* Alles zu einem Tag: Eingaben + Whoop-Automatik -> Aktionen -> Punkte */
-function calc(k){
-  const d=DAYS[k]||{};const v=versionOf(k);const rules=RULES[v]||RULES[CURV];
-  if(v<2){ // altes Regelwerk: nur Anzeige
-    const res=E.computeDay(rules,d.a||{},{puz:puzFor(k),blocked:{}});
-    return{rules,res,counts:d.a||{},auto:{},why:{},whoopHas:{},legacy:true,blocked:{},row:null,have:{}};
-  }
-  const inp=d.in||{};
-  const whoopHas={};
-  if(WH&&Object.keys(WH).length){const wm=WA.workoutMinutes(WH,k);rules.ui.buttons.forEach(b=>{if(b.whoop&&wm[b.whoop]>=b.tiers[0].min)whoopHas[b.whoop]=wm[b.whoop]})}
-  const manual=E.deriveCounts(rules,inp,Object.fromEntries(rules.ui.buttons.filter(b=>b.whoop&&whoopHas[b.whoop]).map(b=>[b.id,true])));
-  let auto,why={},row=null,have={};
-  const frozen=d.closed&&d.auto;
-  if(frozen){auto=d.auto;why=d.autoWhy||{}}
-  else if(WHSTATE==='ok'){
-    const prev=DAYS[E.addDays(k,-1)];
-    const a=WA.autoDay(WH,k,{final:k<today,target:SETTINGS.bedtimeTarget||null,prevAlcohol:!!(prev&&prev.in&&(prev.in.alkohol|0)>0),manualSport:sportInput(rules,inp)});
-    auto=a.counts;why=a.why;row=a.row;have=a.have;
-  }else{auto=d.auto||{};why=d.autoWhy||{}}   // Whoop gerade nicht da: zuletzt gespeicherten Whoop-Stand benutzen, nie 0
-  let counts=E.mergeCounts(manual,auto);counts=E.mergeCounts(counts,d.x||{});counts=E.mergeCounts(counts,learnFor(k));
-  const blocked=blockedFor(k,rules);
-  const res=E.computeDay(rules,counts,{puz:puzFor(k),blocked});
-  return{rules,res,counts,auto,why,whoopHas,legacy:false,blocked,row,have,inp};
-}
-/* Konto: abgeschlossene Tage mit ihrem gespeicherten Wert, alle anderen live aus Whoop + Eingaben */
-function netOf(k){
-  const d=DAYS[k];if(!d)return 0;
-  if(d.closed||versionOf(k)<2||WHSTATE!=='ok')return d.net||0;
-  return calc(k).res.net;
-}
-function priorAccount(k){let s=0;for(const d of Object.keys(DAYS)){if(d!==k)s+=netOf(d)}return s}
+/* ---------- Rechnen (dop-account.js, gemeinsam mit dem Hub) ---------- */
+const A=LBAccount.create({E,WA,CURV,RULES,get DAYS(){return DAYS},get PUZ(){return PUZ},get LEARN(){return LEARN},get SETTINGS(){return SETTINGS},
+  get WH(){return WH},get WHSTATE(){return WHSTATE},get today(){return today}});
+const {versionOf,puzFor,learnFor,sportInput,calc,netOf,priorAccount}=A;
 function levelOf(k){const c=calc(k);return E.levelInfo(c.rules,priorAccount(k)+c.res.net).level}
 
 /* ---------- Speichern ---------- */
@@ -300,11 +247,21 @@ async function flush(k){
     else showMsg('<b>Nicht gespeichert:</b> '+esc(e.message||e)+' – deine Eingaben sind lokal gesichert und werden beim nächsten Öffnen erneut gesendet.',true);
   }
 }
+/* Tage ohne Eintrag (Board nicht geöffnet), an denen Whoop, Puzzle oder Lernen Punkte bringen, als Eintrag speichern.
+   Sonst fehlen sie im Konto und jeder neue Tag rechnet vom alten Stand aus weiter. */
+function fillGaps(){
+  if(WHSTATE!=='ok')return;
+  const ks=A.missingDays();if(!ks.length)return;
+  const p=lsGet();
+  for(const k of ks)p[k]=buildDoc(k);
+  lsSet(p);saveCache();
+  ks.forEach(k=>flush(k));
+}
 function writeState(){
   try{
-    const acc=Object.keys(DAYS).reduce((s,d)=>s+netOf(d),0);
+    const acc=A.total();
     const li=E.levelInfo(RULES[CURV],acc),t=DAYS[today]?calc(today).res:null;
-    fs.doc(base+'/state/current').set({account:acc,level:li.level,levelProgress:li.frac,days:Object.keys(DAYS).length,rulesVersion:CURV,
+    fs.doc(base+'/state/current').set({account:acc,level:li.level,levelProgress:li.frac,days:A.accountDays().length,rulesVersion:CURV,
       todayDate:today,todayNet:t?t.net:null,todayRank:t?t.rank:null,updatedAt:Date.now()}).catch(()=>{});
   }catch(e){}
 }
@@ -391,7 +348,7 @@ function renderSummary(c){
   $('hLvlBar').style.width=(li.frac*100).toFixed(1)+'%';
   $('hLvlTxt').textContent=li.max?'Höchstes Level erreicht':fmt(li.into)+' / '+fmt(li.need)+' · noch '+fmt(li.toNext)+' bis Level '+(li.level+1);
   cu('hAcc',acc,false);
-  $('hAccTxt').textContent='davor '+fmt(prior)+' · heute '+fmt(res.net,true)+' · '+Object.keys(DAYS).length+' Tage';
+  $('hAccTxt').textContent='davor '+fmt(prior)+' · heute '+fmt(res.net,true)+' · '+A.accountDays().length+' Tage';
   const p=puzFor(cur);
   {const lc=learnFor(cur),n=(lc['WDH-01']|0)+(lc['WDH-13']|0);$('lrnCard').innerHTML='<div><b>📚 Lernrunden</b><div class="mu">'+(n?n+' Runde'+(n===1?'':'n')+' heute'+(lc['LRN-07']?', Active Recall bestanden':'')+' – zählt automatisch':'Noch keine Runde an diesem Tag')+'</div></div><a href="learn.html?v=1" class="mu">Lernen öffnen</a>'}
   $('puzCard').innerHTML='<div><b>🧩 Puzzle-Tracker (PUZ-01)</b><div class="mu">'+(p==null?'Für diesen Tag steht noch kein Puzzle im Tracker.':'Tageswert aus dem Tracker, 1:1 übernommen'+(DAYS[cur]&&DAYS[cur].closed?' (eingefroren)':''))+'</div></div><div style="display:flex;align-items:center;gap:12px"><span class="big" style="font-size:24px">'+(p==null?'–':fmt(p,true))+'</span><a href="puzzle.html" class="mu">öffnen</a></div>';
@@ -509,6 +466,7 @@ async function refreshWhoop(){
   $('whRefresh').disabled=false;
   const c=calc(cur);
   if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
+  fillGaps();
   render();
 }
 
@@ -645,6 +603,7 @@ async function boot(){
   diag('Whoop',WHSTATE==='ok',WHSTATE==='ok'?'':WHMSG);
   const c=calc(cur);
   if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&versionOf(cur)>=2&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
+  fillGaps();
   saveCache();render();writeState();window.__heuteReady=true;
 }
 
@@ -665,6 +624,6 @@ window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehle
 boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=10"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=11"></script>
 <script src="jarvis.js?v=11"></script>
 </body></html>

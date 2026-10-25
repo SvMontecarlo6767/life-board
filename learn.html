@@ -219,6 +219,6 @@ $('sync').onclick=syncNotion;
 $('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
 if(!list().length)syncNotion();
 })();
-</script><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=10"></script>
+</script><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=11"></script>
 <script src="jarvis.js?v=11"></script>
 </body></html>
