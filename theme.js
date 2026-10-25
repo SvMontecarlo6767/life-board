@@ -159,7 +159,8 @@ function start(){
   fonts();buildNav();accentIn(curTab());transitions();
   requestAnimationFrame(()=>root.classList.add('lb-ready'));
   setTimeout(reveal,60);
-  bg();
+  // 3D-Hintergrund erst laden, wenn die Seite steht (three.js ist 600 KB und soll Daten und Diagramme nicht bremsen)
+  {const later=()=>(window.requestIdleCallback||setTimeout)(()=>bg(),{timeout:2500});if(document.readyState==='complete')later();else addEventListener('load',later,{once:true})}
   listeners.push(s=>{if(!s.perf)bg();if(s.fps&&!fpsRaf)fpsLoop();});
   if(S.fps)fpsLoop();
   // gespeicherte Einstellungen vom Server holen, wenn lokal noch nichts gespeichert wurde

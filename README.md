@@ -29,6 +29,18 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Auswertung: Rekorde (Gewicht, Wiederholungen, geschätztes 1RM nach Epley) mit Meldung beim Speichern, Verlaufskurve je Übung, Sätze pro Muskelgruppe (Zuordnung nach dem Namen), Einheitenverlauf. Jede Gym-Einheit zählt als Kraft-Einheit fürs Wochenziel und die Belastung.
 - Daten: `users/{uid}/training/gym_JJJJ` (Firestore, in der Sicherung enthalten). Tests: `node tools/test-gym.mjs`, `python3 tools/browser/test_gym.py <Ordner>`.
 
+## Erinnerungen (Push)
+- Im Check-in unter „Erinnerungen“ einschalten (iPhone: Board vom Home-Bildschirm öffnen, iOS 16.4+). Tagesziele mit Uhrzeit bekommen eine 🔔 (antippen zum Ein-/Ausschalten), dazu optional der Morgen-Check, falls noch offen.
+- Nie in der Ruhezeit (Standard Mo–Fr 8:00–15:30, einstellbar); was hineinfällt, kommt direkt danach. Höchstens 4 am Tag.
+- Technik: `push-client.js` meldet das Gerät und die Ziele von heute/morgen an den Worker (`/push/*`), `sw.js` zeigt die Nachricht. Der Worker erzeugt seine VAPID-Schlüssel selbst (KV `push:vapid`), verschlüsselt nach RFC 8291 und verschickt per Cron. **Cron auf `*/5 * * * *` stellen.** Tests: `node worker/test.mjs`, `node tools/browser/test_push.mjs`.
+
+## Laden und Zwischenspeicher
+- `whoop-cache.js`: Whoop-Daten liegen pro Nutzer in IndexedDB; nach dem ersten Laden holt jede Seite nur die letzten 7 Tage vom Worker, alle 12 Stunden im Hintergrund alles. Ohne Netz bleibt der gespeicherte Stand. Test: `node tools/browser/test_cache.mjs`.
+- Der 3D-Hintergrund (three.js) lädt erst, wenn die Seite fertig ist.
+
+## Graph-Vollbild
+- `graph-full.js`: `layers` (Kurven ein-/ausschalten und vergleichen), `stack` (gestapelte Säulen mit Verteilung), `facts`/`note` (Kennzahlen und Erklärtext, auch für vergrößerte Kopien). Test: `node tools/browser/test_full.mjs`.
+
 ## App auf dem iPad
 Safari → Teilen → **Zum Home-Bildschirm**. `manifest.webmanifest`, Symbole in `icons/` und `sw.js` (Service Worker: Netz zuerst, nur bei Ausfall die zuletzt geladene Seite; Firebase, Worker und Co. werden nie zwischengespeichert). Daten kommen weiterhin aus Firestore, brauchen also Netz. Nach Änderungen an Seiten steigt der Cache-Name in `sw.js` nur bei neuen Dateien in `SHELL`.
 
@@ -44,7 +56,8 @@ Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gle
 - **Morgens, vor Whoop:** Stimmung, Energie, gefühlter Schlaf (je 1–5) und ein Gefühlswort. Erst nach dem Speichern lädt die Seite die Whoop-Recovery und zeigt beides nebeneinander („Dein Gefühl trifft die Whoop-Zone an X von Y Tagen“).
 - **Über den Tag:** Stimmung und Gedanken jederzeit festhalten. **Eigene Tracker** (Kaffee, Wasser, Handyzeit, Zeit mit Freunden … oder frei angelegt) – Definition in `settings/main.trackers`.
 - **Abends:** 3 gute Dinge (mit „weil …“), Stress 1–5, ein Satz zum Tag.
-- Punkte im Dopamin-Konto (Regelwerk v2, Kategorie MEN, in `tools/build_v2.py`): Morgen-Check 400, Abend mit 3 guten Dingen 500, Notizen 3 × 100, Tracker 150.
+- **Ziele:** Tagesziele mit Uhrzeit (abends „Ziele für morgen“ oder direkt), Wochen- und Monatsziele; erscheinen im Morgen-Check und im Hub. Daten: `journal/{Tag}.g` und `goals/W{Montag}` / `goals/M{JJJJ-MM}`.
+- Punkte im Dopamin-Konto (Regelwerk v2, Kategorie MEN, in `tools/build_v2.py`): Morgen-Check 400, Abend mit 3 guten Dingen 500, Notizen 3 × 100, Tracker 150, alle Tagesziele 300.
 - Daten: Firestore `users/{uid}/journal/{Tag}` (in der Sicherung). Logik: `journal-core.js`.
 - **Morgens automatisch öffnen:** iOS hat keinen Auslöser fürs Einschalten. Stattdessen Kurzbefehle-Automation „Whoop wird geöffnet“, die einmal pro Tag den Check-in öffnet – Anleitung unten auf der Check-in-Seite. `checkin.html?whoop=1` springt zurück zu Whoop (Kurzbefehl „Whoop öffnen“), wenn heute schon eingetragen ist.
 - Hintergrund: Gefühle benennen (Affect Labeling, Lieberman 2007), „Three Good Things“ (Seligman 2005), Aktivität + Stimmung (Verhaltensaktivierung). Reines Stimmungs-Tracking bringt allein wenig – deshalb gibt das Board über die Muster etwas zurück.

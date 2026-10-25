@@ -77,6 +77,22 @@ textarea{min-height:70px;resize:vertical}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ac);color:#fff;padding:10px 18px;border-radius:99px;font-weight:600;z-index:50;box-shadow:0 6px 24px rgba(0,0,0,.35)}
 details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;align-items:center}
 .presets{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.plan{margin:10px 0 0;padding:10px 12px;border-radius:12px;border:1px dashed var(--ac);font-size:14.5px}
+.plan b{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ac);margin-bottom:4px}
+.gl{list-style:none;margin:4px 0 0;padding:0}
+.gl li{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--bd)}
+.gl li:first-child{border-top:0}
+.gl li .ck{min-width:40px;min-height:40px;padding:0;border-radius:10px;font-size:18px}
+.gl li .ck[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
+.gl li .tx{flex:1}.gl li.done .tx{text-decoration:line-through;opacity:.6}
+.gl li time{color:var(--mu);font-size:13px}
+.gl li .del{min-height:36px;padding:0 10px;background:none;border:0;color:var(--mu)}
+.gadd{display:flex;gap:6px;margin-top:6px}.gadd input[type=text]{flex:1}.gadd input[type=time]{width:110px;flex:none}.gadd button{flex:none}
+.gl li .bell{min-height:36px;min-width:40px;padding:0 6px;background:none;border:0;font-size:17px;opacity:.35}.gl li .bell[aria-pressed=true]{opacity:1}
+.gadd label{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--mu);flex:none}
+.pr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--bd)}.pr:first-of-type{border-top:0}.pr input[type=time]{width:120px;flex:none}.pr select{width:auto}
+.days{display:flex;gap:4px}.days button{min-height:36px;min-width:36px;padding:0 6px;font-size:13px}.days button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
+.gh{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}.gh small{color:var(--mu)}
 .presets button{min-height:36px;padding:4px 12px;font-size:14px;border-radius:99px}
 </style><link rel="stylesheet" href="theme.css?v=8">
 </head><body><div class="wrap">
@@ -88,6 +104,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 <div class="save" id="save"></div>
 <div id="main" hidden>
   <section class="card" id="morning"></section>
+  <section class="card" id="goals"></section>
   <section class="card" id="nowCard">
     <h3>Gerade</h3>
     <div class="mu">Wie geht's dir jetzt? Kurz festhalten, was passiert oder dir durch den Kopf geht.</div>
@@ -100,6 +117,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
   <section class="card" id="evening"></section>
   <section class="card"><h3>Letzte 7 Tage</h3><div class="week" id="week"></div>
     <div class="mu" style="margin-top:10px">Zusammenhänge und Rückblick: <a href="muster.html?v=1">Muster ansehen</a></div></section>
+  <section class="card" id="push"></section>
   <details class="card" id="setup"><summary>Morgens automatisch öffnen (iPhone)</summary>
     <div class="mu" style="line-height:1.5">
       <p>Eine Webseite merkt nicht, wann du dein Handy einschaltest – iOS bietet dafür auch keinen Auslöser. Am besten passt: <b>Check-in öffnet sich, sobald du morgens Whoop öffnest</b>, einmal pro Tag. So trägst du deine Stimmung ein, bevor du die Recovery siehst.</p>
@@ -125,6 +143,8 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 <script src="fb.js"></script>
 <script src="engine.js"></script>
 <script src="journal-core.js"></script>
+<script src="whoop-cache.js"></script>
+<script src="push-client.js"></script>
 <script>
 (async function(){
 const E=window.LBEngine,J=window.LBJournal;
@@ -135,9 +155,12 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
 const tmo=(p,ms,n)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error(n+': Zeitüberschreitung')),ms))]);
 const fromWhoop=new URLSearchParams(location.search).has('whoop');
-let user,base,today,cur,JD={},SET={},WH=null,draftM=null,draftE=null,nowMood=null,editTrk=false;
+let user,base,today,cur,JD={},SET={},GOALS={},WH=null,PUSH={on:false,cfg:null},draftM=null,draftE=null,nowMood=null,editTrk=false;
 const PKEY=()=>'lb_pending_journal_'+user.uid;
 
+async function api(path,body){const t=await user.getIdToken();const r=await tmo(fetch(WORKER+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}),15000,'Worker');const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('Fehler '+r.status));return d}
+const inSchool=at=>{const q=(PUSH.cfg&&PUSH.cfg.quiet)||{days:[1,2,3,4,5],from:'08:00',to:'15:30'},[y,m,d]=cur.split('-').map(Number),dow=new Date(Date.UTC(y,m-1,d)).getUTCDay();return at&&q.days.includes(dow)&&at>=q.from&&at<q.to?q.to:null};
+function syncPush(){if(PUSH.on)LBPush.syncGoals(api,JD,today,E.addDays)}
 function showMsg(h,w){$('msg').innerHTML=h?'<div class="info'+(w?' warn':'')+'">'+h+'</div>':''}
 function setSave(t,err){const s=$('save');s.textContent=t;s.className='save'+(err?' err':'')}
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.remove(),2200)}
@@ -158,7 +181,7 @@ async function save(k,pts){
     const q=pget();if(q[k]&&q[k].updatedAt<=doc.updatedAt){delete q[k];pset(q)}
     setSave('gespeichert ✓ '+hm(Date.now()));
   }catch(e){setSave('NICHT gespeichert – lokal gesichert',true);showMsg('<b>Nicht gespeichert:</b> '+esc(errText(e))+'. Dein Eintrag ist auf diesem Gerät gesichert und wird beim nächsten Öffnen erneut gesendet.',true)}
-  if(pts!==false){const after=J.counts(doc),gain={'MEN-01':400,'MEN-02':500,'MEN-03':100,'MEN-04':150};let g=0;for(const id in gain)g+=Math.max(0,(after[id]|0)-(before[id]|0))*gain[id];if(g)toast('+'+g+' Dopamin')}
+  if(pts!==false){const after=J.counts(doc),gain={'MEN-01':400,'MEN-02':500,'MEN-03':100,'MEN-04':150,'MEN-05':300};let g=0;for(const id in gain)g+=Math.max(0,(after[id]|0)-(before[id]|0))*gain[id];if(g)toast('+'+g+' Dopamin')}
 }
 
 /* ---------- Bausteine ---------- */
@@ -178,6 +201,8 @@ function calibration(){
 }
 
 /* ---------- Morgen ---------- */
+function planHtml(k){const g=day(k).g||[];if(!g.length)return'';const sorted=g.slice().sort((a,b)=>(a.at||'99').localeCompare(b.at||'99'));
+  return '<div class="plan"><b>Dein Plan für '+(k===today?'heute':dateLabel(k))+'</b>'+sorted.map(x=>(x.done?'✓ ':'• ')+(x.at?x.at+' · ':'')+esc(x.t)).join('<br>')+'</div>'}
 function renderMorning(){
   const d=day(cur),m=d.m,el=$('morning');
   const hr=new Date().getHours();el.classList.toggle('now',cur===today&&!m&&hr<14);
@@ -186,12 +211,12 @@ function renderMorning(){
     el.innerHTML='<h3>Morgen'+(m.at?' · '+hm(m.at):'')+'</h3><div class="sum"><span>'+J.EMO[m.mood-1]+' Stimmung <b>'+m.mood+'</b>/5</span><span>⚡ Energie <b>'+m.energy+'</b>/5</span>'+(m.sleep?'<span>😴 Schlaf gefühlt <b>'+m.sleep+'</b>/5</span>':'')+(m.feel?'<span>„'+esc(m.feel)+'“</span>':'')+'</div>'
       +'<div class="cmp"><div><span class="mu">Gefühlt erholt</span><b>'+(m.sleep||m.energy)+'/5</b><span class="mu">'+esc(J.SCALE.sleep[(m.sleep||m.energy)-1])+'</span></div><div><span class="mu">Whoop-Recovery</span><b class="rec-'+recZone(r)+'">'+(r==null?(WH?'–':'…'):r+' %')+'</b><span class="mu">'+(r==null?(WH?'noch keine Daten':'wird geladen'):r>=67?'grün':r>=34?'gelb':'rot')+'</span></div></div>'
       +(cal?'<div class="mu" style="margin-top:8px">Dein Gefühl trifft die Whoop-Zone an <b>'+cal.hit+' von '+cal.n+'</b> Tagen.</div>':'')
-      +'<div class="act"><button id="mEdit">Ändern</button>'+(cur===today?'<a href="'+WHOOP_BACK+'" style="flex:1;display:flex"><button class="primary" style="flex:1">Weiter zu Whoop</button></a>':'')+'</div>';
+      +planHtml(cur)+'<div class="act"><button id="mEdit">Ändern</button>'+(cur===today?'<a href="'+WHOOP_BACK+'" style="flex:1;display:flex"><button class="primary" style="flex:1">Weiter zu Whoop</button></a>':'')+'</div>';
     $('mEdit').onclick=()=>{draftM=Object.assign({},m);renderMorning()};
     return;
   }
   const dm=draftM||(draftM={});
-  el.innerHTML='<h3>Morgen</h3><div class="mu">Bevor du auf Whoop schaust: Wie fühlst du dich – ehrlich, aus dem Bauch?</div>'
+  el.innerHTML='<h3>Morgen</h3><div class="mu">Bevor du auf Whoop schaust: Wie fühlst du dich – ehrlich, aus dem Bauch?</div>'+planHtml(cur)
     +'<div class="q">Stimmung</div>'+scale('mood','mood',dm.mood,true)
     +'<div class="q">Energie</div>'+scale('energy','energy',dm.energy,false)
     +'<div class="q">Wie ausgeschlafen fühlst du dich?</div>'+scale('sleep','sleep',dm.sleep,false)
@@ -202,7 +227,68 @@ function renderMorning(){
   bindScale(el,(k,v)=>{dm[k]=v;renderMorning()});
   el.querySelectorAll('.chips button').forEach(b=>b.onclick=()=>{dm.feel=dm.feel===b.textContent?'':b.textContent;renderMorning()});
   if($('mCancel'))$('mCancel').onclick=()=>{draftM=null;renderMorning()};
-  $('mSave').onclick=async()=>{const d=day(cur);d.m={mood:dm.mood,energy:dm.energy,sleep:dm.sleep||null,feel:dm.feel||'',at:(d.m&&d.m.at)||Date.now()};draftM=null;await save(cur);render();loadWhoop()};
+  $('mSave').onclick=async()=>{const d=day(cur);d.m={mood:dm.mood,energy:dm.energy,sleep:dm.sleep||null,feel:dm.feel||'',at:(d.m&&d.m.at)||Date.now()};draftM=null;await save(cur);render();loadWhoop();if(PUSH.on&&cur===today)LBPush.done(api,cur)};
+}
+
+/* ---------- Ziele: Tag (mit Uhrzeit), Woche, Monat ---------- */
+const weekId=k=>'W'+E.weekKey(k),monthId=k=>'M'+k.slice(0,7);
+async function saveGoals(id,items){GOALS[id]={items:J.cleanGoals(items,false),updatedAt:Date.now()};setSave('speichert …');
+  try{await tmo(fs.doc(base+'/goals/'+id).set(GOALS[id]),10000,'Speichern');setSave('gespeichert ✓ '+hm(Date.now()))}catch(e){setSave('Ziel NICHT gespeichert',true);showMsg('Ziel nicht gespeichert: '+esc(errText(e)),true)}}
+function goalList(items,kind){
+  return '<ul class="gl">'+items.map((x,i)=>'<li class="'+(x.done?'done':'')+'"><button class="ck" type="button" data-'+kind+'-ck="'+i+'" aria-pressed="'+x.done+'" aria-label="erledigt">'+(x.done?'✓':'')+'</button><span class="tx">'+esc(x.t)+(x.r&&inSchool(x.at)?'<br><small class="mu">in der Schulzeit – Erinnerung kommt um '+inSchool(x.at)+'</small>':'')+'</span>'+(x.at?'<time>'+x.at+'</time>':'')+(kind==='d'&&x.at?'<button class="bell" type="button" data-d-bell="'+i+'" aria-pressed="'+!!x.r+'" aria-label="Erinnerung" title="Erinnerung '+(x.r?'an':'aus')+'">🔔</button>':'')+'<button class="del" type="button" data-'+kind+'-del="'+i+'" aria-label="Ziel löschen">✕</button></li>').join('')+'</ul>';
+}
+function renderGoals(){
+  const el=$('goals'),dg=(day(cur).g||[]).slice().sort((a,b)=>(a.at||'99').localeCompare(b.at||'99')),wid=weekId(cur),mid=monthId(cur);
+  const wk=(GOALS[wid]||{}).items||[],mo=(GOALS[mid]||{}).items||[],ws=E.weekKey(cur);
+  const cnt=a=>a.length?' <small>'+a.filter(x=>x.done).length+'/'+a.length+'</small>':'';
+  el.innerHTML='<h3>Ziele</h3><div class="mu">Klein und konkret wirkt am besten: was, wann – z. B. „18:00 Kraft Unterkörper“.</div>'
+    +'<div class="gh"><b>'+(cur===today?'Heute':dateLabel(cur))+cnt(dg)+'</b>'+(dg.length&&dg.every(x=>x.done)?'<small>alles geschafft · +300</small>':'')+'</div>'+goalList(dg,'d')
+    +'<div class="gadd"><input type="text" id="gdT" maxlength="140" placeholder="Ziel für '+(cur===today?'heute':'diesen Tag')+' …"><input type="time" id="gdA" aria-label="Uhrzeit"><button type="button" id="gdAdd">+</button></div>'
+    +(PUSH.on?'<div class="mu" style="margin-top:4px">Mit Uhrzeit bekommst du eine Erinnerung (🔔 antippen zum Ein-/Ausschalten).</div>':'')
+    +'<div class="gh"><b>Diese Woche'+cnt(wk)+'</b><small>'+dateLabel(ws).slice(4)+' – '+dateLabel(E.addDays(ws,6)).slice(4)+'</small></div>'+goalList(wk,'w')
+    +'<div class="gadd"><input type="text" id="gwT" maxlength="140" placeholder="Wochenziel, z. B. 5 Einheiten"><button type="button" id="gwAdd">+</button></div>'
+    +'<div class="gh"><b>'+['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][+cur.slice(5,7)-1]+cnt(mo)+'</b><small>Monatsziele</small></div>'+goalList(mo,'m')
+    +'<div class="gadd"><input type="text" id="gmT" maxlength="140" placeholder="Monatsziel …"><button type="button" id="gmAdd">+</button></div>';
+  const setDay=async list=>{day(cur).g=list;await save(cur);renderGoals();renderMorning();syncPush()};
+  el.querySelectorAll('[data-d-ck]').forEach(b=>b.onclick=()=>{const x=dg[+b.dataset.dCk];x.done=!x.done;setDay(dg)});
+  el.querySelectorAll('[data-d-del]').forEach(b=>b.onclick=()=>{dg.splice(+b.dataset.dDel,1);setDay(dg)});
+  el.querySelectorAll('[data-d-bell]').forEach(b=>b.onclick=()=>{const x=dg[+b.dataset.dBell];x.r=!x.r;setDay(dg)});
+  $('gdAdd').onclick=()=>{const t=$('gdT').value.trim();if(!t)return;const at=$('gdA').value||'';setDay(dg.concat({t,at,done:false,r:!!(at&&PUSH.on)}))};
+  const bind=(kind,id,list)=>{el.querySelectorAll('[data-'+kind+'-ck]').forEach(b=>b.onclick=async()=>{const x=list[+b.getAttribute('data-'+kind+'-ck')];x.done=!x.done;await saveGoals(id,list);renderGoals()});
+    el.querySelectorAll('[data-'+kind+'-del]').forEach(b=>b.onclick=async()=>{list.splice(+b.getAttribute('data-'+kind+'-del'),1);await saveGoals(id,list);renderGoals()})};
+  bind('w',wid,wk);bind('m',mid,mo);
+  $('gwAdd').onclick=async()=>{const t=$('gwT').value.trim();if(!t)return;await saveGoals(wid,wk.concat({t,done:false}));renderGoals()};
+  $('gmAdd').onclick=async()=>{const t=$('gmT').value.trim();if(!t)return;await saveGoals(mid,mo.concat({t,done:false}));renderGoals()};
+  [['gdT','gdAdd'],['gwT','gwAdd'],['gmT','gmAdd']].forEach(([i,b])=>{$(i).onkeydown=e=>{if(e.key==='Enter')$(b).click()}});
+}
+
+/* ---------- Erinnerungen (Push) ---------- */
+async function renderPush(){
+  const el=$('push');let st;try{st=await LBPush.state()}catch(e){st={ok:false,why:'unsupported'}}
+  PUSH.on=!!(st.ok&&st.on);
+  if(!st.ok){el.innerHTML='<h3>Erinnerungen</h3><div class="mu">'+(st.why==='homescreen'?'Auf dem iPhone kommen Erinnerungen nur, wenn das Board als App auf dem Home-Bildschirm liegt: Safari → Teilen → „Zum Home-Bildschirm“, dann von dort öffnen.':st.why==='denied'?'Mitteilungen sind für das Board ausgeschaltet. Einstellungen → Mitteilungen → Life Board → „Mitteilungen erlauben“.':'Dieses Gerät oder dieser Browser unterstützt keine Push-Mitteilungen.')+'</div>';return}
+  if(!PUSH.on){el.innerHTML='<h3>Erinnerungen</h3><div class="mu">Wenige, die zählen: an deine Tagesziele zur geplanten Uhrzeit und an den Morgen-Check, falls du ihn vergisst. Nie in der Schulzeit (Mo–Fr 8:00–15:30), höchstens 4 am Tag.</div><div class="act"><button class="primary" id="pOn">Erinnerungen einschalten</button></div>';
+    $('pOn').onclick=async()=>{$('pOn').disabled=true;try{await LBPush.enable(api);toast('Erinnerungen an');await renderPush();syncPush();renderGoals()}catch(e){showMsg('Einschalten hat nicht geklappt: '+esc(e.message==='denied'?'Mitteilungen wurden nicht erlaubt':e.message),true);$('pOn').disabled=false}};return}
+  if(!PUSH.cfg){try{PUSH.cfg=await api('/push/status')}catch(e){PUSH.cfg={quiet:{days:[1,2,3,4,5],from:'08:00',to:'15:30'},morning:{on:true,wd:'06:45',we:'09:30'},lead:0}}}
+  const c=PUSH.cfg,q=c.quiet,m=c.morning,WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  el.innerHTML='<h3>Erinnerungen · an</h3>'
+    +'<div class="pr"><span>Morgen-Check, falls noch offen</span><button type="button" id="pM" aria-pressed="'+m.on+'">'+(m.on?'an':'aus')+'</button></div>'
+    +(m.on?'<div class="pr"><span>Mo–Fr um</span><input type="time" id="pMwd" value="'+m.wd+'"></div><div class="pr"><span>Sa/So um</span><input type="time" id="pMwe" value="'+m.we+'"></div>':'')
+    +'<div class="pr"><span>Tagesziele</span><select id="pLead"><option value="0">zur Uhrzeit</option><option value="10">10 Min vorher</option><option value="15">15 Min vorher</option><option value="30">30 Min vorher</option></select></div>'
+    +'<div class="pr"><span>Ruhezeit (Schule) ab</span><input type="time" id="pQf" value="'+q.from+'"></div><div class="pr"><span>bis</span><input type="time" id="pQt" value="'+q.to+'"></div>'
+    +'<div class="pr"><span></span><div class="days">'+[1,2,3,4,5,6,0].map(d=>'<button type="button" data-qd="'+d+'" aria-pressed="'+q.days.includes(d)+'">'+WD[d]+'</button>').join('')+'</div></div>'
+    +'<div class="mu" style="margin-top:6px">Höchstens 4 am Tag. Erinnerungen, die in die Ruhezeit fallen, kommen direkt danach.</div>'
+    +'<div class="act"><button id="pTest">Test senden</button><button id="pOff">Ausschalten</button></div>';
+  $('pLead').value=String(c.lead||0);
+  const put=async()=>{try{await LBPush.config(api,{quiet:c.quiet,morning:c.morning,lead:c.lead});setSave('Erinnerungen gespeichert ✓')}catch(e){showMsg('Nicht gespeichert: '+esc(e.message),true)}};
+  $('pM').onclick=()=>{m.on=!m.on;put();renderPush()};
+  if($('pMwd'))$('pMwd').onchange=()=>{if($('pMwd').value){m.wd=$('pMwd').value;put()}};
+  if($('pMwe'))$('pMwe').onchange=()=>{if($('pMwe').value){m.we=$('pMwe').value;put()}};
+  $('pLead').onchange=()=>{c.lead=+$('pLead').value;put()};
+  $('pQf').onchange=()=>{if($('pQf').value){q.from=$('pQf').value;put();renderGoals()}};$('pQt').onchange=()=>{if($('pQt').value){q.to=$('pQt').value;put();renderGoals()}};
+  el.querySelectorAll('[data-qd]').forEach(b=>b.onclick=()=>{const d=+b.dataset.qd;q.days=q.days.includes(d)?q.days.filter(x=>x!==d):q.days.concat(d);put();renderPush();renderGoals()});
+  $('pTest').onclick=async()=>{try{const r=await LBPush.test(api);toast(r.sent?'Test gesendet':'Kein Gerät erreicht')}catch(e){showMsg('Test fehlgeschlagen: '+esc(e.message),true)}};
+  $('pOff').onclick=async()=>{await LBPush.disable(api);PUSH.on=false;toast('Erinnerungen aus');renderPush();renderGoals()};
 }
 
 /* ---------- Gerade (über den Tag) ---------- */
@@ -266,12 +352,20 @@ function renderEvening(){
     +[0,1,2].map(i=>'<input data-g="'+i+'" style="margin-top:8px" placeholder="'+(i+1)+'. … weil …" value="'+esc(de.good[i]||'')+'">').join('')
     +'<div class="q">Stress heute</div>'+scale('stress','stress',de.stress,false)
     +'<div class="q">Ein Satz zum Tag <small>optional</small></div><textarea id="eLine" placeholder="Was nimmst du mit?">'+esc(de.line||'')+'</textarea>'
+    +'<div class="q">Ziele für morgen <small>siehst du beim Morgen-Check</small></div>'+((day(E.addDays(cur,1)).g||[]).length?'<div class="mu">Schon geplant: '+day(E.addDays(cur,1)).g.map(x=>(x.at?x.at+' ':'')+esc(x.t)).join(' · ')+'</div>':'')
+    +[0,1,2].map(i=>'<div class="gadd"><input type="text" data-tg="'+i+'" maxlength="140" placeholder="'+['z. B. Kraft Unterkörper','z. B. 30 Min lernen','optional'][i]+'" value="'+esc((de.tg||[])[i]&&de.tg[i].t||'')+'"><input type="time" data-ta="'+i+'" aria-label="Uhrzeit" value="'+esc((de.tg||[])[i]&&de.tg[i].at||'')+'"></div>').join('')
     +'<div class="act">'+(e?'<button id="eCancel">Abbrechen</button>':'')+'<button class="primary" id="eSave">Speichern</button></div>';
   el.querySelectorAll('[data-g]').forEach(i=>i.oninput=()=>{de.good[+i.dataset.g]=i.value});
   $('eLine').oninput=()=>{de.line=$('eLine').value};
+  de.tg=de.tg||[{},{},{}];
+  el.querySelectorAll('[data-tg]').forEach(i=>i.oninput=()=>{de.tg[+i.dataset.tg].t=i.value});
+  el.querySelectorAll('[data-ta]').forEach(i=>i.oninput=()=>{de.tg[+i.dataset.ta].at=i.value});
   bindScale(el,(k,v)=>{de[k]=de[k]===v?null:v;renderEvening()});
   if($('eCancel'))$('eCancel').onclick=()=>{draftE=null;renderEvening()};
-  $('eSave').onclick=async()=>{const d=day(cur);d.e={good:de.good,stress:de.stress,line:de.line,at:(d.e&&d.e.at)||Date.now()};draftE=null;await save(cur);renderEvening();renderWeek()};
+  $('eSave').onclick=async()=>{const d=day(cur);d.e={good:de.good,stress:de.stress,line:de.line,at:(d.e&&d.e.at)||Date.now()};
+    const nk=E.addDays(cur,1),add=(de.tg||[]).filter(x=>x&&x.t&&x.t.trim()).map(x=>({t:x.t.trim(),at:x.at||'',done:false,r:!!(x.at&&PUSH.on)}));
+    if(add.length){const nd=day(nk);nd.g=(nd.g||[]).concat(add.filter(a=>!(nd.g||[]).some(b=>b.t===a.t)));await save(nk,false);syncPush()}
+    draftE=null;await save(cur);renderEvening();renderWeek()};
 }
 
 /* ---------- Woche ---------- */
@@ -285,7 +379,7 @@ function renderWeek(){
 function render(){
   $('dt').innerHTML=dateLabel(cur)+'<small>'+(cur===today?'heute':'')+'</small>';
   $('next').disabled=cur>=today;
-  renderMorning();renderNow();renderTrackers();renderEvening();renderWeek();
+  renderMorning();renderGoals();renderNow();renderTrackers();renderEvening();renderWeek();
 }
 function go(k){cur=k;draftM=null;draftE=null;nowMood=null;render();window.scrollTo(0,0)}
 $('prev').onclick=()=>go(E.addDays(cur,-1));
@@ -294,8 +388,8 @@ $('next').onclick=()=>{if(cur<today)go(E.addDays(cur,1))};
 /* Whoop erst nach dem Morgen-Check laden, damit die Zahl dein Gefühl nicht beeinflusst */
 async function loadWhoop(){
   if(WH)return;
-  try{const t=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+E.addDays(today,-60)+'&to='+today,{headers:{Authorization:'Bearer '+t}}),15000,'Whoop');
-    const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);WH=d.days||{};}catch(e){WH={}}
+  const wget=async(f,t)=>{const tk=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+f+'&to='+t,{headers:{Authorization:'Bearer '+tk}}),15000,'Whoop');const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);return d};
+  try{WH=await LBWhoop.load({uid:user.uid,from:E.addDays(today,-365),to:today,fetch:wget})}catch(e){WH={}}
   renderMorning();
 }
 
@@ -306,12 +400,14 @@ async function boot(){
   base='users/'+user.uid;today=E.dayKey(new Date(),'Europe/Berlin',4);cur=today;
   $('ckUrl').textContent=location.href.split(/[?#]/)[0]+'?whoop=1';
   try{
-    const [js,ss]=await Promise.all([tmo(fs.collection(base+'/journal').get(),10000,'Check-in'),tmo(fs.doc(base+'/settings/main').get(),10000,'Einstellungen')]);
+    const [js,ss,gs]=await Promise.all([tmo(fs.collection(base+'/journal').get(),10000,'Check-in'),tmo(fs.doc(base+'/settings/main').get(),10000,'Einstellungen'),tmo(fs.collection(base+'/goals').get(),10000,'Ziele').catch(()=>({docs:[]}))]);
+    gs.docs.forEach(x=>{GOALS[x.id]=x.data()});
     js.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))JD[x.id]=x.data()});SET=ss.exists?ss.data():{};
   }catch(e){showMsg('<b>Laden fehlgeschlagen:</b> '+esc(errText(e))+'. Neue Einträge werden lokal gesichert.',true)}
   const p=pget();
   for(const k of Object.keys(p)){if(!JD[k]||(JD[k].updatedAt||0)<=(p[k].updatedAt||0)){JD[k]=p[k];save(k,false)}}
   $('main').hidden=false;render();
+  renderPush().then(()=>{if(PUSH.on){syncPush();renderGoals()}}).catch(()=>{});
   if(day(today).m)loadWhoop();
   if(fromWhoop&&day(today).m)setTimeout(()=>{location.href=WHOOP_BACK},400);   // heute schon eingetragen: direkt zurück zu Whoop
   window.__checkinReady=true;
@@ -319,5 +415,5 @@ async function boot(){
 boot().catch(e=>showMsg('Fehler: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=12"></script>
+<script src="theme.js?v=13"></script>
 </body></html>

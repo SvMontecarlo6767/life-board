@@ -5,8 +5,8 @@
 const C = window.TrainingCore, V = window.TrainingViz, F = C.fmt, esc = V.esc;
 const f0 = v => F.num(v, 0), f1 = v => F.num(v, 1);
 const $ = id => document.getElementById(id);
-const SC = { Lauf: '#ff5460', Trail: '#ff7a85', Rad: '#6fd3ff', Kraft: '#ff9a5c', Wandern: '#5ee6a8', Schwimmen: '#4fa8ff', 'Fußball': '#d8ff4f', Basketball: '#ffd24f', Tennis: '#b8e04f', Klettern: '#b58cff', HIIT: '#ff6fb5', Yoga: '#9be7d8', Boxen: '#ff8a4f', Sonstiges: '#8fa6bd' };
-const EMO = { Lauf: '🏃', Trail: '⛰️', Rad: '🚴', Kraft: '🏋️', Wandern: '🥾', Schwimmen: '🏊', 'Fußball': '⚽', Basketball: '🏀', Tennis: '🎾', Klettern: '🧗', HIIT: '🔥', Yoga: '🧘', Boxen: '🥊', Sonstiges: '✨' };
+const SC = { Lauf: '#ff5460', Trail: '#ff7a85', Rad: '#6fd3ff', Kraft: '#ff9a5c', Wandern: '#5ee6a8', Schwimmen: '#4fa8ff', 'Fußball': '#d8ff4f', Basketball: '#ffd24f', Tennis: '#b8e04f', Klettern: '#b58cff', HIIT: '#ff6fb5', Yoga: '#9be7d8', Isometrie: '#7fe3ff', Plyometrie: '#ffe066', Sonstiges: '#8fa6bd' };
+const EMO = { Lauf: '🏃', Trail: '⛰️', Rad: '🚴', Kraft: '🏋️', Wandern: '🥾', Schwimmen: '🏊', 'Fußball': '⚽', Basketball: '🏀', Tennis: '🎾', Klettern: '🧗', HIIT: '🔥', Yoga: '🧘', Isometrie: '🧱', Plyometrie: '⚡', Sonstiges: '✨' };
 const KM_SPORTS = ['Lauf', 'Trail', 'Rad', 'Wandern', 'Schwimmen'];
 const RPE_W = ['', 'kaum', 'sehr leicht', 'leicht', 'locker', 'mittel', 'fordernd', 'hart', 'sehr hart', 'am Limit', 'alles'];
 const S = { R: null, ctx: null, sport: 'Kraft', rpe: 6, wmode: 'h', skymode: 'h', logSport: 'Alle', logAll: false, draft: null };
@@ -18,8 +18,10 @@ const wdOf = di => (((di + 3) % 7) + 7) % 7;
 const pl = (n, a, b) => n === 1 ? a : b;
 
 /* ---------- Texte ---------- */
+/* Ohne eigenes Wochenziel: dein Schnitt der letzten 8 vollen Wochen (mindestens 3) */
+function autoGoal(R) { const d = R && R.weeks ? R.weeks.filter(w => !w.cur).slice(-8) : []; return d.length ? Math.max(3, Math.round(d.reduce((s, w) => s + w.sessions, 0) / d.length)) : 3 }
 function stats(R, st) {
-  const goal = st.goal || 3, wk = R.weeks[R.weeks.length - 1], done = R.weeks.filter(w => !w.cur);
+  const goal = st.goal || autoGoal(R), wk = R.weeks[R.weeks.length - 1], done = R.weeks.filter(w => !w.cur);
   const last = R.log[0], since = last ? R.todayDi - C.dayIdxOfKey(last.date) : null;
   const l8 = done.slice(-8), hit = l8.filter(w => w.sessions >= goal).length;
   let streak = 0; for (let i = done.length - 1; i >= 0 && done[i].sessions >= goal; i--) streak++;
@@ -127,14 +129,15 @@ function bindAdd(host) {
   });
   estLoad();
 }
-function profileCard(st) {
+function profileCard(st, R) {
+  const ag = autoGoal(R);
   return '<div class="card s5 fm" id="m-profile"><h2>Dein Profil</h2><label for="pName">Name</label><input id="pName" type="text" maxlength="30" value="' + esc(st.name || '') + '">' +
-    '<label>Wochenziel · Einheiten pro Woche</label><div class="seg" id="pGoal" role="group" aria-label="Wochenziel">' + [1, 2, 3, 4, 5, 6, 7].map(n => '<button type="button" data-g="' + n + '" aria-pressed="' + (n === (st.goal || 3)) + '">' + n + '</button>').join('') + '</div>' +
+    '<label>Wochenziel · Einheiten pro Woche' + (st.goal ? '' : ' <small style="opacity:.7">(noch nicht gesetzt – automatisch ' + ag + ' aus deinem Schnitt der letzten 8 Wochen)</small>') + '</label><div class="seg" id="pGoal" role="group" aria-label="Wochenziel" style="flex-wrap:wrap;border-radius:16px">' + [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14].map(n => '<button type="button" data-g="' + n + '" aria-pressed="' + (n === (st.goal || ag)) + '">' + n + '</button>').join('') + '</div>' +
     '<label for="pRest">Ruhepuls (optional, für die Belastung bei eingetragenem Puls)</label><input id="pRest" type="number" inputmode="numeric" min="30" max="90" value="' + (st.rest || '') + '" placeholder="z. B. 55">' +
     '<div class="btns"><button class="primary" id="pSave" type="button">Speichern</button></div><div class="msg" id="pMsg" aria-live="polite"></div></div>';
 }
 function bindProfile(host) {
-  let goal = S.ctx.st.goal || 3;
+  let goal = S.ctx.st.goal || autoGoal(S.R);
   host.querySelectorAll('#pGoal [data-g]').forEach(b => b.addEventListener('click', () => { goal = +b.dataset.g; host.querySelectorAll('#pGoal [data-g]').forEach(x => x.setAttribute('aria-pressed', String(x === b))) }));
   $('pSave').addEventListener('click', async () => {
     const rest = $('pRest').value === '' ? null : +$('pRest').value;
@@ -147,7 +150,7 @@ function render(host, R, ctx) {
   S.host = host; S.R = R; S.ctx = ctx;
   const st = ctx.st, ok = R && R.ok, N = narrate(R, st, new Date().getHours()), q = N.q;
   let h = '<div class="g" id="m-ueber"><div class="card s12"><div class="o1"><div class="avatar" aria-hidden="true">💪<b></b></div><div class="hello">' + esc(N.hello) + (N.name ? '<br>' + esc(N.name) + '<i>.</i>' : '') + '</div><h3 class="bh" style="margin:10px 0 4px">' + esc(N.head[0]) + ' <em>' + esc(N.head[1]) + '</em></h3><p class="sentence">' + esc(N.text) + '</p>' + (N.chips.length ? '<div class="chips">' + N.chips.map(c => '<span class="chip a">' + esc(c) + '</span>').join('') + '</div>' : '') + '</div></div></div>';
-  h += '<div class="g">' + addCard(R, st) + profileCard(st) + '</div>';
+  h += '<div class="g">' + addCard(R, st) + profileCard(st, R) + '</div>';
   h += '<h2 class="sec" id="m-gym">Gym</h2><div class="secsub">Übungen, Sätze und Gewichte – zählt automatisch fürs Wochenziel.</div><div class="g"><div class="card s12 gymcard" id="gymBox"></div></div>';
   if (ok) {
     const wk = q.wk, pct = Math.min(1, wk.sessions / q.goal);
@@ -212,9 +215,70 @@ function attachFull(R) {
   const GF = window.GraphFull; if (!GF || !R || !R.ok) return;
   const first = R.days.findIndex(d => d.act > 0), days = first < 0 ? [] : R.days.slice(first);
   const fw = R.weeks.findIndex(w => w.sessions > 0 || w.hours > 0), weeks = fw < 0 ? [] : R.weeks.slice(fw);
-  GF.attach('#c-form', { id: 't-form', title: 'Form (Fitness minus Ermüdung)', alias: ['form', 'trainingsform'], unit: '', dir: 1, digits: 0, series: () => R.series.map(d => ({ date: d.k, value: d.form })), extra: d => { const x = R.series.find(q => q.k === d); return x ? ['Fitness ' + Math.round(x.fit) + ' · Ermüdung ' + Math.round(x.fat)] : [] } });
-  GF.attach('#sky', { id: 't-load', title: 'Trainingslast pro Tag', alias: ['trainingslast', 'skyline', 'load'], unit: 'Last', dir: 0, digits: 0, kind: 'bar', sum: true, series: () => days.map(d => ({ date: d.k, value: d.load })) });
-  GF.attach('#m-weeks', { id: 't-weeks', title: 'Trainingsstunden pro Woche', alias: ['trainingsstunden', 'wochenumfang'], unit: 'h', dir: 1, digits: 1, kind: 'bar', gap: 7, sum: true, series: () => weeks.map(w => ({ date: w.start, value: w.hours })), extra: d => { const w = weeks.find(q => q.start === d); return w ? [w.sessions + ' Einheiten (Woche ab ' + d.slice(8, 10) + '.' + d.slice(5, 7) + '.)'] : [] } });
+  const ser = R.series.slice(Math.max(0, R.series.findIndex(d => d.fit > 0 || d.load > 0)));
+  const inR = (arr, ctx, key) => arr.filter(x => x[key || 'k'] >= ctx.from && x[key || 'k'] <= ctx.to);
+  const LOAD_NOTE = 'Trainingslast pro Einheit = Stunden × (Intensität)² × 100. Intensität = (Ø-Puls − Ruhepuls) ÷ (Schwellenpuls − Ruhepuls). Eine Stunde genau an der Schwelle ergibt 100. ' +
+    'Dein Schwellenpuls ist ' + R.thr + ' bpm' + (R.thrSrc ? ' (aus deinem schnellsten Lauf über 10–21 km am ' + F.date(R.thrSrc.date) + ')' : ' (angenommen: 89 % vom Maximalpuls, weil kein passender Lauf da ist)') + '. ' +
+    'Der Puls kommt aus den Whoop-Workouts bzw. deinem Eintrag – nicht der Whoop-Strain. Ohne Puls: aus Anstrengung (1–10) oder geschätzt nach Sportart. Mehrere Einheiten am Tag werden addiert.';
+  // Form, Fitness, Ermüdung: umschaltbar und vergleichbar
+  GF.attach('#c-form', { id: 't-form', title: 'Fitness, Ermüdung, Form', mainName: 'Form', color: '#ff9a5c', alias: ['form', 'trainingsform'], unit: '', dir: 1, digits: 0,
+    series: () => ser.map(d => ({ date: d.k, value: d.form })),
+    layers: [{ id: 'fit', name: 'Fitness', color: '#ff5460', series: () => ser.map(d => ({ date: d.k, value: d.fit })) }, { id: 'fat', name: 'Ermüdung', color: '#8fa6bd', series: () => ser.map(d => ({ date: d.k, value: d.fat })) }],
+    layersOn: ['main', 'fit', 'fat'],
+    facts: ctx => {
+      const S2 = inR(ser, ctx); if (!S2.length) return [];
+      const last = S2[S2.length - 1], peak = S2.reduce((b, d) => !b || d.fit > b.fit ? d : b, null);
+      const zone = f => f < -30 ? 'Überlastet' : f < -10 ? 'Produktiv' : f < 5 ? 'Neutral' : f <= 25 ? 'Frisch' : 'Formverlust';
+      const cnt = {}; S2.forEach(d => { const z = zone(d.form); cnt[z] = (cnt[z] || 0) + 1 });
+      return [{ l: 'Fitness am ' + F.date(last.k), v: f0(last.fit), s: 'Ø-Last der letzten 42 Tage' },
+        { l: 'Ermüdung', v: f0(last.fat), s: 'Ø-Last der letzten 7 Tage' },
+        { l: 'Form', v: F.signed(last.form, 0), s: zone(last.form), cls: last.form < -30 ? 'bad' : last.form >= -10 && last.form <= 25 ? 'good' : '' },
+        { l: 'Höchste Fitness', v: f0(peak.fit), s: F.date(peak.k) },
+        { l: 'Rampe', v: F.signed(R.ramp, 1), s: 'Fitness-Änderung in 7 Tagen (gesund: bis etwa +5)' },
+        { l: 'Tage pro Formbereich', v: '', wide: true, s: '<div class="gf-rows">' + ['Überlastet', 'Produktiv', 'Neutral', 'Frisch', 'Formverlust'].map(z => '<div><span>' + z + '</span><b>' + (cnt[z] || 0) + ' Tage</b></div>').join('') + '</div>' }];
+    },
+    note: 'Fitness = gleitender Schnitt deiner täglichen Trainingslast über 42 Tage, Ermüdung = über 7 Tage, Form = Fitness − Ermüdung. Bereiche: unter −30 überlastet, −30 bis −10 produktives Training, −10 bis +5 neutral, +5 bis +25 frisch (Wettkampfform), darüber verlierst du Fitness.\n' + LOAD_NOTE });
+  // Trainingslast pro Tag
+  GF.attach('#sky', { id: 't-load', title: 'Trainingslast pro Tag', alias: ['trainingslast', 'skyline', 'load'], unit: 'Last', dir: 0, digits: 0, kind: 'bar', sum: true, series: () => days.map(d => ({ date: d.k, value: d.load })),
+    extra: d => { const x = R._L.filter(a => a.loc.key === d); return x.map(a => (EMO[a.sport] || '') + ' ' + a.sport + ' ' + dur(a.sec) + ' → ' + f0(a.load) + (a.hr ? ' (Ø ' + a.hr + ' bpm)' : a.est ? ' (geschätzt)' : '')) },
+    facts: ctx => { const D = inR(days, ctx).filter(d => d.load > 0); if (!D.length) return [];
+      const A = R._L.filter(a => a.loc.key >= ctx.from && a.loc.key <= ctx.to), est = A.filter(a => a.est).length;
+      return [{ l: 'Ø pro Trainingstag', v: f0(D.reduce((s, d) => s + d.load, 0) / D.length) }, { l: 'Trainingstage', v: D.length },
+        { l: 'Mit Puls berechnet', v: (A.length - est) + ' von ' + A.length, s: est ? est + ' Einheiten ohne Puls und Anstrengung sind geschätzt' : 'alle Einheiten mit Puls oder Anstrengung' }] },
+    note: LOAD_NOTE });
+  // Wochen nach Sportart: gestapelt
+  const ws = weekSport(R, weeks.length || 1), wIdx = new Map(ws.ws.map((w, i) => [w.start, i]));
+  const sportsUsed = C.SPORTS.filter(sp => R.totals.hoursBy[sp] > 0);
+  GF.attach('#m-weeks', { id: 't-weeks', title: 'Wochen nach Sportart', alias: ['trainingsstunden', 'wochenumfang'], unit: 'h', dir: 1, digits: 1, kind: 'bar', gap: 7, sum: true, range: '365',
+    series: () => weeks.map(w => ({ date: w.start, value: w.hours })),
+    stack: { keys: sportsUsed.map(sp => ({ id: sp, name: (EMO[sp] || '') + ' ' + sp, color: sc(sp) })), get: d => { const i = wIdx.get(d); if (i == null) return {}; const r = ws.rows[i], o = {}; Object.keys(r).forEach(sp => o[sp] = r[sp].h); return o } },
+    extra: d => { const w = weeks.find(q => q.start === d); return w ? [w.sessions + ' Einheiten · Last ' + f0(w.load)] : [] },
+    facts: ctx => { const W = inR(weeks, ctx, 'start').filter(w => !w.cur); if (!W.length) return []; const goal = S.ctx && S.ctx.st && S.ctx.st.goal || autoGoal(R);
+      const best = W.reduce((b, w) => !b || w.hours > b.hours ? w : b, null);
+      return [{ l: 'Ø Stunden pro Woche', v: f1(W.reduce((s, w) => s + w.hours, 0) / W.length) + ' h' }, { l: 'Ø Einheiten pro Woche', v: f1(W.reduce((s, w) => s + w.sessions, 0) / W.length) },
+        { l: 'Wochenziel (' + goal + ') geschafft', v: W.filter(w => w.sessions >= goal).length + ' von ' + W.length, cls: 'good' }, { l: 'Stärkste Woche', v: f1(best.hours) + ' h', s: 'ab ' + F.date(best.start) + ' · ' + best.sessions + ' Einheiten' }] } });
+  // Akut zu chronisch: Verlauf statt nur Tacho
+  const acwr = []; for (let i = 34; i < R.series.length; i++) { const a7 = R.series.slice(i - 6, i + 1).reduce((s, d) => s + d.load, 0), c28 = R.series.slice(i - 34, i - 6).reduce((s, d) => s + d.load, 0) / 4; if (c28 > 0) acwr.push({ date: R.series[i].k, value: Math.round(a7 / c28 * 100) / 100, a7, c28 }) }
+  GF.attach('#c-gauge', { id: 't-acwr', title: 'Belastung: akut zu chronisch', alias: ['belastung', 'acwr'], unit: '', dir: 0, digits: 2, range: '90', good: { min: 0.8, max: 1.3, label: 'Tage im guten Bereich (0,8–1,3)' },
+    series: () => acwr.map(x => ({ date: x.date, value: x.value })),
+    extra: d => { const x = acwr.find(q => q.date === d); return x ? ['Letzte 7 Tage: ' + f0(x.a7) + ' · Ø-Woche davor: ' + f0(x.c28)] : [] },
+    facts: ctx => { const X = inR(acwr, ctx, 'date'); const zone = v => v == null ? '–' : v < 0.8 ? 'zu wenig – Fitness sinkt' : v <= 1.3 ? 'optimal' : v <= 1.5 ? 'erhöht – vorsichtig steigern' : 'hoch – Verletzungsrisiko';
+      return [{ l: 'Aktuell', v: R.acwr != null ? F.num(R.acwr, 2) : '–', s: zone(R.acwr), cls: R.acwr != null && R.acwr >= 0.8 && R.acwr <= 1.3 ? 'good' : R.acwr > 1.5 ? 'bad' : '' },
+        { l: 'Akut (7 Tage)', v: f0(R.load7), s: 'Summe Trainingslast' }, { l: 'Chronisch', v: R.acwr ? f0(R.load7 / R.acwr) : '–', s: 'Ø-Woche der 4 Wochen davor' },
+        { l: 'Monotonie', v: R.monotony != null ? F.num(R.monotony, 2) : '–', s: 'Ø ÷ Streuung der letzten 7 Tage; über 2 = sehr gleichförmig' },
+        { l: 'Tage über 1,5', v: X.filter(x => x.value > 1.5).length, s: 'im Zeitraum', cls: 'bad' }] },
+    note: 'Akut zu chronisch (ACWR) = Trainingslast der letzten 7 Tage ÷ durchschnittliche Wochenlast der 28 Tage davor. 0,8–1,3 gilt als guter Bereich: genug Reiz, ohne den Körper zu überfordern. Über 1,5 steigt das Verletzungsrisiko, unter 0,8 baust du ab. Sprünge entstehen, wenn eine Woche viel mehr trainiert wird als gewohnt.\n' + LOAD_NOTE });
+  // Tag für Tag: Kalender vergrößert mit Zahlen
+  GF.attach('#c-cal', { id: 't-cal', title: 'Tag für Tag', clone: true, cloneEl: () => document.querySelector('#c-cal .cal'), sub: 'Farbe nach Trainingszeit · letzte 12 Monate',
+    facts: () => { const D = R.days, tr = D.filter(d => d.act > 0); if (!tr.length) return [];
+      let run = 0, best = 0, rest = 0, bestRest = 0; D.forEach(d => { if (d.act) { run++; best = Math.max(best, run); rest = 0 } else { rest++; bestRest = Math.max(bestRest, rest); run = 0 } });
+      const wd = [0, 0, 0, 0, 0, 0, 0]; tr.forEach(d => wd[wdOf(d.di)] += d.h); const wi = wd.indexOf(Math.max.apply(null, wd));
+      const mon = {}; D.forEach(d => { const k = d.k.slice(0, 7); mon[k] = mon[k] || { h: 0, n: 0 }; mon[k].h += d.h; mon[k].n += d.act });
+      const mk = Object.keys(mon).sort().reverse();
+      return [{ l: 'Trainingstage', v: tr.length, s: F.num(tr.length / D.length * 100, 0) + ' % aller Tage' }, { l: 'Ø pro Trainingstag', v: f1(tr.reduce((s, d) => s + d.h, 0) / tr.length) + ' h' },
+        { l: 'Längste Serie', v: best + ' ' + pl(best, 'Tag', 'Tage'), s: 'am Stück trainiert', cls: 'good' }, { l: 'Längste Pause', v: bestRest + ' ' + pl(bestRest, 'Tag', 'Tage'), s: run ? 'aktuell ' + run + ' ' + pl(run, 'Tag', 'Tage') + ' in Folge' : 'aktuell ' + rest + ' ' + pl(rest, 'Tag', 'Tage') + ' Pause' },
+        { l: 'Fleißigster Wochentag', v: C.WD[wi], s: f0(wd[wi]) + ' h in 12 Monaten' },
+        { l: 'Monate', v: '', wide: true, s: '<div class="gf-rows">' + mk.map(k => '<div><span>' + C.MON[+k.slice(5) - 1] + ' ' + k.slice(0, 4) + '</span><b>' + f1(mon[k].h) + ' h · ' + mon[k].n + ' Einheiten</b></div>').join('') + '</div>' }] } });
 }
 function summary(R, st) {
   if (!R || !R.ok) return null; const q = stats(R, st), by = C.SPORTS.filter(s => R.totals.hoursBy[s] > 0).sort((a, b) => R.totals.hoursBy[b] - R.totals.hoursBy[a]).slice(0, 5).map(s => s + ' ' + f0(R.totals.hoursBy[s]) + ' h').join(', ');

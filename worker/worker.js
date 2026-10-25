@@ -220,10 +220,8 @@ const validDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && !isNaN(Date.parse(
 async function readRange(env, from, to) {
   const out = {}; const months = new Set();
   for (let t = Date.parse(from + 'T00:00:00Z'); t <= Date.parse(to + 'T00:00:00Z'); t += 86400e3) months.add(new Date(t).toISOString().slice(0, 7));
-  for (const mk of months) {
-    const cur = JSON.parse((await env.WB.get('m:' + mk)) || '{}');
-    Object.keys(cur).forEach(d => { if (d >= from && d <= to) out[d] = cur[d]; });
-  }
+  const all = await Promise.all([...months].map(mk => env.WB.get('m:' + mk)));   // Monate gleichzeitig lesen statt nacheinander
+  all.forEach(raw => { const cur = JSON.parse(raw || '{}'); Object.keys(cur).forEach(d => { if (d >= from && d <= to) out[d] = cur[d]; }); });
   return out;
 }
 
@@ -500,6 +498,113 @@ async function stravaActivities(env, b) {
 }
 
 // ---------- Routen ----------
+
+// ---------- Benachrichtigungen (Web Push mit VAPID, RFC 8291/8292) ----------
+// Schlüssel erzeugt der Worker beim ersten Mal selbst und legt sie in KV ab (kein Secret nötig).
+// Zeitplan: die Seite schickt Tagesziele mit Glocke; der Cron (alle 5 Minuten) verschickt fällige Erinnerungen,
+// nie in der Ruhezeit (Standard Mo–Fr 8:00–15:30), höchstens PUSH_MAX pro Tag.
+const PUSH_KEY = 'push:cfg', PUSH_MAX = 4, PUSH_LATE = 120;
+const b64u = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const cat = (...a) => { const o = new Uint8Array(a.reduce((n, x) => n + x.length, 0)); let i = 0; a.forEach(x => { o.set(x, i); i += x.length }); return o };
+async function vapidKeys(env) {
+  let k = JSON.parse((await env.WB.get('push:vapid')) || 'null');
+  if (!k) { const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']); k = { priv: await crypto.subtle.exportKey('jwk', kp.privateKey), pub: b64u(await crypto.subtle.exportKey('raw', kp.publicKey)) }; await env.WB.put('push:vapid', JSON.stringify(k)); }
+  return k;
+}
+async function vapidAuth(env, endpoint) {
+  const k = await vapidKeys(env), jh = b64u(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const jc = b64u(enc.encode(JSON.stringify({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: 'mailto:' + (env.OWNER_EMAIL || 'life-board@example.com') })));
+  const key = await crypto.subtle.importKey('jwk', k.priv, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, enc.encode(jh + '.' + jc));
+  return 'vapid t=' + jh + '.' + jc + '.' + b64u(sig) + ', k=' + k.pub;
+}
+async function hkdf(salt, ikm, info, len) { const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']); return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, key, len * 8)) }
+async function encryptPush(sub, text) {
+  const ua = b64uToBytes(sub.keys.p256dh), auth = b64uToBytes(sub.keys.auth);
+  const as = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPub = new Uint8Array(await crypto.subtle.exportKey('raw', as.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', ua, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, as.privateKey, 256));
+  const ikm = await hkdf(auth, shared, cat(enc.encode('WebPush: info\0'), ua, asPub), 32);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(salt, ikm, enc.encode('Content-Encoding: aes128gcm\0'), 16), nonce = await hkdf(salt, ikm, enc.encode('Content-Encoding: nonce\0'), 12);
+  const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, key, cat(enc.encode(text), new Uint8Array([2]))));
+  return cat(salt, new Uint8Array([0, 0, 16, 0]), new Uint8Array([65]), asPub, ct);
+}
+async function sendPush(env, sub, msg) {
+  const r = await fetch(sub.endpoint, { method: 'POST', headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '7200', Urgency: 'high', Authorization: await vapidAuth(env, sub.endpoint) }, body: await encryptPush(sub, JSON.stringify(msg)) });
+  return r.status;
+}
+const PUSH_DEF = { subs: [], quiet: { days: [1, 2, 3, 4, 5], from: '08:00', to: '15:30' }, morning: { on: true, wd: '06:45', we: '09:30' }, lead: 0, items: [], done: {}, sent: {} };
+async function pushCfg(env) { return Object.assign({}, PUSH_DEF, JSON.parse((await env.WB.get(PUSH_KEY)) || '{}')) }
+const hmOk = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v || '');
+function berlinNow(ms) {
+  const p = {}; new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', weekday: 'short', hourCycle: 'h23' }).formatToParts(new Date(ms)).forEach(x => { p[x.type] = x.value });
+  const day = p.year + '-' + p.month + '-' + p.day;
+  return { day, hm: p.hour + ':' + p.minute, dow: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(p.weekday), wall: wallMin(day, p.hour + ':' + p.minute) };
+}
+function wallMin(day, hm) { const [y, m, d] = day.split('-').map(Number), [h, mi] = hm.split(':').map(Number); return Date.UTC(y, m - 1, d, h, mi) / 60000 }
+const inQuiet = (q, dow, hm) => !!q && (q.days || []).includes(dow) && hm >= q.from && hm < q.to;
+/* Welche Nachrichten sind jetzt fällig? Reine Funktion (auch für Tests). */
+function pushDue(cfg, nowMs) {
+  const n = berlinNow(nowMs), out = [], sentToday = (cfg.sent[n.day] || []).length;
+  if (inQuiet(cfg.quiet, n.dow, n.hm)) return out;
+  const quietEndToday = cfg.quiet && (cfg.quiet.days || []).includes(n.dow) ? wallMin(n.day, cfg.quiet.to) : null;
+  for (const it of cfg.items || []) {
+    if (!hmOk(it.at) || !it.day) continue;
+    const calDay = it.at < '04:00' ? new Date(Date.parse(it.day + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10) : it.day;   // Board-Tag wechselt um 4 Uhr
+    const due = wallMin(calDay, it.at) - (cfg.lead || 0), late = n.wall - due, key = 'g:' + it.id;
+    if (late < 0 || (cfg.sent[calDay] || []).includes(key)) continue;
+    const deferred = quietEndToday != null && calDay === n.day && due < quietEndToday && n.wall >= quietEndToday && n.wall - quietEndToday <= 30;   // in der Schulzeit fällig: direkt danach
+    if (late <= PUSH_LATE || deferred) out.push({ day: calDay, key, msg: { title: '🎯 ' + it.title, body: deferred ? 'Geplant für ' + it.at + ' Uhr' : (cfg.lead ? 'In ' + cfg.lead + ' Minuten · ' : '') + it.at + ' Uhr', url: 'checkin.html?v=1', tag: key } });
+  }
+  const m = cfg.morning || {}, mt = n.dow === 0 || n.dow === 6 ? m.we : m.wd;
+  if (m.on && hmOk(mt) && !cfg.done[n.day] && !(cfg.sent[n.day] || []).includes('morning') && n.wall >= wallMin(n.day, mt) && n.wall - wallMin(n.day, mt) <= 180)
+    out.push({ day: n.day, key: 'morning', msg: { title: '☀️ Morgen-Check', body: 'Wie fühlst du dich? Kurz eintragen, bevor du auf Whoop schaust.', url: 'checkin.html?v=1', tag: 'morning' } });
+  return out.slice(0, Math.max(0, (cfg.max || PUSH_MAX) - sentToday));
+}
+async function pushRun(env, nowMs) {
+  const cfg = await pushCfg(env); if (!cfg.subs.length) return 0;
+  const due = pushDue(cfg, nowMs); let sent = 0;
+  for (const d of due) {
+    for (const sub of cfg.subs.slice()) {
+      try { const st = await sendPush(env, sub, d.msg); if (st === 404 || st === 410) cfg.subs = cfg.subs.filter(x => x.endpoint !== sub.endpoint); else if (st < 300) sent++ } catch (e) {}
+    }
+    (cfg.sent[d.day] = cfg.sent[d.day] || []).push(d.key);
+  }
+  const keep = new Date(nowMs - 3 * 864e5).toISOString().slice(0, 10), before = JSON.stringify(cfg.sent) + JSON.stringify(cfg.done) + cfg.items.length;
+  ['sent', 'done'].forEach(k => Object.keys(cfg[k]).forEach(day => { if (day < keep) delete cfg[k][day] }));
+  cfg.items = cfg.items.filter(it => it.day >= keep);
+  if (due.length || before !== JSON.stringify(cfg.sent) + JSON.stringify(cfg.done) + cfg.items.length) await env.WB.put(PUSH_KEY, JSON.stringify(cfg));   // KV nur bei Änderung schreiben
+  return sent;
+}
+async function pushApi(env, path, b) {
+  const cfg = await pushCfg(env);
+  if (path === '/push/key') return { key: (await vapidKeys(env)).pub };
+  if (path === '/push/status') return { subs: cfg.subs.length, quiet: cfg.quiet, morning: cfg.morning, lead: cfg.lead, items: cfg.items.length };
+  if (path === '/push/subscribe') {
+    const s = b.sub; if (!s || !/^https:\/\//.test(s.endpoint || '') || !s.keys || !s.keys.p256dh || !s.keys.auth) { const e = new Error('ungültiges Abo'); e.code = 'RANGE'; throw e; }
+    cfg.subs = cfg.subs.filter(x => x.endpoint !== s.endpoint).concat({ endpoint: s.endpoint, keys: { p256dh: s.keys.p256dh, auth: s.keys.auth } }).slice(-5);
+  } else if (path === '/push/unsubscribe') cfg.subs = cfg.subs.filter(x => x.endpoint !== b.endpoint);
+  else if (path === '/push/config') {
+    if (b.quiet && hmOk(b.quiet.from) && hmOk(b.quiet.to)) cfg.quiet = { days: (b.quiet.days || []).filter(d => d >= 0 && d <= 6), from: b.quiet.from, to: b.quiet.to };
+    if (b.morning) cfg.morning = { on: !!b.morning.on, wd: hmOk(b.morning.wd) ? b.morning.wd : cfg.morning.wd, we: hmOk(b.morning.we) ? b.morning.we : cfg.morning.we };
+    if (b.lead != null) cfg.lead = Math.max(0, Math.min(120, parseInt(b.lead, 10) || 0));
+  } else if (path === '/push/schedule') {
+    const days = new Set((b.days || []).filter(validDate));
+    cfg.items = cfg.items.filter(it => !days.has(it.day)).concat((b.items || []).filter(it => it && days.has(it.day) && hmOk(it.at) && it.title).slice(0, 20).map(it => ({ id: String(it.id || it.at + it.title).slice(0, 80), day: it.day, at: it.at, title: String(it.title).slice(0, 120) })));
+  } else if (path === '/push/done') { if (validDate(b.day)) cfg.done[b.day] = true }
+  else if (path === '/push/test') {
+    let ok = 0; for (const sub of cfg.subs.slice()) { try { const st = await sendPush(env, sub, { title: '✅ Life Board', body: 'So sehen deine Erinnerungen aus.', url: 'checkin.html?v=1', tag: 'test' }); if (st < 300) ok++; else if (st === 404 || st === 410) cfg.subs = cfg.subs.filter(x => x.endpoint !== sub.endpoint) } catch (e) {} }
+    await env.WB.put(PUSH_KEY, JSON.stringify(cfg));
+    return { sent: ok, subs: cfg.subs.length };
+  } else { const e = new Error('unbekannt'); e.code = 'RANGE'; throw e; }
+  await env.WB.put(PUSH_KEY, JSON.stringify(cfg));
+  return { ok: true, subs: cfg.subs.length };
+}
+
+globalThis.__lbPush = { pushDue, encryptPush, berlinNow };   // nur für Tests
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -592,6 +697,7 @@ export default {
         const b = await request.json().catch(() => ({}));
         return json(env, await askAI(env, b));
       }
+      if (url.pathname.startsWith('/push/')) return json(env, await pushApi(env, url.pathname, request.method === 'POST' ? await request.json().catch(() => ({})) : {}));
       if (url.pathname === '/ai/providers') return json(env, { gemini: !!env.GEMINI_KEY, ...Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, !!env[p.key]])) });
       if (url.pathname === '/stt' && request.method === 'POST') return json(env, await sttGemini(env, await request.json().catch(() => ({}))));
       if (url.pathname === '/tts' && request.method === 'POST') return json(env, await ttsGemini(env, await request.json().catch(() => ({}))));
@@ -607,8 +713,12 @@ export default {
   },
 
   // Cron: holt regelmäßig die letzten Tage, hält so die Tokens frisch und die Daten aktuell
+  // Cron am besten alle 5 Minuten (für pünktliche Erinnerungen); Whoop wird trotzdem nur alle 30 Minuten abgeholt.
   async scheduled(event, env, ctx) {
+    const t = event.scheduledTime || Date.now();
     ctx.waitUntil((async () => {
+      try { await pushRun(env, t); } catch (e) {}
+      if (new Date(t).getUTCMinutes() % 30 >= 5) return;
       try { await syncRange(env, daysAgo(3), today()); }
       catch (e) { await env.WB.put('last_error', JSON.stringify({ at: Date.now(), msg: e.message })); }
     })());

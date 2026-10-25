@@ -2,7 +2,11 @@
    Eine Zeile pro Graph:  GraphFull.attach('#c-hrv',{id:'hrv',title:'HRV',unit:'ms',dir:1,series:()=>[{date,value}]})
    - series-Modus: eigenes Diagramm im Vollbild (Tippen, Wischen, Zeitraum, Zoom, Datumssuche, Statistiken).
    - clone-Modus (cfg.clone:true oder GraphFull.auto): vergrößerte Kopie eines vorhandenen Diagramms ohne Zeitachsen-Bedienung.
-   Statistiken kommen ausschließlich aus graph-stats.js (deterministisch, Originaldaten). */
+   Statistiken kommen ausschließlich aus graph-stats.js (deterministisch, Originaldaten).
+   Erweiterungen:
+   - cfg.layers:[{id,name,color,series}] weitere Kurven zum Ein-/Ausschalten und Vergleichen (cfg.mainName, cfg.color, cfg.layersOn)
+   - cfg.stack:{keys:[{id,name,color}],get:date=>({id:wert})} gestapelte Säulen (Wert = Summe), Verteilung als Kachel
+   - cfg.facts:ctx=>[{l,v,s,cls,wide}] zusätzliche Kacheln (ctx: from,to,points,stats), cfg.note: Erklärtext; beides auch im clone-Modus */
 (function(root){
 'use strict';
 const GS=root.GraphStats,doc=document;
@@ -62,7 +66,8 @@ const CSS=`
 #gf .gf-tb.x{font-size:22px;padding:0;width:52px;height:52px;border-color:rgb(var(--acc,120 200 255)/.7)}
 #gf .gf-tb:active{background:rgb(var(--acc,120 200 255)/.28)}
 #gf .gf-body{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-#gf .gf-main{display:flex;flex-direction:column;gap:10px;min-height:0}
+#gf .gf-main{display:flex;flex-direction:column;gap:10px;min-height:0;flex-shrink:0}
+#gf .gf-stats{flex-shrink:0}
 #gf .gf-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 #gf .gf-r{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid rgb(var(--acc,120 200 255)/.28);background:rgba(10,22,38,.55);cursor:pointer;font-size:14px;touch-action:manipulation}
 #gf .gf-r[aria-pressed=true]{background:rgb(var(--acc,120 200 255)/.24);border-color:var(--ac,#7cd4ff);color:#fff;box-shadow:0 0 14px rgb(var(--acc,120 200 255)/.3)}
@@ -97,6 +102,17 @@ const CSS=`
 #gf .gf-t .s{font-size:12px;opacity:.78;margin-top:2px}
 #gf .gf-t.good .v{color:#7dffb4}#gf .gf-t.bad .v{color:#ff8d8d}
 #gf .gf-t.wide{grid-column:1/-1}
+#gf .gf-t.note .v{font-size:14px;font-weight:400;line-height:1.45;text-shadow:none;color:#dcecff}
+#gf .gf-t .v.txt{font-size:15px;font-weight:600}
+#gf .gf-r i.sw{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:6px;vertical-align:-1px}
+#gf .gf-r[aria-pressed=false] i.sw{opacity:.35}
+#gf .gf-lg{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;opacity:.9}
+#gf .gf-lg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+#gf .gf-dist{display:flex;height:14px;border-radius:7px;overflow:hidden;margin-top:8px}
+#gf .gf-dist i{display:block;height:100%}
+#gf .gf-rows{font-size:13.5px;margin-top:6px}
+#gf .gf-rows div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-top:1px solid rgba(190,225,255,.1)}
+#gf .gf-rows div:first-child{border-top:0}
 #gf:not(.gf-in) .gf-in-t{opacity:0;transform:translateY(12px)}
 #gf.gf-in .gf-in-t{animation:gfUp .45s cubic-bezier(.22,1,.36,1) backwards;animation-delay:var(--d,0ms)}
 @keyframes gfUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -202,7 +218,7 @@ function open(id,o){
    '<div class="gf-head" id="gfHead"><div><h2>'+esc(cfg.title||'Graph')+'</h2><div class="gf-sub" id="gfSub"></div></div><div class="gf-tools">'+
    (S.clone?'':'<button class="gf-tb" id="gfCal" type="button" aria-label="Datum suchen"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="t">Datum</span></button>')+
    '<button class="gf-tb x" id="gfX" type="button" aria-label="Schließen">✕</button></div></div>'+
-   '<div class="gf-body" id="gfBody"><section class="gf-main"><div class="gf-bar" id="gfRanges"></div><div class="gf-bar" id="gfChips"></div><div class="gf-frame" id="gfFrame"><div class="gf-stage'+(S.clone?' clone':'')+'" id="gfStage"></div></div></section><aside class="gf-stats" id="gfStats"></aside></div></div>';
+   '<div class="gf-body" id="gfBody"><section class="gf-main"><div class="gf-bar" id="gfRanges"></div><div class="gf-bar" id="gfLayers"></div><div class="gf-bar" id="gfChips"></div><div class="gf-frame" id="gfFrame"><div class="gf-stage'+(S.clone?' clone':'')+'" id="gfStage"></div></div></section><aside class="gf-stats" id="gfStats"></aside></div></div>';
   doc.body.appendChild(el);S.el=el;OPEN=S;doc.documentElement.classList.add('gf-open');
   S.$=q=>el.querySelector(q);
   S.stage=S.$('#gfStage');S.frame=S.$('#gfFrame');
@@ -273,8 +289,9 @@ function bindSwipeClose(S){
 /* ---------------- clone-Modus ---------------- */
 function buildClone(S){
   const src=S.cfg.cloneEl?S.cfg.cloneEl():null;
-  S.$('#gfRanges').remove();S.$('#gfChips').remove();S.$('#gfStats').remove();
-  S.$('#gfSub').textContent='Vergrößerte Ansicht';
+  S.$('#gfRanges').remove();S.$('#gfChips').remove();S.$('#gfLayers').remove();
+  if(S.cfg.facts||S.cfg.note)renderFacts(S,S.$('#gfStats'),null);else S.$('#gfStats').remove();
+  S.$('#gfSub').textContent=S.cfg.sub||'Vergrößerte Ansicht';
   if(!src){S.stage.innerHTML='<div class="gf-empty">Dieser Graph hat gerade keine Darstellung.</div>';S.ready=true;return}
   const c=src.cloneNode(true);c.removeAttribute('width');c.removeAttribute('height');c.style.width='100%';c.style.height='auto';c.removeAttribute('id');
   c.querySelectorAll('[id]').forEach(n=>{});
@@ -286,6 +303,8 @@ function buildSeries(S,o){
   const cfg=S.cfg;
   S.series=GS.clean(typeof cfg.series==='function'?cfg.series():cfg.series);
   S.byDate=new Map(S.series.map(p=>[p.date,p]));
+  if(cfg.layers&&cfg.layers.length)buildLayers(S);else S.$('#gfLayers').remove();
+  if(cfg.stack){const lg=S.$('#gfLayers')||h('div','gf-bar');lg.id='gfLayers';lg.innerHTML='<div class="gf-lg">'+cfg.stack.keys.map(k=>'<span><i style="background:'+k.color+'"></i>'+esc(k.name)+'</span>').join('')+'</div>';if(!lg.isConnected)S.$('#gfChips').before(lg)}
   const ranges=GS.availableRanges(S.series);S.ranges=ranges;
   if(!S.series.length){S.$('#gfSub').textContent='Keine Daten';S.$('#gfRanges').remove();S.$('#gfChips').remove();S.$('#gfStats').remove();S.stage.innerHTML='<div class="gf-empty">Für diesen Graphen gibt es noch keine Daten.</div>';S.ready=true;return}
   const wanted=o.range&&ranges.find(r=>r.id===String(o.range))?String(o.range):(cfg.range&&ranges.find(r=>r.id===String(cfg.range))?String(cfg.range):(ranges.find(r=>r.id==='30')||ranges[ranges.length-1]).id);
@@ -303,6 +322,24 @@ function buildSeries(S,o){
   setRange(S,wanted,false,true);
   S.ready=true;
   if(o.date)setTimeout(()=>pick(S,o.date,true),50);
+}
+/* Mehrere Kurven: Chips schalten Ebenen ein/aus, die erste aktive bestimmt Statistik und Achsen-Bestwerte */
+function buildLayers(S){
+  const cfg=S.cfg,main={id:'main',name:cfg.mainName||cfg.title,color:cfg.color||'var(--ac,#7cd4ff)',data:S.series};
+  S.layers=[main].concat(cfg.layers.map(l=>({id:l.id,name:l.name,color:l.color,data:GS.clean(typeof l.series==='function'?l.series():l.series)})));
+  S.layers.forEach(l=>{l.by=new Map(l.data.map(p=>[p.date,p]))});
+  S.on=new Set(cfg.layersOn||['main']);
+  const bar=S.$('#gfLayers');
+  const paint=()=>{bar.innerHTML=S.layers.map(l=>'<button class="gf-r" type="button" data-l="'+l.id+'" aria-pressed="'+S.on.has(l.id)+'"><i class="sw" style="background:'+l.color+'"></i>'+esc(l.name)+'</button>').join('')+'<span class="sp"></span><button class="gf-r" type="button" data-l="*">Alle</button>'};
+  paint();
+  bar.addEventListener('click',ev=>{const b=ev.target.closest('[data-l]');if(!b)return;const id=b.dataset.l;
+    if(id==='*'){S.layers.forEach(l=>S.on.add(l.id))}else if(S.on.has(id)){if(S.on.size>1)S.on.delete(id)}else S.on.add(id);
+    paint();applyLayers(S);if(S.rangeId)setRange(S,S.rangeId,false)});
+  applyLayers(S);
+}
+function applyLayers(S){
+  const act=S.layers.filter(l=>S.on.has(l.id));S.primary=act[0];S.extraLayers=act.slice(1);
+  S.series=S.primary.data;S.byDate=S.primary.by;S.$('#gfSub').dataset.layer=S.primary.name;
 }
 function setRange(S,id,animate,first){
   const b=GS.bounds(S.series,id);if(!b)return;
@@ -354,10 +391,11 @@ function drawChart(S,animate){
   const idx=vis.length?[Math.max(0,vis[0]-1)].concat(vis).concat([Math.min(all.length-1,vis[vis.length-1]+1)]).filter((v,i,ar)=>ar.indexOf(v)===i):[];
   const inView=idx.filter(i=>nums[i]>=S.x0-.5&&nums[i]<=S.x1+.5);
   let lo=Infinity,hi=-Infinity;inView.forEach(i=>{const v=all[i].value;if(v<lo)lo=v;if(v>hi)hi=v});
+  (S.extraLayers||[]).forEach(l=>l.data.forEach(p=>{const n=GS.dayNum(p.date);if(n>=S.x0-.5&&n<=S.x1+.5){if(p.value<lo)lo=p.value;if(p.value>hi)hi=p.value}}));
   if(cfg.fixed){lo=cfg.fixed[0];hi=cfg.fixed[1]}
   if(!isFinite(lo)){lo=0;hi=1}
   if(cfg.kind==='bar')lo=Math.min(0,lo);
-  else if(!cfg.fixed){const pad=(hi-lo)*.1||Math.abs(hi)*.1||1;lo-=pad;hi+=pad;if(lo<0&&(all.every(p=>p.value>=0)))lo=0}
+  else if(!cfg.fixed){const pad=(hi-lo)*.1||Math.abs(hi)*.1||1;lo-=pad;hi+=pad;if(lo<0&&(all.every(p=>p.value>=0))&&(S.extraLayers||[]).every(l=>l.data.every(p=>p.value>=0)))lo=0}
   const ticks=nice(lo,hi,4),y0=ticks[0],y1=ticks[ticks.length-1];
   const Y=v=>m.t+ih-(v-y0)/(y1-y0)*ih;
   S.Y=Y;S.X=X;S.y0=y0;
@@ -365,8 +403,9 @@ function drawChart(S,animate){
   const pat=svgEl('pattern',{id:'gfHatch',width:6,height:6,patternUnits:'userSpaceOnUse',patternTransform:'rotate(45)'},defs);svgEl('line',{x1:0,y1:0,x2:0,y2:6,stroke:'rgba(255,255,255,.14)','stroke-width':2},pat);
   const gr=svgEl('linearGradient',{id:'gfArea',x1:0,y1:0,x2:0,y2:1},defs);
   svgEl('stop',{offset:0,'stop-color':'var(--ac,#7cd4ff)','stop-opacity':.35},gr);svgEl('stop',{offset:1,'stop-color':'var(--ac,#7cd4ff)','stop-opacity':0},gr);
+  const tstep=ticks.length>1?ticks[1]-ticks[0]:1,td=Math.max(cfg.digits||0,tstep<1?Math.ceil(-Math.log10(tstep)-1e-9):0);   // Achse nie 2, 2, 2 bei kleinen Schritten
   ticks.forEach(t=>{svgEl('line',{x1:m.l,x2:W-m.r,y1:Y(t),y2:Y(t),stroke:t===y0?'rgba(190,225,255,.45)':'rgba(190,225,255,.12)','stroke-width':1},svg);
-    const tx=svgEl('text',{x:m.l-7,y:Y(t)+4,'text-anchor':'end'},svg);tx.textContent=fmtNum(t,cfg.digits)});
+    const tx=svgEl('text',{x:m.l-7,y:Y(t)+4,'text-anchor':'end'},svg);tx.textContent=fmtNum(t,td)});
   // Zeitachsen-Beschriftung
   const nl=Math.max(2,Math.min(6,Math.floor(iw/90)));
   for(let k=0;k<nl;k++){const d=S.x0+.5+(span-1)*k/(nl-1);const key=GS.fromNum(Math.round(d));
@@ -380,18 +419,24 @@ function drawChart(S,animate){
   if(pts.length>iw*1.1)pts=GS.downsample(pts,Math.floor(iw));
   const base=Y(Math.max(y0,Math.min(0,y1)));
   if(cfg.kind==='bar'){
-    const bw=Math.max(1,Math.min(32,iw/span*.78));
+    const bw=Math.max(1,Math.min(cfg.gap>1?60:32,iw/span*.78*(cfg.gap||1)));   // Wochenwerte: Säule so breit wie die Woche
     const g=svgEl('g',{class:'gf-bars'+(animate&&!still()?' gf-grow':'')},svg);
-    pts.forEach((p,k)=>{const yy=Y(p.value),r=svgEl('rect',{x:X(GS.dayNum(p.date))-bw/2,y:Math.min(yy,base),width:bw,height:Math.max(1,Math.abs(base-yy)),rx:Math.min(3,bw/2)},g);if(animate&&!still())r.style.animationDelay=Math.min(400,k*8)+'ms'})
+    const pc=S.primary&&S.layers?S.primary.color:null;
+    pts.forEach((p,k)=>{
+      if(cfg.stack){const parts=cfg.stack.get(p.date)||{};let acc=0;cfg.stack.keys.forEach(key=>{const v=+parts[key.id]||0;if(v<=0)return;const ya=Y(acc),yb=Y(acc+v);const r=svgEl('rect',{x:X(GS.dayNum(p.date))-bw/2,y:yb,width:bw,height:Math.max(1,ya-yb),style:'fill:'+key.color},g);acc+=v;if(animate&&!still())r.style.animationDelay=Math.min(400,k*8)+'ms'});return}
+      const yy=Y(p.value),r=svgEl('rect',{x:X(GS.dayNum(p.date))-bw/2,y:Math.min(yy,base),width:bw,height:Math.max(1,Math.abs(base-yy)),rx:Math.min(3,bw/2)},g);if(pc)r.style.fill=pc;if(animate&&!still())r.style.animationDelay=Math.min(400,k*8)+'ms'})
   }else{
     let d='',area=[],prev=null,seg=[];
     const segs=[];pts.forEach(p=>{const n=GS.dayNum(p.date);if(prev!=null&&n-prev>gapMax){segs.push(seg);seg=[]}seg.push(p);prev=n});if(seg.length)segs.push(seg);
     segs.forEach(sg=>{if(sg.length>1){let dd0='';sg.forEach((p,i)=>{dd0+=(i?'L':'M')+X(GS.dayNum(p.date)).toFixed(1)+','+Y(p.value).toFixed(1)});
-      const a0=svgEl('path',{d:dd0+'L'+X(GS.dayNum(sg[sg.length-1].date)).toFixed(1)+','+base+'L'+X(GS.dayNum(sg[0].date)).toFixed(1)+','+base+'Z',fill:'url(#gfArea)',stroke:'none'},svg);
-      const ln=svgEl('path',{d:dd0,class:'gf-ln'+(animate&&!still()?' gf-draw':''),pathLength:1},svg)}});
+      if(!S.layers)svgEl('path',{d:dd0+'L'+X(GS.dayNum(sg[sg.length-1].date)).toFixed(1)+','+base+'L'+X(GS.dayNum(sg[0].date)).toFixed(1)+','+base+'Z',fill:'url(#gfArea)',stroke:'none'},svg);
+      const ln=svgEl('path',{d:dd0,class:'gf-ln'+(animate&&!still()?' gf-draw':''),pathLength:1},svg);if(S.layers)ln.setAttribute('style','stroke:'+S.primary.color+';filter:none')}});
     const dots=pts.length<=120||segs.some(sg=>sg.length===1);
-    pts.forEach(p=>{const alone=segs.find(sg=>sg.length===1&&sg[0]===p);if(dots||alone)svgEl('circle',{cx:X(GS.dayNum(p.date)),cy:Y(p.value),r:alone?3.6:2.6,fill:'var(--ac,#7cd4ff)','fill-opacity':alone?1:.85},svg)})
+    pts.forEach(p=>{const alone=segs.find(sg=>sg.length===1&&sg[0]===p);if(dots||alone)svgEl('circle',{cx:X(GS.dayNum(p.date)),cy:Y(p.value),r:alone?3.6:2.6,fill:S.layers?S.primary.color:'var(--ac,#7cd4ff)','fill-opacity':alone?1:.85},svg)})
   }
+  // weitere Ebenen als Linien in ihrer Farbe
+  (S.extraLayers||[]).forEach(l=>{let d='',prev=null;l.data.forEach(p=>{const n=GS.dayNum(p.date);if(n<S.x0-1.5||n>S.x1+1.5)return;d+=(prev!=null&&n-prev<=gapMax?'L':'M')+X(n).toFixed(1)+','+Y(p.value).toFixed(1);prev=n});
+    if(d)svgEl('path',{d,fill:'none',stroke:l.color,'stroke-width':2.2,'stroke-linejoin':'round','stroke-linecap':'round'},svg)});
   // Markierung (bleibt stehen) + Info-Fenster
   S.tipEl&&S.tipEl.remove();S.tipEl=null;
   if(S.marker){
@@ -408,7 +453,9 @@ function drawChart(S,animate){
 function showTip(S,svg,px,py,date,p){
   const cfg=S.cfg,t=h('div','gf-tip');
   t.innerHTML='<div class="d">'+esc(longDate(date))+'</div>'+(p?'<b>'+fmtNum(p.value,cfg.digits)+(cfg.unit?'<small style="font-size:13px;opacity:.8"> '+esc(cfg.unit.trim())+'</small>':'')+'</b>':'<b style="font-size:16px">keine Daten</b>')+
-    (p&&cfg.extra?cfg.extra(date,p).map(x=>'<div class="x">'+esc(x)+'</div>').join(''):'');
+    (p&&cfg.extra?cfg.extra(date,p).map(x=>'<div class="x">'+esc(x)+'</div>').join(''):'')+
+    (S.layers?S.layers.filter(l=>S.on.has(l.id)).map(l=>{const q=l.by.get(date);return '<div class="x"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+l.color+';margin-right:5px"></i>'+esc(l.name)+': '+(q?fmtNum(q.value,cfg.digits):'–')+'</div>'}).join(''):'')+
+    (cfg.stack&&p?(()=>{const parts=cfg.stack.get(date)||{};return cfg.stack.keys.filter(k=>+parts[k.id]>0).map(k=>'<div class="x"><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+k.color+';margin-right:5px"></i>'+esc(k.name)+': '+fmtNum(+parts[k.id],cfg.digits)+'</div>').join('')})():'');
   S.tipPending=t;S.stage.appendChild(t);
   const w=t.offsetWidth,hh=t.offsetHeight,W=S.geo.W;
   let left=px+14;if(left+w>W-6)left=px-w-14;left=Math.max(6,left);
@@ -485,6 +532,7 @@ function renderStats(S,animate){
   if(st.empty){const t=T('wide','Zeitraum','–','In diesem Zeitraum gibt es keine Daten.');return}
   const dg=cfg.digits,neu=st.neutralExtremes;
   const node=(val,d)=>'<span>'+fmtNum(val,d)+'</span>'+u;
+  if(S.layers&&S.layers.length>1){T('wide','Statistik für',esc(S.primary.name),S.extraLayers.length?'Die erste eingeschaltete Kurve bestimmt die Kacheln. Vergleich: '+S.extraLayers.map(l=>{const v=l.data.filter(p=>p.date>=S.from&&p.date<=S.to).map(p=>p.value);return esc(l.name)+' Ø '+(v.length?fmtNum(v.reduce((a,b)=>a+b,0)/v.length,dg):'–')}).join(' · '):'Tippe oben weitere Kurven an, um sie zu vergleichen.').querySelector('.v').classList.add('txt')}
   let t=T('','Durchschnitt',node(st.mean,dg));count(t,st.mean,dg);
   t=T('','Median',node(st.median,dg));count(t,st.median,dg);
   t=T('good',neu?'Höchstwert':'Bestwert',node(st.best.value,dg),esc(longDate(st.best.date)));count(t,st.best.value,dg);
@@ -503,7 +551,19 @@ function renderStats(S,animate){
     const bars=dow.map(d=>{const hgt=d.mean==null?0:Math.max(4,(d.mean-Math.min(0,mn))/((mx-Math.min(0,mn))||1)*100);return '<div class="'+(st.dowBest&&d.i===st.dowBest.i?'b':'')+'"><i style="height:'+hgt+'%" title="'+esc(d.name+': '+(d.mean==null?'keine Daten':fmtNum(d.mean,dg)))+'"></i><span>'+d.short+'</span></div>'}).join('');
     T('wide','Wochentage (Durchschnitt)','<div class="gf-dow">'+bars+'</div>',st.dowBest?'Bester Wochentag: '+st.dowBest.name+' ('+fmtNum(st.dowBest.mean,dg)+'), schlechtester: '+st.dowWorst.name+' ('+fmtNum(st.dowWorst.mean,dg)+')':'Für beste und schlechteste Wochentage braucht es mindestens 14 Werte.')
     tiles[tiles.length-1].querySelector('.v').style.fontSize='14px'}
+  if(cfg.stack){const parts={},tot={v:0};S.series.forEach(p=>{if(p.date<S.from||p.date>S.to)return;const q=cfg.stack.get(p.date)||{};cfg.stack.keys.forEach(k=>{const v=+q[k.id]||0;parts[k.id]=(parts[k.id]||0)+v;tot.v+=v})});
+    if(tot.v>0){const ks=cfg.stack.keys.filter(k=>parts[k.id]>0).sort((a,b)=>parts[b.id]-parts[a.id]);
+      T('wide','Verteilung im Zeitraum','<div class="gf-dist">'+ks.map(k=>'<i style="width:'+(parts[k.id]/tot.v*100)+'%;background:'+k.color+'"></i>').join('')+'</div>','<div class="gf-rows">'+ks.map(k=>'<div><span><i style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+k.color+';margin-right:6px"></i>'+esc(k.name)+'</span><b>'+fmtNum(parts[k.id],dg)+(cfg.unit?' '+esc(cfg.unit.trim()):'')+' · '+fmtNum(parts[k.id]/tot.v*100,0)+' %</b></div>').join('')+'</div>')}}
+  renderFacts(S,box,{from:S.from,to:S.to,stats:st,points:S.series.filter(p=>p.date>=S.from&&p.date<=S.to)},T);
   if(S.el.classList.contains('gf-in')||S.el.dataset.in==='1')tiles.forEach((t,i)=>{t.style.setProperty('--d',(i*45)+'ms');t.style.animation='gfUp .4s cubic-bezier(.22,1,.36,1) backwards';t.style.animationDelay=(i*45)+'ms'});
+}
+/* Zusätzliche Fakten-Kacheln und Erklärtext (series- und clone-Modus) */
+function renderFacts(S,box,ctx,T){
+  const cfg=S.cfg;if(!box)return;
+  T=T||((cls,l,v,s)=>{const t=h('div','gf-t gf-in-t '+(cls||''),'<div class="l">'+esc(l)+'</div><div class="v">'+v+'</div>'+(s?'<div class="s">'+s+'</div>':''));box.appendChild(t);return t});
+  let list=[];try{list=cfg.facts?cfg.facts(ctx||{})||[]:[]}catch(e){list=[{l:'Fakten',v:'–',s:esc(e.message),wide:true}]}
+  list.forEach(f=>{const t=T((f.cls||'')+(f.wide?' wide':''),f.l,f.v==null?'–':String(f.v),f.s||'');if(f.small)t.querySelector('.v').classList.add('txt')});
+  if(cfg.note){const t=T('wide note','So wird das berechnet',esc(cfg.note).replace(/\n/g,'<br>'),'')}
 }
 /* Datumswähler: nur Tage mit Daten wählbar */
 function openCal(S){
