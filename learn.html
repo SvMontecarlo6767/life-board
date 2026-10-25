@@ -39,7 +39,7 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--ac);min-height:32px}
 table{width:100%;border-collapse:collapse;font-size:14.5px}td,th{padding:7px 4px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mu);font-weight:600;font-size:12.5px}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
-</style><link rel="stylesheet" href="theme.css?v=8">
+</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
 </head><body><div class="wrap">
 <div class="top"><div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>📚 Lernen</h1></div><a href="heute.html?v=3" class="mu">zu Heute</a></div>
 <div id="msg"></div>
@@ -210,5 +210,5 @@ $('sync').onclick=syncNotion;
 $('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
 if(!list().length)syncNotion();
 })();
-</script><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=13"></script>
+</script><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=14"></script>
 </body></html>

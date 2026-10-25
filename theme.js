@@ -29,13 +29,31 @@ const TABS=[
 ];
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
 const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];
+/* ---------- Designs: ändern NUR Farben, Hintergrund und Stimmung (Variablen in theme.css, Akzent je Reiter hier) ----------
+   Neues Design: hier eintragen + in theme.css einen Block html[data-hud][data-theme="id"]{...} ergänzen. Funktionen bleiben unberührt. */
+const THEMES={
+  cockpit:{id:'cockpit',name:'Cockpit',sw:['#3ad7ff','#7896ff'],meta:'#04080f'},
+  jungle:{id:'jungle',name:'Dschungel',sw:['#6fe39a','#d8e86a'],meta:'#050d08',
+    tabs:{hub:[[110,225,140],[205,235,105]],checkin:[[255,196,92],[255,140,80]],heute:[[110,228,150],[190,236,100]],kalender:[[240,205,90],[225,140,70]],
+      recovery:[[60,222,165],[130,232,120]],lernen:[[200,140,235],[140,110,235]],puzzle:[[255,150,60],[255,70,170]],training:[[255,112,80],[255,172,70]],muster:[[120,228,210],[190,232,120]]}}
+};
+const themeOf=()=>THEMES[S.theme]||THEMES.cockpit;
+const trgb=t=>{const x=themeOf().tabs&&themeOf().tabs[t.id];return x?x[0]:t.rgb};
+const trgb2=t=>{const x=themeOf().tabs&&themeOf().tabs[t.id];return x?x[1]:t.rgb2};
 /* ---------- Einstellungen (localStorage + Firestore best effort) ---------- */
-const DEF={perf:false,sounds:true,tilt:false,fps:false};
+const DEF={perf:false,sounds:true,tilt:false,fps:false,theme:'cockpit'};
 let S=Object.assign({},DEF);
 try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('lb_ui')||'{}'))}catch(e){}
 const listeners=[];
+function applyTheme(){
+  const th=themeOf();
+  if(th.id==='cockpit')root.removeAttribute('data-theme');else root.setAttribute('data-theme',th.id);
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=th.meta;
+  if(th.id==='jungle'&&!document.getElementById('lb-fonts2')){const l=document.createElement('link');l.id='lb-fonts2';l.rel='stylesheet';l.href='https://fonts.googleapis.com/css2?family=Fraunces:wght@500;700&display=swap';document.head.append(l)}
+}
 function applySettings(){
   if(S.perf)root.setAttribute('data-perf','');else root.removeAttribute('data-perf');
+  applyTheme();
   listeners.forEach(f=>{try{f(S)}catch(e){}});
 }
 function setSetting(k,v){
@@ -50,11 +68,12 @@ applySettings();
 function setAcc(rgb,rgb2){root.style.setProperty('--acc',rgb.map(Math.round).join(' '));if(rgb2)root.style.setProperty('--acc2',rgb2.map(Math.round).join(' '))}
 function accentIn(tab){
   let prev=null;try{prev=JSON.parse(sessionStorage.getItem('lb_acc')||'null')}catch(e){}
-  try{sessionStorage.setItem('lb_acc',JSON.stringify(tab.rgb))}catch(e){}
-  root.style.setProperty('--tc',tab.rgb.join(' '));root.setAttribute('data-tab',tab.id);
-  if(!prev||S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches||prev.join()===tab.rgb.join()){setAcc(tab.rgb,tab.rgb2);return}
+  const R=trgb(tab),R2=trgb2(tab);
+  try{sessionStorage.setItem('lb_acc',JSON.stringify(R))}catch(e){}
+  root.style.setProperty('--tc',R.join(' '));root.setAttribute('data-tab',tab.id);
+  if(!prev||S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches||prev.join()===R.join()){setAcc(R,R2);return}
   const t0=performance.now(),D=700;
-  (function step(now){const k=Math.min(1,(now-t0)/D),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;setAcc(tab.rgb.map((c,i)=>prev[i]+(c-prev[i])*e),tab.rgb2);if(k<1)requestAnimationFrame(step)})(t0);
+  (function step(now){const k=Math.min(1,(now-t0)/D),e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;setAcc(R.map((c,i)=>prev[i]+(c-prev[i])*e),R2);if(k<1)requestAnimationFrame(step)})(t0);
 }
 /* ---------- Sounds (WebAudio, nur nach Nutzergeste) ---------- */
 let AC=null;
@@ -80,11 +99,11 @@ function buildNav(){
   if(document.getElementById('lb-nav'))return;
   const cur=curTab();
   const nav=document.createElement('nav');nav.id='lb-nav';nav.setAttribute('aria-label','Reiter');
-  nav.innerHTML='<span class="brand">LIFE BOARD</span><div class="tabs">'+TABS.map(t=>'<a class="tab'+(t.id===cur.id?' act':'')+'" href="'+t.href+'" style="--tc:'+t.rgb.join(' ')+'" data-tab="'+t.id+'"><svg viewBox="0 0 24 24">'+(ICON[t.id]||ICON.hub)+'</svg><span>'+t.name+'</span></a>').join('')+'</div><button class="gear" id="lb-gear" aria-label="Einstellungen"><svg viewBox="0 0 24 24">'+ICON.gear+'</svg></button>';
+  nav.innerHTML='<span class="brand">LIFE BOARD</span><div class="tabs">'+TABS.map(t=>'<a class="tab'+(t.id===cur.id?' act':'')+'" href="'+t.href+'" style="--tc:'+trgb(t).join(' ')+'" data-tab="'+t.id+'"><svg viewBox="0 0 24 24">'+(ICON[t.id]||ICON.hub)+'</svg><span>'+t.name+'</span></a>').join('')+'</div><button class="gear" id="lb-gear" aria-label="Einstellungen"><svg viewBox="0 0 24 24">'+ICON.gear+'</svg></button>';
   document.body.prepend(nav);
   const panel=document.createElement('div');panel.id='lb-set';panel.hidden=true;
   const row=(k,t,sub)=>'<div class="r"><div>'+t+(sub?'<small>'+sub+'</small>':'')+'</div><button class="lb-sw" role="switch" data-k="'+k+'" aria-checked="'+!!S[k]+'" aria-label="'+t+'"></button></div>';
-  panel.innerHTML='<h4>Einstellungen</h4>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
+  panel.innerHTML='<h4>Einstellungen</h4>'+'<div class="th"><div class="thl">Design<small>Ändert nur Farben und Stimmung, an den Funktionen ändert sich nichts</small></div><div class="thg">'+Object.values(THEMES).map(t=>'<button class="lb-th" data-th="'+t.id+'" aria-pressed="'+(t.id===themeOf().id)+'"><i style="background:linear-gradient(135deg,'+t.sw[0]+','+t.sw[1]+')"></i>'+t.name+'</button>').join('')+'</div></div>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
   document.body.append(panel);
   nav.querySelector('#lb-gear').onclick=()=>{panel.hidden=!panel.hidden;sound(panel.hidden?'off':'on')};
   document.addEventListener('pointerdown',e=>{if(!panel.hidden&&!panel.contains(e.target)&&!nav.querySelector('#lb-gear').contains(e.target))panel.hidden=true},true);
@@ -95,7 +114,26 @@ function buildNav(){
     }
     b.setAttribute('aria-checked',v);setSetting(k,v);sound(v?'on':'off');
   });
+  panel.querySelectorAll('.lb-th').forEach(b=>b.onclick=()=>{setTheme(b.dataset.th);sound('ok')});
   const h=nav.getBoundingClientRect().height;if(h)root.style.setProperty('--navh',Math.ceil(h)+'px');
+}
+/* ---------- Design wechseln: weich überblenden (View Transitions, sonst kurzes Farbüberblenden) ---------- */
+function refreshThemeUI(){
+  const nav=document.getElementById('lb-nav');
+  if(nav)nav.querySelectorAll('a.tab').forEach(a=>{const t=TABS.find(x=>x.id===a.dataset.tab);if(t)a.style.setProperty('--tc',trgb(t).join(' '))});
+  document.querySelectorAll('#lb-set .lb-th').forEach(b=>b.setAttribute('aria-pressed',b.dataset.th===themeOf().id));
+  const tab=curTab(),R=trgb(tab);
+  root.style.setProperty('--tc',R.join(' '));setAcc(R,trgb2(tab));
+  try{sessionStorage.setItem('lb_acc',JSON.stringify(R))}catch(e){}
+  window.dispatchEvent(new Event('lb-theme'));
+}
+function setTheme(id){
+  if(!THEMES[id]||id===themeOf().id)return;
+  const run=()=>{setSetting('theme',id);refreshThemeUI()};
+  const calm=S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!calm&&document.startViewTransition){try{document.startViewTransition(run);return}catch(e){}}
+  if(!calm){root.classList.add('lb-themeswap');setTimeout(()=>root.classList.remove('lb-themeswap'),900)}
+  run();
 }
 /* ---------- Seitenübergänge ---------- */
 function transitions(){
@@ -147,10 +185,10 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('vendor/three.min.js?v=150');await loadScript('bg3d.js?v=2')}catch(e){bgStarted=false}
+  try{await loadScript('vendor/three.min.js?v=150');await loadScript('bg3d.js?v=3')}catch(e){bgStarted=false}
 }
 /* ---------- Start ---------- */
-const API={TABS,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
+const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
   registerTab(t){const i=TABS.findIndex(x=>x.id===t.id);if(i>=0)TABS[i]=t;else TABS.push(t);const n=document.getElementById('lb-nav');if(n){n.remove();buildNav()}},
   setAccent:setAcc,curTab};
 window.LBUI=API;
@@ -164,7 +202,7 @@ function start(){
   listeners.push(s=>{if(!s.perf)bg();if(s.fps&&!fpsRaf)fpsLoop();});
   if(S.fps)fpsLoop();
   // gespeicherte Einstellungen vom Server holen, wenn lokal noch nichts gespeichert wurde
-  try{if(typeof auth!=='undefined')auth.onAuthStateChanged(async u=>{if(!u)return;UID=u.uid;if(localStorage.getItem('lb_ui')){pushSettings();return}try{const d=await fs.doc('users/'+u.uid+'/settings/main').get();const ui=d.exists&&d.data().ui;if(ui){S=Object.assign({},DEF,ui);localStorage.setItem('lb_ui',JSON.stringify(S));applySettings();document.querySelectorAll('#lb-set .lb-sw').forEach(b=>b.setAttribute('aria-checked',!!S[b.dataset.k]))}}catch(e){}})}catch(e){}
+  try{if(typeof auth!=='undefined')auth.onAuthStateChanged(async u=>{if(!u)return;UID=u.uid;if(localStorage.getItem('lb_ui')){pushSettings();return}try{const d=await fs.doc('users/'+u.uid+'/settings/main').get();const ui=d.exists&&d.data().ui;if(ui){S=Object.assign({},DEF,ui);localStorage.setItem('lb_ui',JSON.stringify(S));applySettings();refreshThemeUI();document.querySelectorAll('#lb-set .lb-sw').forEach(b=>b.setAttribute('aria-checked',!!S[b.dataset.k]))}}catch(e){}})}catch(e){}
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
 })();

@@ -108,7 +108,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 .sum ul{list-style:none;padding:0;margin:10px 0;text-align:left;font-size:14px}
 .sum li{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-bottom:1px solid var(--bd)}
 @media (max-width:900px){.wh ul{grid-template-columns:1fr}.hero{grid-template-columns:1fr 1fr}.hero .card:first-child{grid-column:1/-1}.dnav .dt{min-width:120px}.bar .back{display:none}}
-</style><link rel="stylesheet" href="theme.css?v=8">
+</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
 </head><body>
 <div class="bar"><div class="in">
   <a class="back" href="index.html">← Start</a>
@@ -594,5 +594,5 @@ window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehle
 boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=13"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=14"></script>
 </body></html>
