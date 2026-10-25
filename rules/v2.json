@@ -3826,6 +3826,15 @@
    "capture": "Check-in",
    "src": "checkin",
    "use": "checkin"
+  },
+  {
+   "id": "MEN-05",
+   "cat": "MEN",
+   "text": "Alle Tagesziele erreicht",
+   "points": 300,
+   "capture": "Check-in",
+   "src": "checkin",
+   "use": "checkin"
   }
  ],
  "ui": {

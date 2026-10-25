@@ -130,7 +130,7 @@ try{
 
 // ---- Sicherung ----
 // Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
-const MODULES=['puzzle','days','journal','state','settings','whoop','habits','learn','questions','learnpages','chats','training','sleepcards','sleepcfg','calendar'];
+const MODULES=['puzzle','days','journal','goals','state','settings','whoop','habits','learn','questions','learnpages','chats','training','sleepcards','sleepcfg','calendar'];
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function bkStatus(){
   let last=null;try{last=localStorage.getItem('lb-last-backup')}catch(e){}
@@ -323,6 +323,7 @@ async function ckStatus(u){
     if(!d||!d.m)t.innerHTML='<b style="color:var(--ac)">Morgen-Check offen</b> · Wie fühlst du dich heute?';
     else if(J.goodCount(d)<3&&h>=18)t.innerHTML=J.EMO[d.m.mood-1]+' Morgen erledigt · <b style="color:var(--ac)">Abend offen</b>: 3 gute Dinge';
     else t.innerHTML=J.EMO[d.m.mood-1]+' Stimmung '+d.m.mood+'/5 · Energie '+d.m.energy+'/5'+(J.goodCount(d)>=3?' · Abend ✓':'')+((d.notes||[]).length?' · '+d.notes.length+' Notiz'+(d.notes.length>1?'en':''):'');
+    const g=(d&&d.g)||[];if(g.length)t.innerHTML+='<br>🎯 Ziele heute: '+g.filter(x=>x.done).length+'/'+g.length+(g.find(x=>!x.done)?' · als Nächstes: '+(()=>{const n=g.filter(x=>!x.done).sort((a,b)=>(a.at||'99').localeCompare(b.at||'99'))[0];return (n.at?n.at+' ':'')+n.t.replace(/[<>&]/g,'')})():' ✓');
   }catch(e){}
 }
 auth.onAuthStateChanged(u=>{if(u)ckStatus(u)});

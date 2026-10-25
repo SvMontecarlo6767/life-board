@@ -35,6 +35,7 @@ MEN=[
   {'id':'MEN-02','cat':'MEN','text':'Abend-Check mit 3 guten Dingen','points':500},
   {'id':'MEN-03','cat':'MEN','text':'Stimmung oder Gedanke über den Tag notiert','points':100,'max':3},
   {'id':'MEN-04','cat':'MEN','text':'Eigene Tracker ausgefüllt','points':150},
+  {'id':'MEN-05','cat':'MEN','text':'Alle Tagesziele erreicht','points':300},
 ]
 for a in MEN: acts.append(dict(a,capture='Check-in',src='checkin',use='checkin'))
 v2['categories']=v1['categories']+[{'id':'MEN','name':'Mental und Check-in'}]
