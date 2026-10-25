@@ -211,7 +211,7 @@ function renderMorning(){
     el.innerHTML='<h3>Morgen'+(m.at?' · '+hm(m.at):'')+'</h3><div class="sum"><span>'+J.EMO[m.mood-1]+' Stimmung <b>'+m.mood+'</b>/5</span><span>⚡ Energie <b>'+m.energy+'</b>/5</span>'+(m.sleep?'<span>😴 Schlaf gefühlt <b>'+m.sleep+'</b>/5</span>':'')+(m.feel?'<span>„'+esc(m.feel)+'“</span>':'')+'</div>'
       +'<div class="cmp"><div><span class="mu">Gefühlt erholt</span><b>'+(m.sleep||m.energy)+'/5</b><span class="mu">'+esc(J.SCALE.sleep[(m.sleep||m.energy)-1])+'</span></div><div><span class="mu">Whoop-Recovery</span><b class="rec-'+recZone(r)+'">'+(r==null?(WH?'–':'…'):r+' %')+'</b><span class="mu">'+(r==null?(WH?'noch keine Daten':'wird geladen'):r>=67?'grün':r>=34?'gelb':'rot')+'</span></div></div>'
       +(cal?'<div class="mu" style="margin-top:8px">Dein Gefühl trifft die Whoop-Zone an <b>'+cal.hit+' von '+cal.n+'</b> Tagen.</div>':'')
-      +planHtml(cur)+'<div class="act"><button id="mEdit">Ändern</button>'+(cur===today?'<a href="'+WHOOP_BACK+'" style="flex:1;display:flex"><button class="primary" style="flex:1">Weiter zu Whoop</button></a>':'')+'</div>';
+      +planHtml(cur)+(cur===today?'<div class="act"><a href="news.html?v=1" style="flex:1;display:flex;text-decoration:none"><button style="flex:1"'+(new URLSearchParams(location.search).has('news')?' class="primary"':'')+'>📰 Tagesüberblick lesen</button></a></div>':'')+'<div class="act"><button id="mEdit">Ändern</button>'+(cur===today?'<a href="'+WHOOP_BACK+'" style="flex:1;display:flex"><button class="primary" style="flex:1">Weiter zu Whoop</button></a>':'')+'</div>';
     $('mEdit').onclick=()=>{draftM=Object.assign({},m);renderMorning()};
     return;
   }
@@ -267,23 +267,28 @@ async function renderPush(){
   const el=$('push');let st;try{st=await LBPush.state()}catch(e){st={ok:false,why:'unsupported'}}
   PUSH.on=!!(st.ok&&st.on);
   if(!st.ok){el.innerHTML='<h3>Erinnerungen</h3><div class="mu">'+(st.why==='homescreen'?'Auf dem iPhone kommen Erinnerungen nur, wenn das Board als App auf dem Home-Bildschirm liegt: Safari → Teilen → „Zum Home-Bildschirm“, dann von dort öffnen.':st.why==='denied'?'Mitteilungen sind für das Board ausgeschaltet. Einstellungen → Mitteilungen → Life Board → „Mitteilungen erlauben“.':'Dieses Gerät oder dieser Browser unterstützt keine Push-Mitteilungen.')+'</div>';return}
-  if(!PUSH.on){el.innerHTML='<h3>Erinnerungen</h3><div class="mu">Wenige, die zählen: an deine Tagesziele zur geplanten Uhrzeit und an den Morgen-Check, falls du ihn vergisst. Nie in der Schulzeit (Mo–Fr 8:00–15:30), höchstens 4 am Tag.</div><div class="act"><button class="primary" id="pOn">Erinnerungen einschalten</button></div>';
+  if(!PUSH.on){el.innerHTML='<h3>Erinnerungen</h3><div class="mu">Wenige, die zählen: an deine Tagesziele zur geplanten Uhrzeit, an den Morgen-Check, falls du ihn vergisst, und morgens dein Tagesüberblick (kommt zusammen mit dem Morgen-Check als eine Nachricht). Nie in der Schulzeit (Mo–Fr 8:00–15:30), höchstens 4 am Tag.</div><div class="act"><button class="primary" id="pOn">Erinnerungen einschalten</button></div>';
     $('pOn').onclick=async()=>{$('pOn').disabled=true;try{await LBPush.enable(api);toast('Erinnerungen an');await renderPush();syncPush();renderGoals()}catch(e){showMsg('Einschalten hat nicht geklappt: '+esc(e.message==='denied'?'Mitteilungen wurden nicht erlaubt':e.message),true);$('pOn').disabled=false}};return}
-  if(!PUSH.cfg){try{PUSH.cfg=await api('/push/status')}catch(e){PUSH.cfg={quiet:{days:[1,2,3,4,5],from:'08:00',to:'15:30'},morning:{on:true,wd:'06:45',we:'09:30'},lead:0}}}
-  const c=PUSH.cfg,q=c.quiet,m=c.morning,WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  if(!PUSH.cfg){try{PUSH.cfg=await api('/push/status')}catch(e){PUSH.cfg={quiet:{days:[1,2,3,4,5],from:'08:00',to:'15:30'},morning:{on:true,wd:'06:45',we:'09:30'},news:{on:true,wd:'06:45',we:'09:30'},lead:0}}}
+  const c=PUSH.cfg,q=c.quiet,m=c.morning,nw=c.news||(c.news={on:true,wd:'06:45',we:'09:30'}),WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
   el.innerHTML='<h3>Erinnerungen · an</h3>'
     +'<div class="pr"><span>Morgen-Check, falls noch offen</span><button type="button" id="pM" aria-pressed="'+m.on+'">'+(m.on?'an':'aus')+'</button></div>'
     +(m.on?'<div class="pr"><span>Mo–Fr um</span><input type="time" id="pMwd" value="'+m.wd+'"></div><div class="pr"><span>Sa/So um</span><input type="time" id="pMwe" value="'+m.we+'"></div>':'')
+    +'<div class="pr"><span>📰 Tagesüberblick</span><button type="button" id="pN" aria-pressed="'+nw.on+'">'+(nw.on?'an':'aus')+'</button></div>'
+    +(nw.on?'<div class="pr"><span>Mo–Fr um</span><input type="time" id="pNwd" value="'+nw.wd+'"></div><div class="pr"><span>Sa/So um</span><input type="time" id="pNwe" value="'+nw.we+'"></div>':'')
     +'<div class="pr"><span>Tagesziele</span><select id="pLead"><option value="0">zur Uhrzeit</option><option value="10">10 Min vorher</option><option value="15">15 Min vorher</option><option value="30">30 Min vorher</option></select></div>'
     +'<div class="pr"><span>Ruhezeit (Schule) ab</span><input type="time" id="pQf" value="'+q.from+'"></div><div class="pr"><span>bis</span><input type="time" id="pQt" value="'+q.to+'"></div>'
     +'<div class="pr"><span></span><div class="days">'+[1,2,3,4,5,6,0].map(d=>'<button type="button" data-qd="'+d+'" aria-pressed="'+q.days.includes(d)+'">'+WD[d]+'</button>').join('')+'</div></div>'
     +'<div class="mu" style="margin-top:6px">Höchstens 4 am Tag. Erinnerungen, die in die Ruhezeit fallen, kommen direkt danach.</div>'
     +'<div class="act"><button id="pTest">Test senden</button><button id="pOff">Ausschalten</button></div>';
   $('pLead').value=String(c.lead||0);
-  const put=async()=>{try{await LBPush.config(api,{quiet:c.quiet,morning:c.morning,lead:c.lead});setSave('Erinnerungen gespeichert ✓')}catch(e){showMsg('Nicht gespeichert: '+esc(e.message),true)}};
+  const put=async()=>{try{await LBPush.config(api,{quiet:c.quiet,morning:c.morning,news:c.news,lead:c.lead});setSave('Erinnerungen gespeichert ✓')}catch(e){showMsg('Nicht gespeichert: '+esc(e.message),true)}};
   $('pM').onclick=()=>{m.on=!m.on;put();renderPush()};
   if($('pMwd'))$('pMwd').onchange=()=>{if($('pMwd').value){m.wd=$('pMwd').value;put()}};
   if($('pMwe'))$('pMwe').onchange=()=>{if($('pMwe').value){m.we=$('pMwe').value;put()}};
+  $('pN').onclick=()=>{nw.on=!nw.on;put();renderPush()};
+  if($('pNwd'))$('pNwd').onchange=()=>{if($('pNwd').value){nw.wd=$('pNwd').value;put()}};
+  if($('pNwe'))$('pNwe').onchange=()=>{if($('pNwe').value){nw.we=$('pNwe').value;put()}};
   $('pLead').onchange=()=>{c.lead=+$('pLead').value;put()};
   $('pQf').onchange=()=>{if($('pQf').value){q.from=$('pQf').value;put();renderGoals()}};$('pQt').onchange=()=>{if($('pQt').value){q.to=$('pQt').value;put();renderGoals()}};
   el.querySelectorAll('[data-qd]').forEach(b=>b.onclick=()=>{const d=+b.dataset.qd;q.days=q.days.includes(d)?q.days.filter(x=>x!==d):q.days.concat(d);put();renderPush();renderGoals()});

@@ -35,6 +35,11 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Auswertung: Rekorde (Gewicht, Wiederholungen, geschätztes 1RM nach Epley) mit Meldung beim Speichern, Verlaufskurve je Übung, Sätze pro Muskelgruppe (Zuordnung nach dem Namen), Einheitenverlauf. Jede Gym-Einheit zählt als Kraft-Einheit fürs Wochenziel und die Belastung.
 - Daten: `users/{uid}/training/gym_JJJJ` (Firestore, in der Sicherung enthalten). Tests: `node tools/test-gym.mjs`, `python3 tools/browser/test_gym.py <Ordner>`.
 
+## Tagesüberblick (Reiter-Kachel „Überblick“, `news.html`)
+- Nur das Wichtige, kein Sport: Top-Meldungen „Deutschland & Welt“ (tagesschau, Reihenfolge der Redaktion) und „Technik & Wissen“ (heise, tagesschau Wissen). Schlagzeile + Kurztext der Redaktion, ohne KI; Antippen öffnet den Artikel.
+- Der Worker liest RSS/Atom (`/news`, neu nach 3 Stunden, `?refresh=1` sofort), mehrere Quellen pro Bereich als Ersatz; die Seite nennt ausgefallene Quellen und zeigt offline den letzten Stand.
+- Push morgens (Standard 6:45, am Wochenende 9:30, im Check-in einstellbar); fällt sie mit der Morgen-Check-Erinnerung zusammen, kommt eine Nachricht. Nach dem Morgen-Check gibt es den Knopf „Tagesüberblick lesen“. Tests: `node worker/test.mjs`, `node tools/browser/test_news.mjs`.
+
 ## Erinnerungen (Push)
 - Im Check-in unter „Erinnerungen“ einschalten (iPhone: Board vom Home-Bildschirm öffnen, iOS 16.4+). Tagesziele mit Uhrzeit bekommen eine 🔔 (antippen zum Ein-/Ausschalten), dazu optional der Morgen-Check, falls noch offen.
 - Nie in der Ruhezeit (Standard Mo–Fr 8:00–15:30, einstellbar); was hineinfällt, kommt direkt danach. Höchstens 4 am Tag.
