@@ -26,6 +26,7 @@ const sleeps = [{ id: 's1', start: '2026-10-12T21:00:00.000Z', end: '2026-10-13T
 const workouts = [{ id: 'w1', sport_name: 'running', start: '2026-10-13T16:00:00.000Z', end: '2026-10-13T17:00:00.000Z', timezone_offset: '+02:00', score_state: 'SCORED', score: { strain: 9 } }];
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url); calls.push(url);
+  if (/tagesschau\.de|heise\.de|kicker\.de|sportschau\.de/.test(url)) { const F = globalThis.__feeds || {}; const k = Object.keys(F).find(x => url.includes(x)); if (!k) return new Response('nope', { status: 404 }); return new Response(F[k], { status: 200 }) }
   if (url.startsWith('https://push.example/')) { (globalThis.__pushes = globalThis.__pushes || []).push({ url, headers: opts.headers, body: opts.body }); return new Response('', { status: url.endsWith('/gone') ? 410 : 201 }) }
   const ok = d => new Response(JSON.stringify(d), { status: 200 });
   if (url.includes('securetoken')) return ok({ keys: [jwk] });
@@ -321,7 +322,7 @@ console.log('✓ Zeitraum-Schutz');
   assert.equal((await api('/push/subscribe', { sub: { endpoint: 'http://unsicher' } })).status, 400);
   // Montag 26.10.2026: Ziel 18:00 (nach der Schule), Ziel 10:00 (in der Schulzeit)
   await api('/push/schedule', { days: ['2026-10-26'], items: [{ id: 'a', day: '2026-10-26', at: '18:00', title: 'Kraft Unterkörper' }, { id: 'b', day: '2026-10-26', at: '10:00', title: 'Vokabeln' }] });
-  await api('/push/config', { morning: { on: true, wd: '06:45', we: '09:30' } });
+  await api('/push/config', { morning: { on: true, wd: '06:45', we: '09:30' }, news: { on: false } });
   const run = async iso => { globalThis.__pushes = []; let p; await worker.scheduled({ scheduledTime: Date.parse(iso) }, penv, { waitUntil: x => { p = x } }); await p; return globalThis.__pushes };
   const hk = async (salt, ikm, info, len) => new Uint8Array(await S.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, await S.importKey('raw', ikm, 'HKDF', false, ['deriveBits']), len * 8));
   const decrypt = async body => { const b = new Uint8Array(body), salt = b.slice(0, 16), asPub = b.slice(21, 86), ct = b.slice(86);
@@ -353,5 +354,35 @@ console.log('✓ Zeitraum-Schutz');
   const tst = (await api('/push/test', {})).body; assert.equal(tst.sent, 1); assert.equal((await api('/push/status')).body.subs, 1, '410 entfernt das Abo');
   assert.equal((await worker.fetch(new Request('https://w.example/push/status'), penv)).status, 401, 'nur angemeldet');
   console.log('✓ Benachrichtigungen');
+}
+{ // Tagesüberblick
+  const nenv = { ...env, WB: kv() }, now = Date.parse('2026-10-26T05:40:00Z');
+  const rss = (items) => '<?xml version="1.0"?><rss><channel><title>x</title>' + items.map(([t, d, h]) => '<item><title><![CDATA[' + t + ']]></title><link>https://www.tagesschau.de/a/' + encodeURIComponent(t) + '</link><description>' + d + '</description><pubDate>' + new Date(now - (h || 1) * 3600e3).toUTCString() + '</pubDate></item>').join('') + '</channel></rss>';
+  globalThis.__feeds = {
+    'tagesschau.de/index~rss2.xml': rss([['Bundestag beschließt Haushalt', 'Der Bundestag hat den Haushalt für 2027 verabschiedet. Die Opposition kritisiert die Schulden. Weitere Details folgen später im Laufe des Tages, wenn alle Abgeordneten ihre Stellungnahmen abgegeben haben und die Länder zugestimmt haben.'], ['Waffenruhe vereinbart &amp; bestätigt', '&lt;p&gt;Beide Seiten stimmen zu.&lt;/p&gt;'], ['Alte Meldung', 'veraltet', 60]]),
+    'tagesschau.de/inland/index~rss2.xml': rss([['Bundestag beschließt Haushalt', 'doppelt'], ['Streik bei der Bahn', 'Am Montag fallen viele Züge aus.']]),
+    'heise.de/rss/heise-top-atom.xml': '<feed xmlns="http://www.w3.org/2005/Atom"><entry><title type="html">Neues Sprachmodell vorgestellt</title><link rel="alternate" href="https://www.heise.de/news/1.html"/><summary>Es soll schneller sein.</summary><updated>' + new Date(now - 3600e3).toISOString() + '</updated></entry></feed>'
+  };
+  const P = globalThis.__lbPush.parseFeed(globalThis.__feeds['heise.de/rss/heise-top-atom.xml']);
+  assert.deepEqual([P[0].t, P[0].url, P[0].s], ['Neues Sprachmodell vorgestellt', 'https://www.heise.de/news/1.html', 'Es soll schneller sein.'], 'Atom wird gelesen');
+  const r = await worker.fetch(new Request('https://w.example/news', { headers: { Authorization: 'Bearer ' + token() } }), nenv); const N = await r.json();
+  assert.equal(r.status, 200); assert.deepEqual(N.sections.map(x => x.id), ['welt', 'tech'], 'kein Sport');
+  const welt = N.sections[0].items.map(x => x.t);
+  assert.deepEqual(welt, ['Bundestag beschließt Haushalt', 'Waffenruhe vereinbart & bestätigt', 'Streik bei der Bahn'], 'Reihenfolge der Redaktion, doppelt und veraltet raus: ' + welt.join(' | '));
+  assert.equal(N.sections[0].items[1].s, 'Beide Seiten stimmen zu.', 'HTML und Zeichen sauber');
+  assert.ok(N.sections[0].items[0].s.length <= 262 && N.sections[0].items[0].s.endsWith('.'), 'Kurztext am Satzende gekürzt');
+  assert.ok(N.sources.some(x => !x.ok) && N.n === 4 && N.minutes >= 1, 'fehlende Quelle bricht nichts');
+  // Push: Überblick zusammen mit Morgen-Check als eine Nachricht
+  const ua = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']), uaPub = new Uint8Array(await crypto.subtle.exportKey('raw', ua.publicKey));
+  const api = async (path, body) => { const q = await worker.fetch(new Request('https://w.example' + path, { method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }), nenv); return q.json() };
+  await api('/push/subscribe', { sub: { endpoint: 'https://push.example/n1', keys: { p256dh: b64u(uaPub), auth: b64u(crypto.getRandomValues(new Uint8Array(16))) } } });
+  const run = async ms => { globalThis.__pushes = []; let p; await worker.scheduled({ scheduledTime: ms }, nenv, { waitUntil: x => { p = x } }); await p; return globalThis.__pushes };
+  assert.equal((await run(now)).length, 0, 'vor 6:45 nichts');
+  assert.equal((await run(Date.parse('2026-10-26T05:46:00Z'))).length, 1, 'Morgen-Check und Überblick in einer Nachricht');
+  assert.equal((await run(Date.parse('2026-10-26T05:51:00Z'))).length, 0, 'danach nichts mehr');
+  await api('/push/done', { day: '2026-10-27' });
+  assert.equal((await run(Date.parse('2026-10-27T05:46:00Z'))).length, 1, 'eingecheckt: nur der Überblick');
+  assert.equal((await api('/push/config', { news: { on: false } })).ok, true); assert.equal((await api('/push/status')).news.on, false);
+  console.log('✓ Tagesüberblick');
 }
 console.log('Alle Tests bestanden');
