@@ -41,6 +41,11 @@ Safari → Teilen → **Zum Home-Bildschirm**. `manifest.webmanifest`, Symbole i
 ## Sicherung wiederherstellen
 Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gleiche Dokumente werden überschrieben, nichts wird gelöscht; Whoop-Rohdaten (liegen im Worker) sind nicht enthalten. Test: `python3 tools/browser/test_backup.py`.
 
+## Dopamin-Konto
+- Rechnung in `dop-account.js`, gemeinsam für „Heute“ und den Hub. Das Konto zählt lückenlos vom ersten Tag bis heute: Tage, an denen das Board nicht geöffnet war, bekommen ihre Whoop-, Puzzle- und Lernpunkte trotzdem und werden beim nächsten Öffnen von „Heute“ als Eintrag gespeichert.
+- Beim Blättern zeigt „Konto“ den Stand bis einschließlich des gewählten Tags.
+- Der Hub zeigt erst den gespeicherten Stand und rechnet ihn dann live nach (auch beim Zurückkehren aus „Heute“). Test: `node tools/browser/test_konto.mjs`.
+
 ## Jarvis
 - Antippen öffnet, **halten = sprechen, loslassen = senden**. Tippen im Textfeld antwortet nur schriftlich.
 - Schalter „Jarvis spricht“ (Optionen) bzw. „nur schriftlich“ / „sprich mit mir“ per Zuruf.

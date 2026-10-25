@@ -49,9 +49,9 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 </section>
 <section id="hub" hidden>
   <div class="top"><div><h1>Life Board</h1><p class="sub" id="who"></p></div><button id="logoutBtn">Abmelden</button></div>
-  <a class="tile" href="heute.html?v=6" id="dop" style="margin-bottom:12px"><b>🎯 Dopamin-Konto</b><span id="dopTxt">wird geladen …</span></a>
+  <a class="tile" href="heute.html?v=7" id="dop" style="margin-bottom:12px"><b>🎯 Dopamin-Konto</b><span id="dopTxt">wird geladen …</span></a>
   <div class="grid">
-    <a class="tile" href="heute.html?v=6"><div style="font-size:28px">🎯</div><b>Heute</b><span>Aktionen antippen, Dopamin-Konto, Rang und Level</span></a>
+    <a class="tile" href="heute.html?v=7"><div style="font-size:28px">🎯</div><b>Heute</b><span>Aktionen antippen, Dopamin-Konto, Rang und Level</span></a>
     <a class="tile" href="calendar.html?v=1"><div style="font-size:28px">📅</div><b>Kalender</b><span>Termine, Erinnerungen, Tagesnotiz und Rückblick auf deine Daten</span></a>
     <a class="tile" href="training.html?v=3"><div style="font-size:28px">💪</div><b>Training</b><span>Alle Sportarten, Einheiten eintragen, Form und Wochenziel</span></a>
     <a class="tile" href="puzzle.html?v=3"><div style="font-size:28px">🧩</div><b>Puzzle-Tracker</b><span>Tägliche Puzzles, Rating, Meilensteine, Berichte</span></a>
@@ -94,6 +94,10 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
 <script src="assistant.js?v=8"></script>
+<script src="engine.js"></script>
+<script src="puzzle-dop.js"></script>
+<script src="whoop-auto.js"></script>
+<script src="dop-account.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 auth.onAuthStateChanged(u=>{
@@ -263,16 +267,54 @@ $('whHist').onclick=async()=>{
   history.replaceState(null,'',location.pathname);
 })();
 auth.onAuthStateChanged(u=>{if(u)whStatus()});
+// ---- Dopamin-Konto ----
+// Zuerst der zuletzt gespeicherte Stand (sofort sichtbar), danach live neu gerechnet wie in „Heute“ (dop-account.js):
+// mit Whoop-Punkten von heute und von Tagen, an denen das Board nicht geöffnet war.
+const dn=x=>Math.round(x).toLocaleString('de-DE').replace('-','−');
+function dopShow(d,note){
+  $('dopTxt').innerHTML='<span style="font-size:26px;font-weight:700;color:var(--tx)">'+dn(d.account)+'</span> Dopamin insgesamt · <b>Level '+d.level+'</b>'+(d.todayNet!=null?'<br>Heute ('+d.todayDate.slice(8)+'.'+d.todayDate.slice(5,7)+'.): '+(d.todayNet>0?'+':'')+dn(d.todayNet)+' · Rang '+d.todayRank:'')+' · Tage: '+d.days+(note?'<br><small style="color:var(--mu)">'+note+'</small>':'');
+}
+async function dopRules(v){const r=await fetch('rules/v'+v+'.json?c='+v,{cache:'no-cache'});if(!r.ok)throw new Error('Regelwerk v'+v+' nicht ladbar');return r.json()}
+async function dopLive(u){
+  const E=window.LBEngine,base='users/'+u.uid,CURV=2,RULES={};
+  RULES[CURV]=await dopRules(CURV);
+  const today=E.dayKey(new Date(),RULES[CURV].day.timezone,RULES[CURV].day.changeHour);
+  const [ds,ps,ls,ss]=await Promise.all([fs.collection(base+'/days').get(),fs.collection(base+'/puzzle').get(),fs.collection(base+'/learn').get(),fs.doc(base+'/settings/main').get()]);
+  const DAYS={},P={},LEARN={};
+  ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))DAYS[x.id]=x.data()});
+  if(!Object.keys(DAYS).length)return null;
+  let pend={};try{pend=JSON.parse(localStorage.getItem('lb_pending_days_'+u.uid)||'{}')}catch(e){}   // in „Heute“ getippt, aber noch nicht bestätigt
+  for(const k of Object.keys(pend)){if(!DAYS[k]||(DAYS[k].updatedAt||0)<=(pend[k].updatedAt||0))DAYS[k]=pend[k]}
+  ps.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id)){const v=x.data()||{};if(v.g)P[x.id]=v.g}});
+  ls.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))LEARN[x.id]=(x.data()||{}).counts||{}});
+  for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||1)))if(!RULES[v])RULES[v]=await dopRules(v).catch(()=>RULES[CURV]);
+  let WH={},WHSTATE='err';
+  try{const d=await wfetch('/data?from='+E.addDays(today,-365)+'&to='+today);WH=d.days||{};WHSTATE='ok'}catch(e){return{st:null,whoop:false}}   // ohne Whoop lieber den gespeicherten Stand zeigen
+  const A=LBAccount.create({E,WA:window.WhoopAuto,CURV,RULES,DAYS,PUZ:PuzzleDop.puzzleDayValues(P),LEARN,SETTINGS:ss.exists?ss.data():{},WH,WHSTATE,today});
+  const acc=A.total(),t=A.calc(today).res,li=E.levelInfo(RULES[CURV],acc);
+  const st={account:acc,level:li.level,levelProgress:li.frac,days:A.accountDays().length,rulesVersion:CURV,todayDate:today,todayNet:t.net,todayRank:t.rank,updatedAt:Date.now()};
+  fs.doc(base+'/state/current').set(st).catch(()=>{});
+  return{st,whoop:true};
+}
+let dopBusy=false,dopAt=0;
 async function dopStatus(u){
   const t=$('dopTxt');
+  if(dopBusy)return;dopBusy=true;dopAt=Date.now();
   try{
     const s=await fs.doc('users/'+u.uid+'/state/current').get();
-    if(!s.exists){t.textContent='Noch nichts gespeichert. Tippe auf „Heute“, um zu starten.';return}
-    const d=s.data(),n=x=>Math.round(x).toLocaleString('de-DE').replace('-','−');
-    t.innerHTML='<span style="font-size:26px;font-weight:700;color:var(--tx)">'+n(d.account)+'</span> Dopamin insgesamt · <b>Level '+d.level+'</b>'+(d.todayNet!=null?'<br>Heute ('+d.todayDate.slice(8)+'.'+d.todayDate.slice(5,7)+'.): '+(d.todayNet>0?'+':'')+n(d.todayNet)+' · Rang '+d.todayRank:'')+' · Tage: '+d.days;
+    if(s.exists)dopShow(s.data(),'wird aktualisiert …');
+    let live=null;try{live=await dopLive(u)}catch(e){}
+    if(live&&live.st)dopShow(live.st,'');
+    else if(s.exists)dopShow(s.data(),live&&!live.whoop?'Whoop gerade nicht erreichbar – zuletzt gespeicherter Stand':'');
+    else t.textContent='Noch nichts gespeichert. Tippe auf „Heute“, um zu starten.';
   }catch(e){t.textContent='Konto nicht lesbar: '+(e.code==='permission-denied'?'Firestore-Regeln erlauben users/{uid}/state nicht':e.message)}
+  finally{dopBusy=false}
 }
 auth.onAuthStateChanged(u=>{if(u)dopStatus(u)});
+// Zurück aus „Heute“ (Safari zeigt die Seite oft aus dem Zwischenspeicher) oder App wieder geöffnet: neu rechnen
+function dopAgain(){const u=auth.currentUser;if(u&&Date.now()-dopAt>3000)dopStatus(u)}
+window.addEventListener('pageshow',e=>{if(e.persisted)dopAgain()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)dopAgain()});
 </script>
 </main><script src="theme.js?v=10"></script>
 <script src="jarvis.js?v=11"></script>
