@@ -125,6 +125,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 <script src="fb.js"></script>
 <script src="engine.js"></script>
 <script src="journal-core.js"></script>
+<script src="whoop-cache.js"></script>
 <script>
 (async function(){
 const E=window.LBEngine,J=window.LBJournal;
@@ -294,8 +295,8 @@ $('next').onclick=()=>{if(cur<today)go(E.addDays(cur,1))};
 /* Whoop erst nach dem Morgen-Check laden, damit die Zahl dein Gefühl nicht beeinflusst */
 async function loadWhoop(){
   if(WH)return;
-  try{const t=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+E.addDays(today,-60)+'&to='+today,{headers:{Authorization:'Bearer '+t}}),15000,'Whoop');
-    const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);WH=d.days||{};}catch(e){WH={}}
+  const wget=async(f,t)=>{const tk=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+f+'&to='+t,{headers:{Authorization:'Bearer '+tk}}),15000,'Whoop');const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);return d};
+  try{WH=await LBWhoop.load({uid:user.uid,from:E.addDays(today,-365),to:today,fetch:wget})}catch(e){WH={}}
   renderMorning();
 }
 
@@ -319,5 +320,5 @@ async function boot(){
 boot().catch(e=>showMsg('Fehler: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=12"></script>
+<script src="theme.js?v=13"></script>
 </body></html>

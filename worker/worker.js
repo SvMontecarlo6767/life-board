@@ -220,10 +220,8 @@ const validDate = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && !isNaN(Date.parse(
 async function readRange(env, from, to) {
   const out = {}; const months = new Set();
   for (let t = Date.parse(from + 'T00:00:00Z'); t <= Date.parse(to + 'T00:00:00Z'); t += 86400e3) months.add(new Date(t).toISOString().slice(0, 7));
-  for (const mk of months) {
-    const cur = JSON.parse((await env.WB.get('m:' + mk)) || '{}');
-    Object.keys(cur).forEach(d => { if (d >= from && d <= to) out[d] = cur[d]; });
-  }
+  const all = await Promise.all([...months].map(mk => env.WB.get('m:' + mk)));   // Monate gleichzeitig lesen statt nacheinander
+  all.forEach(raw => { const cur = JSON.parse(raw || '{}'); Object.keys(cur).forEach(d => { if (d >= from && d <= to) out[d] = cur[d]; }); });
   return out;
 }
 

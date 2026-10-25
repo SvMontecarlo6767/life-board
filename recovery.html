@@ -72,6 +72,19 @@ pre{white-space:pre-wrap;word-break:break-all;font:12px/1.45 ui-monospace,Menlo,
 .tip .key{display:inline-block;width:10px;height:10px;border-radius:2px}
 .zbar{display:flex;height:12px;border-radius:4px;overflow:hidden;min-width:110px;background:var(--grid)}
 .zbar i{display:block;height:100%}
+tr.wo{cursor:pointer}tr.wo:hover td,tr.wo:focus td{background:rgb(var(--acc,120 200 255)/.08)}
+.wov{position:fixed;inset:0;z-index:80;background:rgba(2,6,12,.82);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);display:flex;align-items:flex-end;justify-content:center}
+.wov .box{width:min(640px,100%);max-height:92vh;overflow:auto;background:linear-gradient(160deg,rgba(14,30,50,.97),rgba(6,12,22,.98));border:1px solid var(--edge2,#456);border-radius:22px 22px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.wov{align-items:center}.wov .box{border-radius:22px}}
+.wov h3{margin:0;font-size:20px;text-transform:capitalize}
+.wov .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.wov .x{min-width:48px;min-height:48px;border-radius:14px;font-size:20px}
+.wov .kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
+.wov .kp div{border:1px solid var(--bd);border-radius:12px;padding:8px;text-align:center}
+.wov .kp b{display:block;font-size:20px}
+.wov .kp small{color:var(--muted);font-size:11.5px}
+.wov table{width:100%;font-size:14px;border-collapse:collapse}.wov td{padding:6px 2px;border-bottom:1px solid var(--bd)}.wov td.n{text-align:right;font-variant-numeric:tabular-nums}
+.wov .wcmp{color:var(--muted);font-size:12.5px}
 td.hm{text-align:center;font-weight:600}
 h2.sec{font-size:17px;margin:22px 0 10px}
 #sleepLever .slLine{font-size:18px;font-weight:700;line-height:1.35;margin:10px 0 6px;padding:10px 12px;border-left:3px solid var(--series-7);background:color-mix(in srgb,var(--series-7) 10%,transparent);border-radius:8px}
@@ -136,6 +149,7 @@ h2.sec{font-size:17px;margin:22px 0 10px}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
+<script src="whoop-cache.js"></script>
 <script src="sleep-lever.js?v=1"></script>
 <script src="sleep-card.js?v=1"></script>
 <script>
@@ -370,12 +384,40 @@ function renderWorkouts(rows){
   ['Datum','Sportart','Dauer','Strain','Ø/Max Puls','kcal','km','Zonen'].forEach(t=>{const e=document.createElement('th');e.textContent=t;th.append(e)});
   const body=tb.createTBody();
   all.sort((a,b)=>(b.start||'').localeCompare(a.start||'')).forEach(w=>{
-    const tr=body.insertRow();
+    const tr=body.insertRow();tr.className='wo';tr.tabIndex=0;tr.title='Details';tr.onclick=()=>workoutDetail(w);tr.onkeydown=e=>{if(e.key==='Enter')workoutDetail(w)};
     [fmtD(w.date)+w.date.slice(0,4),w.sport,fmtHM(w.min),fmtN(w.strain,1),(w.avg!=null?fmtN(w.avg,0):'–')+' / '+(w.max!=null?fmtN(w.max,0):'–'),fmtN(w.kcal,0),w.dist!=null?fmtN(w.dist/1000,1):'–'].forEach(t=>{tr.insertCell().textContent=t});
     tr.insertCell().append(zoneBar(w.z));
   });
   const sc=el('div','scroll');sc.append(tb);host.append(sc);
 }
+/* Workout-Details: alle Werte, Zonen, Vergleich mit derselben Sportart, Recovery davor/danach */
+function workoutDetail(w){
+  const same=ALL.flatMap(r=>r.wlist.map(x=>Object.assign({date:r.date},x))).filter(x=>x.sport===w.sport);
+  const avg=k=>mean(same.map(x=>x[k]));
+  const cmp=(k,d,u)=>{const a=avg(k);if(a==null||w[k]==null||same.length<2)return'';const diff=w[k]-a;return '<div class="wcmp">'+(Math.abs(diff)<Math.pow(10,-d)/2?'wie dein Ø':(diff>0?'+':'−')+fmtN(Math.abs(diff),d)+(u||'')+' zum Ø '+fmtN(a,d)+(u||''))+'</div>'};
+  const rank=w.strain!=null?same.filter(x=>x.strain!=null&&x.strain>w.strain).length+1:null;
+  const by=Object.fromEntries(ALL.map(r=>[r.date,r])),day=by[w.date]||{},next=by[isoDay(Date.parse(w.date+'T12:00:00Z')+864e5)]||{};
+  const t0=w.start?new Date(w.start):null,t1=t0?new Date(t0.getTime()+w.min*6e4):null,hm=d=>d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  const zt=w.z.reduce((a,b)=>a+b,0)||1;
+  const pace=w.dist&&w.min?w.min/(w.dist/1000):null;
+  const ov=el('div','wov');ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');
+  ov.innerHTML='<div class="box"><div class="top"><div><h3>'+escH(w.sport)+'</h3><div class="sub">'+fmtD(w.date)+w.date.slice(0,4)+(t0?' · '+hm(t0)+'–'+hm(t1)+' Uhr':'')+'</div></div><button class="x" aria-label="Schließen">✕</button></div>'
+    +'<div class="kp"><div><small>Dauer</small><b>'+fmtHM(w.min)+'</b>'+cmp('min',0,' Min')+'</div><div><small>Strain</small><b>'+fmtN(w.strain,1)+'</b>'+cmp('strain',1)+'</div><div><small>kcal</small><b>'+fmtN(w.kcal,0)+'</b>'+cmp('kcal',0)+'</div>'
+    +'<div><small>Ø Puls</small><b>'+fmtN(w.avg,0)+'</b>'+cmp('avg',0,' bpm')+'</div><div><small>Max Puls</small><b>'+fmtN(w.max,0)+'</b>'+cmp('max',0,' bpm')+'</div><div><small>'+(w.dist?'Strecke':'kcal/Min')+'</small><b>'+(w.dist?fmtN(w.dist/1000,2)+' km':fmtN(w.kcal&&w.min?w.kcal/w.min:null,1))+'</b>'+(pace?'<div class="wcmp">'+(()=>{const sec=Math.round(pace*60);return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0')})()+' min/km</div>':'')+'</div></div>'
+    +'<h4 style="margin:6px 0">Pulszonen</h4>'
+    +'<table>'+w.z.map((v,i)=>i===0&&v<0.5?'':'<tr><td><i style="display:inline-block;width:11px;height:11px;border-radius:3px;background:'+ZC[i]+';margin-right:6px"></i>'+ZN[i]+'</td><td class="n">'+fmtHM(v)+'</td><td class="n">'+fmtN(v/zt*100,0)+' %</td></tr>').join('')+'</table>'
+    +'<p class="wcmp" style="margin:6px 0 0">Zone 4–5 (hart): '+fmtHM(w.z[4]+w.z[5])+' · Zone 2–3 (Grundlage): '+fmtHM(w.z[2]+w.z[3])+'</p>'
+    +'<h4 style="margin:14px 0 6px">Rundherum</h4><table>'
+    +'<tr><td>Recovery an dem Morgen</td><td class="n">'+(day.rec!=null?fmtN(day.rec,0)+' %':'–')+'</td></tr>'
+    +'<tr><td>Tages-Strain gesamt</td><td class="n">'+fmtN(day.strain,1)+(w.strain!=null&&day.strain?' (Workout '+fmtN(w.strain/day.strain*100,0)+' %)':'')+'</td></tr>'
+    +'<tr><td>Schlaf in der Nacht danach</td><td class="n">'+(next.asleep!=null?fmtN(next.asleep,1)+' h':'–')+'</td></tr>'
+    +'<tr><td>Recovery am Morgen danach</td><td class="n">'+(next.rec!=null?fmtN(next.rec,0)+' %'+(day.rec!=null?' ('+(next.rec>=day.rec?'+':'−')+fmtN(Math.abs(next.rec-day.rec),0)+')':''):'–')+'</td></tr>'
+    +'<tr><td>'+escH(w.sport)+'-Einheiten insgesamt</td><td class="n">'+same.length+(rank?' · Strain Platz '+rank:'')+'</td></tr></table></div>';
+  const close=()=>{ov.remove();document.removeEventListener('keydown',key)},key=e=>{if(e.key==='Escape')close()};
+  ov.onclick=e=>{if(e.target===ov)close()};ov.querySelector('.x').onclick=close;document.addEventListener('keydown',key);
+  document.body.append(ov);ov.querySelector('.x').focus();
+}
+function escH(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function renderDow(rows){
   const host=$('c-dow');host.replaceChildren();
   const names=['Mo','Di','Mi','Do','Fr','Sa','So'],keys=[['rec','Recovery',0,'%'],['asleep','Schlaf',1,' h'],['strain','Strain',1,''],['hrv','HRV',0,' ms'],['steps','Schritte',0,'']];
@@ -492,7 +534,55 @@ function attachFull(){
   def('skin','c-skin','Hauttemperatur','skin',{unit:'°C',dir:0,digits:1,alias:['temperatur']});
   def('kcal','c-kcal','Kalorien','kcal',{unit:'kcal',dir:0,digits:0,kind:'bar',sum:true});
   def('steps','c-steps','Schritte','steps',{unit:'',dir:1,digits:0,kind:'bar',sum:true,good:{min:10000,label:'Tage ab 10.000'}});
+  const inR=(ctx,k)=>ALL.filter(r=>r.date>=ctx.from&&r.date<=ctx.to&&r[k]!=null);
+  const avgR=(ctx,k)=>mean(inR(ctx,k).map(r=>r[k]));
+  const hm=h=>{if(h==null)return'–';const m=Math.round(h*60);return Math.floor(m/60)+':'+String(m%60).padStart(2,'0')+' h'};
+  // Schlafphasen: gestapelt, Anteile und Richtwerte
+  GraphFull.attach('#c-stages',{id:'stages',title:'Schlafphasen',unit:'h',dir:1,digits:1,kind:'bar',
+    series:()=>ALL.map(r=>({date:r.date,value:r.light!=null?(r.sws||0)+(r.rem||0)+(r.light||0)+(r.awake||0):null})),
+    stack:{keys:[{id:'sws',name:'Tiefschlaf',color:'var(--series-1)'},{id:'rem',name:'REM',color:'var(--series-2)'},{id:'light',name:'Leichtschlaf',color:'var(--series-3)'},{id:'awake',name:'Wach im Bett',color:'var(--neutral)'}],get:d=>by.get(d)||{}},
+    facts:ctx=>{const R=inR(ctx,'sws').filter(r=>r.asleep);if(!R.length)return[];
+      const pc=k=>mean(R.map(r=>r[k]/r.asleep*100)),best=R.slice().sort((a,b)=>b.sws-a.sws)[0],bestR=R.slice().sort((a,b)=>b.rem-a.rem)[0];
+      return[{l:'Ø Tiefschlaf',v:hm(mean(R.map(r=>r.sws))),s:fmtN(pc('sws'),0)+' % vom Schlaf · Richtwert 13–23 %',cls:pc('sws')>=13?'good':''},
+        {l:'Ø REM',v:hm(mean(R.map(r=>r.rem))),s:fmtN(pc('rem'),0)+' % vom Schlaf · Richtwert 20–25 %',cls:pc('rem')>=20?'good':''},
+        {l:'Ø Leichtschlaf',v:hm(mean(R.map(r=>r.light))),s:fmtN(pc('light'),0)+' % vom Schlaf'},
+        {l:'Ø wach im Bett',v:hm(mean(R.map(r=>r.awake))),s:'Zeit im Bett ohne Schlaf'},
+        {l:'Meister Tiefschlaf',v:hm(best.sws),s:longD(best.date)},{l:'Meister REM',v:hm(bestR.rem),s:longD(bestR.date)},
+        {l:'Nächte ≥ 1,5 h Tiefschlaf',v:R.filter(r=>r.sws>=1.5).length+' von '+R.length,s:'Zählt bei Heute als Punkte (SLP-20)'}]},
+    note:'Tiefschlaf ist vor allem für körperliche Erholung wichtig (Wachstumshormon, Muskelreparatur), REM für Gedächtnis und Gefühle. Die Richtwerte sind typische Anteile bei Erwachsenen. Whoop misst die Phasen über Puls und Bewegung – einzelne Nächte schwanken, aussagekräftig ist der Durchschnitt.'});
+  // Schlafbedarf und Schlaf
+  def('need','c-need','Schlafbedarf und Schlaf','asleep',{mainName:'Geschlafen',color:'var(--series-1)',unit:'h',dir:1,digits:1,
+    layers:[{id:'need',name:'Schlafbedarf',color:'var(--series-2)',series:ser('need')},{id:'debt',name:'davon Schlafschuld',color:'var(--series-7)',series:ser('debt')}],layersOn:['main','need'],
+    facts:ctx=>{const R=inR(ctx,'need').filter(r=>r.asleep!=null);if(!R.length)return[];const gap=R.map(r=>r.asleep-r.need);
+      return[{l:'Ø Bedarf',v:hm(mean(R.map(r=>r.need)))},{l:'Ø geschlafen',v:hm(mean(R.map(r=>r.asleep)))},
+        {l:'Ø Differenz',v:(mean(gap)>=0?'+':'−')+hm(Math.abs(mean(gap))),cls:mean(gap)>=0?'good':'bad',s:'pro Nacht'},
+        {l:'Bedarf gedeckt',v:gap.filter(g=>g>=0).length+' von '+R.length,s:'Nächte mit Schlaf ≥ Bedarf'},
+        {l:'Fehlbetrag gesamt',v:hm(-gap.filter(g=>g<0).reduce((a,b)=>a+b,0)),s:'Summe aller zu kurzen Nächte im Zeitraum',cls:'bad'},
+        {l:'Ø Schlafschuld-Anteil',v:hm(avgR(ctx,'debt')),s:'zusätzlicher Bedarf wegen vorheriger Nächte'}]},
+    note:'Whoop rechnet den Bedarf jede Nacht neu: Grundbedarf + Ausgleich für Schlafschuld + Zuschlag für hohe Belastung − Nickerchen. Liegt „Geschlafen“ unter „Schlafbedarf“, wächst die Schlafschuld für die nächste Nacht.'});
+  // Effizienz und Konsistenz
+  def('eff','c-eff','Schlafeffizienz und Konsistenz','eff',{mainName:'Effizienz',color:'var(--series-1)',unit:'%',dir:1,digits:0,fixed:[0,100],
+    layers:[{id:'cons',name:'Konsistenz',color:'var(--series-2)',series:ser('cons')}],layersOn:['main','cons'],
+    facts:ctx=>{const R=inR(ctx,'eff');if(!R.length)return[];const C=inR(ctx,'cons');
+      const hi=C.filter(r=>r.cons>=80&&r.rec!=null),lo=C.filter(r=>r.cons<80&&r.rec!=null);
+      return[{l:'Ø Effizienz',v:fmtN(mean(R.map(r=>r.eff)),0)+' %',s:R.filter(r=>r.eff>=90).length+' Nächte ≥ 90 %'},
+        {l:'Ø Konsistenz',v:fmtN(mean(C.map(r=>r.cons)),0)+' %',s:C.filter(r=>r.cons>=80).length+' Nächte ≥ 80 %'},
+        {l:'Recovery bei Konsistenz ≥ 80 %',v:hi.length?fmtN(mean(hi.map(r=>r.rec)),0)+' %':'–',s:hi.length+' Tage',cls:'good'},
+        {l:'Recovery bei Konsistenz < 80 %',v:lo.length?fmtN(mean(lo.map(r=>r.rec)),0)+' %':'–',s:lo.length+' Tage'}]},
+    note:'Effizienz = geschlafene Zeit ÷ Zeit im Bett. Konsistenz vergleicht deine Einschlaf- und Aufwachzeiten mit den Vortagen – je regelmäßiger, desto höher. Beide Werte zählen bei Heute (SLP-19, SLP-15).'});
+  // Belastung gestern -> Erholung heute (Streudiagramm, vergrößert mit Auswertung)
+  GraphFull.attach('#c-scatter',{id:'scatter',title:'Belastung gestern, Erholung heute',clone:true,cloneEl:()=>$('c-scatter').querySelector('svg'),sub:'Jeder Punkt ist ein Tag: Strain am Vortag (waagerecht) und Recovery am Morgen (senkrecht)',
+    facts:()=>{const {dates}=slice(),pts=[];dates.forEach(d=>{const r=by.get(d),p=by.get(isoDay(Date.parse(d+'T12:00:00Z')-864e5));if(r&&p&&r.rec!=null&&p.strain!=null)pts.push({x:p.strain,y:r.rec})});
+      if(pts.length<5)return[{l:'Daten',v:pts.length+' Tage',s:'Für eine Auswertung braucht es mindestens 5 Tage.',wide:true}];
+      const mx=mean(pts.map(p=>p.x)),my=mean(pts.map(p=>p.y));let sxy=0,sxx=0,syy=0;pts.forEach(p=>{sxy+=(p.x-mx)*(p.y-my);sxx+=(p.x-mx)**2;syy+=(p.y-my)**2});
+      const r=sxx&&syy?sxy/Math.sqrt(sxx*syy):0,slope=sxx?sxy/sxx:0;
+      const bk=[[0,10,'unter 10'],[10,14,'10–14'],[14,18,'14–18'],[18,22,'ab 18']].map(([a,b,l])=>{const q=pts.filter(p=>p.x>=a&&p.x<b);return{l,n:q.length,m:mean(q.map(p=>p.y))}});
+      return[{l:'Zusammenhang',v:(Math.abs(r)<0.2?'kaum':Math.abs(r)<0.4?'schwach':Math.abs(r)<0.6?'mittel':'stark'),s:'r = '+fmtN(r,2)+' über '+pts.length+' Tage',small:true},
+        {l:'Pro +1 Strain gestern',v:(slope>=0?'+':'−')+fmtN(Math.abs(slope),1)+' %',s:'Recovery am nächsten Morgen (Trendlinie)'},
+        {l:'Recovery nach Strain …',v:'',wide:true,s:'<div class="gf-rows">'+bk.map(b=>'<div><span>'+b.l+'</span><b>'+(b.m!=null?fmtN(b.m,0)+' %':'–')+' <span style="opacity:.6">('+b.n+' Tage)</span></b></div>').join('')+'</div>'}]},
+    note:'Viele Faktoren beeinflussen die Recovery (Schlaf, Alkohol, Stress, Krankheit). Der Strain vom Vortag ist nur einer davon – ein schwacher Zusammenhang ist normal. Hohe Belastung bei guter Recovery am Folgetag zeigt, dass du sie gut verkraftest.'});
 }
+const longD=k=>['So','Mo','Di','Mi','Do','Fr','Sa'][new Date(k+'T12:00:00Z').getUTCDay()]+', '+fmtD(k)+k.slice(0,4);
 function renderCharts(){
   const {dates,rows}=slice();
   renderMore(dates,rows);
@@ -537,14 +627,14 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL
 (async()=>{
   try{
     const to=isoDay(Date.now()),from=isoDay(Date.now()-364*864e5);
-    const d=await wfetch('/data?from='+from+'&to='+to);
-    RAW=d.days||{};ALL=toRows(RAW);
+    const u=auth.currentUser||await new Promise(r=>{const off=auth.onAuthStateChanged(x=>{if(x){off();r(x)}})});
+    RAW=await LBWhoop.load({uid:u.uid,from,to,fetch:(f,t)=>wfetch('/data?from='+f+'&to='+t)});ALL=toRows(RAW);
     if(!ALL.length){$('msg').textContent='Noch keine Whoop-Daten. Öffne das Life Board und tippe auf „Letzte 60 Tage holen“.';return}
     $('msg').hidden=true;$('content').hidden=false;renderAll();
     try{SleepCard.init({raw:RAW,today:new Date().toLocaleDateString('sv-SE')})}catch(e){}
   }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
 })();
 </script>
-</main><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=12"></script>
+</main><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=13"></script>
 <script src="hud-viz.js?v=1"></script>
 </body></html>

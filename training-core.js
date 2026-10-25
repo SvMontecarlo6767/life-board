@@ -4,7 +4,7 @@
 (function (root) {
 'use strict';
 const TZ = 'Europe/Berlin';
-const SPORTS = ['Lauf', 'Trail', 'Rad', 'Kraft', 'Wandern', 'Schwimmen', 'Fußball', 'Basketball', 'Tennis', 'Klettern', 'HIIT', 'Yoga', 'Boxen', 'Sonstiges'];
+const SPORTS = ['Lauf', 'Trail', 'Rad', 'Kraft', 'Wandern', 'Schwimmen', 'Fußball', 'Basketball', 'Tennis', 'Klettern', 'HIIT', 'Yoga', 'Isometrie', 'Plyometrie', 'Sonstiges'];
 const NF = {};
 const nf = d => NF[d] || (NF[d] = new Intl.NumberFormat('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d }));
 
@@ -91,6 +91,8 @@ function classify(raw, name, km, elev) {
     return 'Lauf';
   }
   if (/ride|rad|bike|cycl|rolle|velo|spinning|e-?bike/.test(t)) return 'Rad';
+  if (/plyo|sprung|spr(ü|u)nge|jump|hops|skipping/.test(t)) return 'Plyometrie';
+  if (/isometr|plank|wandsitz|wall ?sit|halte(ü|u)bung/.test(t)) return 'Isometrie';
   if (/weight|kraft|strength|crossfit|gewicht|functional|powerlift|bodybuild/.test(t)) return 'Kraft';
   if (/hik|wander|walk|spazier|gehen/.test(t)) return 'Wandern';
   if (/swim|schwimm/.test(t)) return 'Schwimmen';
@@ -100,7 +102,6 @@ function classify(raw, name, km, elev) {
   if (/klettern|climb|boulder/.test(t)) return 'Klettern';
   if (/hiit|intervall|tabata|circuit/.test(t)) return 'HIIT';
   if (/yoga|pilates|stretch|mobil|dehn/.test(t)) return 'Yoga';
-  if (/box|kampf|mma|judo|karate|martial/.test(t)) return 'Boxen';
   return 'Sonstiges';
 }
 const HEAD = {
@@ -275,7 +276,7 @@ function analyze(acts, o) {
   const R = { ok: false };
   if (!acts || !acts.length) return R;
   acts = acts.slice().sort((a, b) => a.t - b.t);
-  const L = acts.map(a => Object.assign({ loc: local(a.t) }, a));
+  const L = acts.map(a => Object.assign({ loc: local(a.t) }, a, SPORTS.includes(a.sport) ? {} : { sport: 'Sonstiges' }));   // alte Sportarten (z. B. Boxen) zählen als Sonstiges
   const lastDi = L[L.length - 1].loc.di;
   const todayDi = o.today ? Math.max(dayIdxOfKey(o.today), lastDi) : lastDi;
   const today = keyOfIdx(todayDi);
@@ -310,7 +311,7 @@ function analyze(acts, o) {
   R.zones = [0.85, 0.90, 0.95, 1.0].map(f => Math.round(thr * f));
 
   // Belastung
-  const F = { Kraft: 0.55, Rad: 0.65, Wandern: 0.6, Lauf: 0.75, Trail: 0.8, Schwimmen: 0.65, Fußball: 0.7, Basketball: 0.7, Tennis: 0.6, Klettern: 0.6, HIIT: 0.8, Yoga: 0.3, Boxen: 0.75 };
+  const F = { Kraft: 0.55, Rad: 0.65, Wandern: 0.6, Lauf: 0.75, Trail: 0.8, Schwimmen: 0.65, Fußball: 0.7, Basketball: 0.7, Tennis: 0.6, Klettern: 0.6, HIIT: 0.8, Yoga: 0.3, Isometrie: 0.5, Plyometrie: 0.75 };
   let est = 0;
   L.forEach(a => {
     const h = a.sec / 3600;

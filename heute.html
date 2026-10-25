@@ -171,6 +171,7 @@ textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bd);bo
 <script src="engine.js"></script>
 <script src="puzzle-dop.js"></script>
 <script src="whoop-auto.js"></script>
+<script src="whoop-cache.js"></script>
 <script src="journal-core.js"></script>
 <script src="dop-account.js"></script>
 <script>
@@ -420,14 +421,13 @@ async function closeDay(){
 async function loadWhoop(){
   WHSTATE='loading';
   try{
-    const d=await wfetch('/data?from='+E.addDays(today,-365)+'&to='+today);
-    WH=d.days||{};WHSTATE='ok';WHMSG='';
+    WH=await LBWhoop.load({uid:user.uid,from:E.addDays(today,-365),to:today,fetch:(f,t)=>wfetch('/data?from='+f+'&to='+t),full:!!loadWhoop.full});WHSTATE='ok';WHMSG='';
   }catch(e){WHSTATE='err';WHMSG=e.message||String(e)}
 }
 async function refreshWhoop(){
   $('whRefresh').disabled=true;$('whState').textContent='aktualisiert …';
   try{await wfetch('/sync',{method:'POST',body:JSON.stringify({days:3})})}catch(e){WHMSG=e.message}
-  await loadWhoop();
+  loadWhoop.full=true;await loadWhoop();loadWhoop.full=false;
   $('whRefresh').disabled=false;
   const c=calc(cur);
   if(WHSTATE==='ok'&&DAYS[cur]&&!DAYS[cur].closed&&(c.res.net!==DAYS[cur].net||JSON.stringify(c.auto)!==JSON.stringify(DAYS[cur].auto||{})))persist();
@@ -594,5 +594,5 @@ window.addEventListener('unhandledrejection',e=>{const r=e.reason;showMsg('Fehle
 boot().then(restoreScroll).catch(e=>showMsg('Laden fehlgeschlagen: '+esc(errText(e)),true));
 })();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=12"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=13"></script>
 </body></html>

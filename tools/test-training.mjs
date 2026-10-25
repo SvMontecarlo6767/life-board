@@ -123,6 +123,8 @@ ok(RM.ok && RM.counts['Kraft'] > 10 && RM.counts['Fußball'] > 5 && RM.weeks.at(
 ok(RM.log.every(a => a.sport && a.load > 0) && RM.log.find(a => a.sport === 'Kraft').rpe === 7, 'Belastung aus Anstrengung (RPE) und Puls');
 const kHard = C.analyze([{ id: 'x', t: Date.UTC(2026, 9, 14, 17), raw: 'Kraft', sec: 3600, rpe: 10, sport: 'Kraft' }], { today: '2026-10-15' }).log[0].load, kEasy = C.analyze([{ id: 'y', t: Date.UTC(2026, 9, 14, 17), raw: 'Kraft', sec: 3600, rpe: 2, sport: 'Kraft' }], { today: '2026-10-15' }).log[0].load;
 ok(kHard > kEasy * 3, 'RPE 10 zählt deutlich mehr als RPE 2 (' + Math.round(kHard) + ' vs ' + Math.round(kEasy) + ')');
-ok(['Fußball', 'Basketball', 'Tennis', 'Klettern', 'HIIT', 'Yoga', 'Boxen'].every(s => C.classify(s, '', null, null) === s), 'Neue Sportarten werden erkannt');
+ok(['Fußball', 'Basketball', 'Tennis', 'Klettern', 'HIIT', 'Yoga', 'Isometrie', 'Plyometrie'].every(s => C.classify(s, '', null, null) === s), 'Neue Sportarten werden erkannt');
+ok(C.classify('Box Jumps', '', null, null) === 'Plyometrie' && C.classify('Boxen', '', null, null) === 'Sonstiges' && C.classify('Plank', '', null, null) === 'Isometrie', 'Plyometrie vor Kraft, Boxen fällt weg');
+ok(!C.SPORTS.includes('Boxen'), 'Boxen ist keine Sportart mehr');
 console.log(fail ? '\nFEHLER: ' + fail : '\nalles ok');
 process.exit(fail ? 1 : 0);

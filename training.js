@@ -444,8 +444,8 @@ async function syncWhoop(mode) {
   try {
     if (mode === 'sync' || mode === 'year') { out('Hole Workouts von Whoop …'); await wfetch('/sync', { days: mode === 'year' ? 365 : 14 }) }
     const to = todayKey(), from = C.keyOfIdx(C.dayIdxOfKey(to) - 365);
-    const d = await wfetch('/data?from=' + from + '&to=' + to);
-    const list = C.fromWhoop(d.days), before = ACTS.length;
+    const u = auth.currentUser, days = u && window.LBWhoop ? await LBWhoop.load({ uid: u.uid, from, to, fetch: (f, t) => wfetch('/data?from=' + f + '&to=' + t), full: mode === 'year' }) : (await wfetch('/data?from=' + from + '&to=' + to)).days;
+    const list = C.fromWhoop(days), before = ACTS.length;
     const have = new Set(ACTS.map(a => a.id));
     const hide = new Set(ST.hide || []);
     const fresh = list.filter(a => !have.has(a.id) && !hide.has(a.id));

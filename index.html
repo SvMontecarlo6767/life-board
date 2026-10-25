@@ -98,6 +98,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 <script src="engine.js"></script>
 <script src="puzzle-dop.js"></script>
 <script src="whoop-auto.js"></script>
+<script src="whoop-cache.js"></script>
 <script src="journal-core.js"></script>
 <script src="dop-account.js"></script>
 <script>
@@ -292,7 +293,7 @@ async function dopLive(u){
   js.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))JOURNAL[x.id]=LBJournal.counts(x.data())});
   for(const v of new Set(Object.values(DAYS).map(d=>d.rulesVersion||1)))if(!RULES[v])RULES[v]=await dopRules(v).catch(()=>RULES[CURV]);
   let WH={},WHSTATE='err';
-  try{const d=await wfetch('/data?from='+E.addDays(today,-365)+'&to='+today);WH=d.days||{};WHSTATE='ok'}catch(e){return{st:null,whoop:false}}   // ohne Whoop lieber den gespeicherten Stand zeigen
+  try{WH=await LBWhoop.load({uid:u.uid,from:E.addDays(today,-365),to:today,fetch:(f,t)=>wfetch('/data?from='+f+'&to='+t)});WHSTATE='ok'}catch(e){return{st:null,whoop:false}}   // ohne Whoop lieber den gespeicherten Stand zeigen
   const A=LBAccount.create({E,WA:window.WhoopAuto,CURV,RULES,DAYS,PUZ:PuzzleDop.puzzleDayValues(P),LEARN,JOURNAL,SETTINGS:ss.exists?ss.data():{},WH,WHSTATE,today});
   const acc=A.total(),t=A.calc(today).res,li=E.levelInfo(RULES[CURV],acc);
   const st={account:acc,level:li.level,levelProgress:li.frac,days:A.accountDays().length,rulesVersion:CURV,todayDate:today,todayNet:t.net,todayRank:t.rank,updatedAt:Date.now()};
@@ -330,5 +331,5 @@ function dopAgain(){const u=auth.currentUser;if(u&&Date.now()-dopAt>3000){dopSta
 window.addEventListener('pageshow',e=>{if(e.persisted)dopAgain()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)dopAgain()});
 </script>
-</main><script src="theme.js?v=12"></script>
+</main><script src="theme.js?v=13"></script>
 </body></html>

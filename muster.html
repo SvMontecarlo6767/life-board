@@ -79,6 +79,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="whoop-auto.js"></script>
 <script src="journal-core.js"></script>
 <script src="insights-core.js"></script>
+<script src="whoop-cache.js"></script>
 <script>
 (async function(){
 const E=window.LBEngine,J=window.LBJournal,I=window.LBInsights;
@@ -171,7 +172,8 @@ async function boot(){
     ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))DAYS[x.id]=x.data()});
     SET=ss.exists?ss.data():{};RULES=rr;
   }catch(e){$('msg').innerHTML='<div class="info warn">Laden fehlgeschlagen: '+esc(errText(e))+'</div>';return}
-  try{const t=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+E.addDays(today,-365)+'&to='+today,{headers:{Authorization:'Bearer '+t}}),15000,'Whoop');const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);WH=d.days||{}}catch(e){whErr=errText(e)}
+  const wget=async(f,t)=>{const tk=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+f+'&to='+t,{headers:{Authorization:'Bearer '+tk}}),15000,'Whoop');const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);return d};
+  try{WH=await LBWhoop.load({uid:user.uid,from:E.addDays(today,-365),to:today,fetch:wget})}catch(e){whErr=errText(e)}
   DATA=I.build({journal:JD,days:DAYS,whoop:WH,rules:RULES,trackers:SET.trackers||[]});
   $('status').textContent=Object.keys(JD).length+' Tage mit Check-in · '+Object.keys(DAYS).length+' mit Heute · '+Object.keys(WH).length+' mit Whoop'+(whErr?' (Whoop gerade nicht erreichbar)':'');
   $('main').hidden=false;
@@ -181,5 +183,5 @@ async function boot(){
 boot().catch(e=>{$('msg').innerHTML='<div class="info warn">Fehler: '+esc(errText(e))+'</div>'});
 })();
 </script>
-<script src="theme.js?v=12"></script>
+<script src="theme.js?v=13"></script>
 </body></html>
