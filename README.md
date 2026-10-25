@@ -26,7 +26,8 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 ## KI-Anbieter umstellen
 In **Optionen → KI-Anbieter** zwischen Gemini (Standard), Groq (Llama), OpenRouter und Mistral wählen. Der Chat und Jarvis' Antworten laufen dann über den gewählten Anbieter, inklusive Aktionen mit Rückfrage. Spracheingabe (STT) und Sprachausgabe (TTS) bleiben bei Gemini.
 - Im Cloudflare-Worker als Secret anlegen (nie im Chat posten): `GROQ_KEY`, `OPENROUTER_KEY`, `MISTRAL_KEY`. Optional Modelle per Variable `GROQ_MODEL`, `OPENROUTER_MODEL`, `MISTRAL_MODEL`.
-- Aktuelle `worker/worker.js` deployen. Fehlt ein Schlüssel, meldet die KI das im Chat.
+- Aktuelle `worker/worker.js` deployen.
+- **Automatisches Ausweichen:** Der gewählte Anbieter kommt zuerst, danach Gemini (alle Flash-Modelle, bestes zuerst), dann Groq, Mistral und OpenRouter – jeweils nur, wenn der Schlüssel im Worker hinterlegt ist. Überlastung (503), Kontingent (429), falscher Schlüssel oder Zeitüberschreitung (15 s) führen sofort zum nächsten. Jarvis zeigt unter der Antwort, welches Modell geantwortet hat. Je mehr Schlüssel hinterlegt sind, desto sicherer antwortet die KI.
 - Nur mit Mocks getestet.
 
 ## Gym-Logbuch (im Training, Ansicht „Allround“)

@@ -287,6 +287,7 @@ async function notionQuestions(env, id) {
 
 // ---------- KI-Assistent (Gemini, kostenloses Kontingent) ----------
 const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
+const AI_TIMEOUT = 15000;   // ms pro Modell, danach das nächste
 const AI_SYSTEM = 'Du bist J.A.R.V.I.S, der persönliche Assistent im "Life Board" einer einzelnen Person (Whoop-Daten, Dopamin-Punkte-System, Lernen mit Wiederholungen, Puzzle-Tracker). ' +
   'Persönlichkeit: ruhig, souverän, knapp, leicht trocken, wie der Jarvis aus Iron Man. Du sprichst die Person mit "du" an und antwortest auf Deutsch, ohne Floskeln und ohne Begrüßungsformeln. ' +
   'Stütze dich auf die mitgelieferten Daten und die Seitenbeschreibung; erfinde keine Zahlen. Wenn Daten fehlen, sag das. Gib keine medizinischen Diagnosen. ' +
@@ -304,8 +305,10 @@ async function aiCount(env, kind, limit) {
 // Textmodell mit Ersatzlogik: gemerktes Modell, konfiguriertes, bekannte Namen, sonst Modellliste des Keys
 async function geminiGenerate(env, payload) {
   const call = async (model) => {
-    const r = await fetch(GEMINI_API + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, body: JSON.stringify(payload) });
-    return { r, d: await r.json().catch(() => ({})) };
+    try {
+      const r = await fetch(GEMINI_API + model + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_KEY }, body: JSON.stringify(payload), signal: AbortSignal.timeout(AI_TIMEOUT) });
+      return { r, d: await r.json().catch(() => ({})) };
+    } catch (e) { return { r: { ok: false, status: 504 }, d: { error: { message: 'Zeitüberschreitung oder keine Verbindung' } } }; }
   };
   const tried = []; let r, d;
   const cached = await env.WB.get('ai_model');
@@ -314,7 +317,7 @@ async function geminiGenerate(env, payload) {
   for (const model of [...new Set(first)]) {
     tried.push(model); ({ r, d } = await call(model));
     if (r.ok) { await env.WB.put('ai_model', model); d = Object.assign({}, d, { _model: model }); break; }
-    if (r.status !== 404 && r.status !== 429 && r.status !== 403) break;
+    if (r.status === 400 || r.status === 401) break;   // Anfrage selbst fehlerhaft: andere Modelle helfen nicht
   }
   if (r.status === 404) {
     const lm = await fetch(GEMINI_API.replace(/models\/$/, 'models') + '?pageSize=200', { headers: { 'x-goog-api-key': env.GEMINI_KEY } });
@@ -327,7 +330,7 @@ async function geminiGenerate(env, payload) {
     }
     if (r.status === 404) d = { error: { message: 'kein passendes Modell gefunden; vom Key unterstützt: ' + (avail.slice(0, 8).join(', ') || (ld.error && ld.error.message) || 'keine') } };
   }
-  if (!r.ok) { const e = new Error(r.status === 429 ? 'Gemini-Kontingent gerade aufgebraucht, später erneut versuchen' : 'Gemini ' + r.status + (d && d.error && d.error.message ? ': ' + String(d.error.message).slice(0, 200) : '') + ' (versucht: ' + tried.join(', ') + ')'); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
+  if (!r.ok) { const e = new Error(r.status === 429 ? 'Gemini-Kontingent gerade aufgebraucht (versucht: ' + tried.join(', ') + ')' : 'Gemini ' + r.status + (d && d.error && d.error.message ? ': ' + String(d.error.message).slice(0, 200) : '') + ' (versucht: ' + tried.join(', ') + ')'); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
   return d;
 }
 const textOf = (d) => { const p = (((d.candidates || [])[0] || {}).content || {}).parts; return p ? p.map(x => x.text || '').join('') : ''; };
@@ -343,31 +346,52 @@ async function askOther(env, body, pv) {
   if (!env[P.key]) { const e = new Error(P.key + ' fehlt im Worker – als Secret in Cloudflare eintragen oder in den Optionen auf Gemini zurückstellen'); e.code = 'NO_AI'; throw e; }
   const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
   if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
-  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 150;
-  const used = await aiCount(env, 'ai', limit);
   const tools = (Array.isArray(body.tools) ? body.tools : []).slice(0, 12).filter(t => t && /^[a-z_]{1,40}$/.test(t.name || '')).map(t => ({ type: 'function', function: { name: t.name, description: String(t.description || '').slice(0, 2500), parameters: t.parameters || { type: 'object', properties: {} } } }));
   const sys = AI_SYSTEM + (body.voice ? AI_VOICE : '') + (tools.length ? AI_TOOLS : '') + '\n\n' + String(body.context || '').slice(0, 40000);
   const model = env[P.modelVar] || P.model;
   const payload = { model, temperature: 0.4, max_tokens: body.voice ? 300 : 1200, messages: [{ role: 'system', content: sys }].concat(msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'assistant' : 'user', content: String(m.content || '').slice(0, 4000) }))) };
   if (tools.length) { payload.tools = tools; payload.tool_choice = 'auto'; }
-  const r = await fetch(P.url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + env[P.key] }, body: JSON.stringify(payload) });
+  let r;
+  try { r = await fetch(P.url, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + env[P.key] }, body: JSON.stringify(payload), signal: AbortSignal.timeout(AI_TIMEOUT) }); }
+  catch (e) { const x = new Error(P.name + ': Zeitüberschreitung oder keine Verbindung'); x.code = 'AI'; throw x; }
   const d = await r.json().catch(() => ({}));
   if (!r.ok) { const e = new Error(P.name + ' ' + r.status + (d.error && d.error.message ? ': ' + String(d.error.message).slice(0, 160) : '')); e.code = r.status === 429 ? 'AI_LIMIT' : 'AI'; throw e; }
   const m = (((d.choices || [])[0]) || {}).message || {};
   const out = String(m.content || '').trim();
   const calls = (m.tool_calls || []).map(c => { let a = {}; try { a = JSON.parse(c.function.arguments || '{}') } catch (e) {} return { name: c.function.name, args: a }; }).slice(0, 3);
   if (!out && !calls.length) { const e = new Error('Keine Antwort erhalten'); e.code = 'AI'; throw e; }
-  return { answer: out, calls, model: P.name + ' · ' + (d.model || model), used, limit };
+  return { answer: out, calls, model: P.name + ' · ' + (d.model || model) };
+}
+/* Jarvis soll immer antworten: gewählter Anbieter zuerst, dann Gemini (beste Qualität), dann alle anderen mit Schlüssel.
+   Ein Fehler (Überlastung 503, Kontingent 429, falscher Schlüssel, Zeitüberschreitung) führt automatisch zum nächsten. */
+const AI_ORDER = ['gemini', 'groq', 'mistral', 'openrouter'];
+async function askAI(env, body) {
+  const msgs = Array.isArray(body.messages) ? body.messages : [];
+  if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
+  const has = (p) => p === 'gemini' ? !!env.GEMINI_KEY : !!(PROVIDERS[p] && env[PROVIDERS[p].key]);
+  const pv = String(body.provider || 'gemini').toLowerCase();
+  const order = [...new Set([pv, ...AI_ORDER])].filter(p => AI_ORDER.includes(p) && has(p));
+  if (!order.length) { const e = new Error(PROVIDERS[pv] ? PROVIDERS[pv].key + ' fehlt im Worker – als Secret in Cloudflare eintragen' : 'GEMINI_KEY fehlt'); e.code = 'NO_AI'; throw e; }
+  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 150;
+  const used = await aiCount(env, 'ai', limit);
+  const errs = []; let limited = true;
+  for (const p of order) {
+    try {
+      const out = p === 'gemini' ? await askGemini(env, body) : await askOther(env, body, p);
+      return Object.assign(out, { used, limit, provider: p }, p !== pv ? { fallback: errs.join(' · ') || (pv + ' nicht eingerichtet') } : {});
+    } catch (e) {
+      if (e.code === 'RANGE') throw e;
+      if (e.code !== 'AI_LIMIT') limited = false;
+      errs.push(e.message);
+    }
+  }
+  const e = new Error('Keine KI erreichbar: ' + errs.join(' · ')); e.code = limited ? 'AI_LIMIT' : 'AI'; throw e;
 }
 async function askGemini(env, body) {
-  const pv = String(body.provider || '').toLowerCase();
-  if (PROVIDERS[pv]) return askOther(env, body, pv);
   needKey(env);
   const msgs = Array.isArray(body.messages) ? body.messages.slice(-12) : [];
   if (!msgs.length) { const e = new Error('keine Frage'); e.code = 'RANGE'; throw e; }
   const ctx = String(body.context || '').slice(0, 40000);
-  const limit = parseInt(env.AI_DAILY_LIMIT, 10) || 150;
-  const used = await aiCount(env, 'ai', limit);
   const contents = msgs.map(m => ({ role: m.role === 'model' || m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content || '').slice(0, 4000) }] }));
   const decl = (Array.isArray(body.tools) ? body.tools : []).slice(0, 12).filter(t => t && /^[a-z_]{1,40}$/.test(t.name || '')).map(t => ({ name: t.name, description: String(t.description || '').slice(0, 2500), parameters: t.parameters }));
   const payload = { systemInstruction: { parts: [{ text: AI_SYSTEM + (body.voice ? AI_VOICE : '') + (decl.length ? AI_TOOLS : '') + '\n\n' + ctx }] }, contents, generationConfig: { temperature: 0.4, maxOutputTokens: body.voice ? 300 : 1200 } };
@@ -377,7 +401,7 @@ async function askGemini(env, body) {
   const parts = (((d.candidates || [])[0] || {}).content || {}).parts || [];
   const calls = parts.filter(p => p.functionCall && p.functionCall.name).map(p => ({ name: p.functionCall.name, args: p.functionCall.args || {} })).slice(0, 3);
   if (!out && !calls.length) { const e = new Error('Keine Antwort erhalten (evtl. blockiert)'); e.code = 'AI'; throw e; }
-  return { answer: out, calls, model: d._model || null, used, limit };
+  return { answer: out, calls, model: d._model || null };
 }
 // Sprache -> Text (Aufnahme als WAV, base64)
 async function sttGemini(env, body) {
@@ -566,7 +590,7 @@ export default {
       }
       if (url.pathname === '/ask' && request.method === 'POST') {
         const b = await request.json().catch(() => ({}));
-        return json(env, await askGemini(env, b));
+        return json(env, await askAI(env, b));
       }
       if (url.pathname === '/ai/providers') return json(env, { gemini: !!env.GEMINI_KEY, ...Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, !!env[p.key]])) });
       if (url.pathname === '/stt' && request.method === 'POST') return json(env, await sttGemini(env, await request.json().catch(() => ({}))));

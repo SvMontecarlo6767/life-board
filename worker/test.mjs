@@ -64,6 +64,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (globalThis.__gem404 && !url.includes('gemini-9-flash:')) return new Response('{"error":{"message":"not found"}}', { status: 404 }); globalThis.__gemUrls = (globalThis.__gemUrls || []).concat(url);
     if ((url.includes('gemini-3.5-flash-lite') || url.includes('gemini-2.5')) && globalThis.__gem404) return new Response('{"error":{"message":"not found"}}', { status: 404 });
     if (b.contents[0].parts[0].text === '429') return new Response('{}', { status: 429 });
+    if (b.contents[0].parts[0].text === '503' || (b.contents[0].parts[0].text === 'over38' && url.includes('gemini-3.8-flash:'))) return new Response('{"error":{"message":"This model is currently experiencing high demand."}}', { status: 503 });
     if (b.contents[0].parts[0].text === 'bigquota' && url.includes('gemini-3.8-flash:')) return new Response('{"error":{"message":"quota"}}', { status: 429 });
     if (b.contents[0].parts[0].text === 'tool') return ok({ candidates: [{ content: { parts: [{ functionCall: { name: 'set_habit', args: { button: 'Dusche' } } }] } }] });
     return ok({ candidates: [{ content: { parts: [{ text: 'Antwort ' + b.contents.length }] } }] });
@@ -299,8 +300,12 @@ console.log('✓ Zeitraum-Schutz');
   assert.ok(globalThis.__groq.messages[0].content.includes('J.A.R.V.I.S'), 'Persona auch bei Groq');
   const a2 = await ask({ provider: 'groq', messages: [{ role: 'user', content: 'tool' }], tools: [{ name: 'set_habit', description: 'x', parameters: { type: 'object', properties: {} } }] });
   assert.deepEqual(a2.body.calls, [{ name: 'set_habit', args: { button: 'Dusche' } }]); assert.equal(globalThis.__groq.tools[0].function.name, 'set_habit');
-  const a3 = await ask({ provider: 'openrouter', messages: [{ role: 'user', content: 'hi' }] }); assert.equal(a3.status, 409); assert.ok(a3.body.error.includes('OPENROUTER_KEY'));
-  const a4 = await ask({ provider: 'groq', messages: [{ role: 'user', content: 'hi' }] }, { ...gq, GROQ_KEY: 'falsch' }); assert.equal(a4.status, 502);
+  // Ausweichen: gewählter Anbieter fehlt oder fällt aus -> automatisch der nächste
+  const a3 = await ask({ provider: 'openrouter', messages: [{ role: 'user', content: 'hi' }] }); assert.equal(a3.status, 200); assert.ok(a3.body.answer.startsWith('Antwort'), 'ohne OPENROUTER_KEY antwortet Gemini'); assert.equal(a3.body.provider, 'gemini'); assert.ok(a3.body.fallback);
+  const a4 = await ask({ provider: 'groq', messages: [{ role: 'user', content: 'hi' }] }, { ...gq, GROQ_KEY: 'falsch' }); assert.equal(a4.status, 200); assert.equal(a4.body.provider, 'gemini'); assert.ok(a4.body.fallback.includes('Groq 401'));
+  const a6 = await ask({ messages: [{ role: 'user', content: '503' }] }); assert.equal(a6.status, 200, JSON.stringify(a6.body)); assert.equal(a6.body.provider, 'groq', 'Gemini überlastet (503 bei allen Modellen) -> Groq'); assert.ok(a6.body.fallback.includes('503'));
+  const a7 = await ask({ messages: [{ role: 'user', content: 'over38' }] }); assert.equal(a7.status, 200); assert.equal(a7.body.model, 'gemini-3.5-flash', 'nur 3.8 überlastet -> nächstes Gemini-Modell'); assert.equal(a7.body.fallback, undefined);
+  const a8 = await ask({ messages: [{ role: 'user', content: '503' }] }, { ...gq, GROQ_KEY: undefined }); assert.equal(a8.status, 502); assert.ok(a8.body.error.includes('Keine KI erreichbar'));
   const a5 = await ask({ messages: [{ role: 'user', content: 'hi' }] }); assert.equal(a5.status, 200); assert.ok(a5.body.answer.startsWith('Antwort'), 'ohne provider bleibt Gemini');
   const pr = await worker.fetch(new Request('https://w.example/ai/providers', { headers: { Authorization: 'Bearer ' + token() } }), gq); assert.deepEqual(await pr.json(), { gemini: true, groq: true, openrouter: false, mistral: false });
   console.log('✓ Weitere KI-Anbieter');
