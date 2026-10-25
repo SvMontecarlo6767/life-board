@@ -9,7 +9,7 @@ const SC = { Lauf: '#ff5460', Trail: '#ff7a85', Rad: '#6fd3ff', Kraft: '#ff9a5c'
 const EMO = { Lauf: '🏃', Trail: '⛰️', Rad: '🚴', Kraft: '🏋️', Wandern: '🥾', Schwimmen: '🏊', 'Fußball': '⚽', Basketball: '🏀', Tennis: '🎾', Klettern: '🧗', HIIT: '🔥', Yoga: '🧘', Isometrie: '🧱', Plyometrie: '⚡', Sonstiges: '✨' };
 const KM_SPORTS = ['Lauf', 'Trail', 'Rad', 'Wandern', 'Schwimmen'];
 const RPE_W = ['', 'kaum', 'sehr leicht', 'leicht', 'locker', 'mittel', 'fordernd', 'hart', 'sehr hart', 'am Limit', 'alles'];
-const S = { R: null, ctx: null, sport: 'Kraft', rpe: 6, wmode: 'h', skymode: 'h', logSport: 'Alle', logAll: false, draft: null };
+const S = { R: null, ctx: null, sport: 'Kraft', rpe: 6, wmode: 'h', skymode: 'h', logSport: 'Alle', logAll: false, draft: null, todo: {} };
 
 const sc = s => SC[s] || '#8fa6bd';
 const hrs = sec => sec / 3600;
@@ -87,6 +87,80 @@ function habit(R) {
   return { grid, top, n: R.log.length };
 }
 
+/* ---------- Noch ergänzen: Whoop-Einheiten kurz nachtragen ---------- */
+const FOCUS = { Kraft: ['Ganzkörper', 'Oberkörper', 'Unterkörper', 'Push', 'Pull', 'Beine', 'Rumpf'], Isometrie: ['Beine', 'Oberkörper', 'Rumpf', 'Ganzkörper'], Plyometrie: ['Sprungkraft', 'Sprint', 'Reaktivkraft', 'Beine'],
+  'Fußball': ['Training', 'Spiel', 'Technik', 'Athletik'], Lauf: ['Locker', 'Intervalle', 'Tempo', 'Lang'], Trail: ['Locker', 'Lang', 'Berg'], Rad: ['Locker', 'Intervalle', 'Lang'], HIIT: ['Intervalle', 'Zirkel'] };
+const PICK = ['Kraft', 'Isometrie', 'Plyometrie', 'Fußball', 'Lauf', 'Rad', 'HIIT', 'Sonstiges'];
+function pendingActs(R) { return R && R._L ? R._L.filter(a => a.src === 'whoop' && !a.ok && R.todayDi - a.loc.di <= 14).sort((a, b) => b.t - a.t).slice(0, 6) : [] }
+function pendingCard(R) {
+  const P = pendingActs(R); if (!P.length) return '';
+  return '<div class="g" id="m-todo"><div class="card s12"><h2>Noch ergänzen <span class="mu" style="font-size:14px;font-weight:400">' + P.length + ' ' + pl(P.length, 'Einheit', 'Einheiten') + ' von Whoop</span></h2><div class="sub">Was war das genau? Ein paar Tipps – dann stimmen Sportart, Balance und Belastung.</div>' +
+    P.map(a => { const d = S.todo[a.id] || (S.todo[a.id] = { sport: PICK.includes(a.sport) ? a.sport : (/functional|weight|strength/i.test(a.raw) ? 'Kraft' : 'Sonstiges'), focus: a.focus || '', rpe: a.rpe || 0, note: a.note || '' });
+      const fo = FOCUS[d.sport] || ['Locker', 'Intensiv', 'Technik'];
+      return '<div class="todo" data-id="' + esc(a.id) + '"><div class="th"><b>' + esc(a.raw || 'Workout') + '</b><span class="mu">' + F.date(a.loc.key) + ' · ' + String(a.loc.h).padStart(2, '0') + ':' + String(a.loc.mi).padStart(2, '0') + ' · ' + dur(a.sec) + (a.strain ? ' · Strain ' + F.num(a.strain, 1) : '') + (a.hr ? ' · Ø ' + a.hr + ' bpm' : '') + '</span></div>' +
+        '<div class="chips" role="group" aria-label="Sportart">' + PICK.map(sp => '<button type="button" class="chip' + (sp === d.sport ? ' on' : '') + '" data-tsp="' + sp + '">' + (EMO[sp] || '') + ' ' + sp + '</button>').join('') + '</div>' +
+        '<div class="chips" role="group" aria-label="Fokus" style="margin-top:6px">' + fo.map(f => '<button type="button" class="chip' + (f === d.focus ? ' on' : '') + '" data-tfo="' + esc(f) + '">' + esc(f) + '</button>').join('') + '</div>' +
+        '<div class="rpe" role="group" aria-label="Anstrengung"><span class="mu">Anstrengung</span>' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => '<button type="button" data-trp="' + n + '" aria-pressed="' + (n === d.rpe) + '">' + n + '</button>').join('') + '</div>' +
+        '<input type="text" class="tnote" maxlength="200" placeholder="Notiz: Gefühl, Schmerzen, was gut lief …" value="' + esc(d.note) + '">' +
+        '<div class="btns"><button type="button" class="primary" data-tsave>Speichern</button>' + (['Kraft', 'Isometrie', 'Plyometrie'].includes(d.sport) && window.TrainingGym && TrainingGym.start ? '<button type="button" data-tgym>Speichern + Übungen eintragen</button>' : '') + '<button type="button" data-tskip title="So lassen">Passt so</button></div></div>' }).join('') + '</div></div>';
+}
+function bindTodo(host) {
+  host.querySelectorAll('.todo').forEach(el => {
+    const id = el.dataset.id, d = S.todo[id], a = S.R._L.find(x => x.id === id); if (!d || !a) return;
+    const rerender = () => { render(S.host, S.R, S.ctx); const n = host.querySelector('.todo[data-id="' + CSS.escape(id) + '"]'); if (n) n.scrollIntoView({ block: 'nearest' }) };
+    el.querySelectorAll('[data-tsp]').forEach(b => b.addEventListener('click', () => { d.sport = b.dataset.tsp; d.focus = ''; rerender() }));
+    el.querySelectorAll('[data-tfo]').forEach(b => b.addEventListener('click', () => { d.focus = d.focus === b.dataset.tfo ? '' : b.dataset.tfo; rerender() }));
+    el.querySelectorAll('[data-trp]').forEach(b => b.addEventListener('click', () => { d.rpe = +b.dataset.trp; rerender() }));
+    el.querySelector('.tnote').addEventListener('input', e => { d.note = e.target.value });
+    const save = async () => { await S.ctx.complete(id, { sport: d.sport, focus: d.focus, rpe: d.rpe || null, note: d.note }); delete S.todo[id] };
+    el.querySelector('[data-tsave]').addEventListener('click', async () => { try { await save(); S.ctx.say('Ergänzt.') } catch (e) { S.ctx.say(e.message, true) } });
+    el.querySelector('[data-tskip]').addEventListener('click', async () => { try { await S.ctx.complete(id, { sport: a.sport, focus: a.focus, rpe: a.rpe, note: a.note }); delete S.todo[id] } catch (e) { S.ctx.say(e.message, true) } });
+    const g = el.querySelector('[data-tgym]'); if (g) g.addEventListener('click', async () => {
+      const plan = d.sport === 'Kraft' ? (['Push', 'Pull', 'Beine', 'Oberkörper', 'Unterkörper', 'Ganzkörper'].includes(d.focus) ? d.focus : 'Ganzkörper') : d.sport;
+      try { await save(); TrainingGym.start({ plan, date: a.loc.key, min: Math.round(a.sec / 60), link: id, rpe: d.rpe || null }); const gb = $('m-gym'); if (gb) gb.scrollIntoView({ block: 'start' }) } catch (e) { S.ctx.say(e.message, true) } });
+  });
+}
+
+/* ---------- Balance: Kraft, Ausdauer, Explosiv, Fußball pro Woche ---------- */
+const CAT = { Kraft: 'kraft', Isometrie: 'kraft', Plyometrie: 'explosiv', HIIT: 'explosiv', Lauf: 'ausdauer', Trail: 'ausdauer', Rad: 'ausdauer', Schwimmen: 'ausdauer', Wandern: 'ausdauer', 'Fußball': 'fussball' };
+const CATS = [['kraft', 'Kraft', '🏋️'], ['ausdauer', 'Ausdauer', '🏃'], ['explosiv', 'Explosiv', '⚡'], ['fussball', 'Fußball', '⚽']];
+function balance(R, st) {
+  const tgt = Object.assign({ kraft: 2, ausdauer: 2, explosiv: 1, fussball: 2 }, st.balance || {});
+  const wk = R.weeks.slice(-5).map(w => { const c = { kraft: 0, ausdauer: 0, explosiv: 0, fussball: 0 }; R._L.forEach(a => { if (a.loc.di - a.loc.wd !== w.di) return; const k = CAT[a.sport]; if (k) c[k]++ }); return { w, c } });
+  return { tgt, wk };
+}
+function balanceCard(R, st) {
+  const B = balance(R, st), cur = B.wk[B.wk.length - 1], left = 6 - (R.todayDi - cur.w.di);
+  const lamp = (n, t, running) => n >= t ? 'lg' : (running || n >= 1) && n >= t - 1 ? 'ly' : 'lr';   // Ampel: lg grün, ly gelb, lr rot
+  return '<div class="card s12" id="m-bal"><h2>Balance diese Woche</h2><div class="sub">Allround heißt: von allem genug. Ziel pro Woche in Klammern' + (left > 0 ? ' · noch ' + left + ' ' + pl(left, 'Tag', 'Tage') : '') + '.</div><div class="bal">' +
+    CATS.map(([k, n, e]) => { const v = cur.c[k], t = B.tgt[k], l = lamp(v, t, left > 0); return '<div class="bc ' + l + '"><i></i><span>' + e + ' ' + n + '</span><b>' + v + '<small> (' + t + ')</small></b><em>' + (v >= t ? 'erreicht' : left > 0 ? 'noch ' + (t - v) : 'fehlt ' + (t - v)) + '</em></div>' }).join('') +
+    '</div><table class="baltb"><tr><th>Woche</th>' + CATS.map(c => '<th>' + c[2] + '</th>').join('') + '</tr>' + B.wk.slice(0, -1).reverse().map(x => '<tr><td>ab ' + F.dateShort(x.w.start) + '</td>' + CATS.map(([k]) => '<td class="' + lamp(x.c[k], B.tgt[k], false) + '">' + x.c[k] + '</td>').join('') + '</tr>').join('') + '</table>' +
+    '<details style="margin-top:8px"><summary>Ziele pro Woche ändern</summary><div class="balset">' + CATS.map(([k, n, e]) => '<label>' + e + ' ' + n + ' <input type="number" min="0" max="14" inputmode="numeric" data-bt="' + k + '" value="' + B.tgt[k] + '"></label>').join('') + '<button type="button" id="balSave">Speichern</button></div></details></div>';
+}
+function bindBalance(host) {
+  const b = $('balSave'); if (!b) return;
+  b.addEventListener('click', async () => { const o = {}; host.querySelectorAll('[data-bt]').forEach(i => { o[i.dataset.bt] = Math.max(0, Math.min(14, parseInt(i.value, 10) || 0)) }); try { await S.ctx.saveProfile({ balance: o }) } catch (e) { S.ctx.say(e.message, true) } });
+}
+
+/* ---------- Bestwerte: Klimmzüge, 5 km, 10 km ---------- */
+function bestCard(R, ctx) {
+  const gym = (ctx.gym && ctx.gym.sessions) || [], pull = [];
+  gym.forEach(s => s.ex.forEach(e => { if (!/klimmz|pull-?up|chin/i.test(e.n)) return; let bw = 0, wt = null; e.s.forEach(x => { if (!x.w && x.r > bw) bw = x.r; if (x.w > 0 && (!wt || x.w > wt.w || (x.w === wt.w && x.r > wt.r))) wt = { w: x.w, r: x.r } }); pull.push({ date: s.date, bw, wt }) }));
+  pull.sort((a, b) => a.date < b.date ? -1 : 1);
+  const bwBest = pull.reduce((b, x) => !b || x.bw > b.bw ? x : b, null), wtBest = pull.filter(x => x.wt).reduce((b, x) => !b || x.wt.w > b.wt.w || (x.wt.w === b.wt.w && x.wt.r > b.wt.r) ? x : b, null);
+  const last = pull[pull.length - 1];
+  const tm = sec => { sec = Math.round(sec); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s2 = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s2).padStart(2, '0') };
+  const pb = R.pb || {}, pred = id => { const dm = id === '5k' ? 5000 : 10000, x = (R.pred || []).find(p => Math.abs(p.dm - dm) < 60); return x ? x.sec : null };
+  const longer = km => R._L.filter(a => (a.sport === 'Lauf' || a.sport === 'Trail') && a.km >= km && a.sec > 0).map(a => ({ sec: a.sec / a.km * km, date: a.loc.key, km: a.km })).sort((x, y) => x.sec - y.sec)[0];
+  const run = (id, n) => { const km = id === '5k' ? 5 : 10, b = pb[id], p = pred(id), l = !b && longer(km);   // ohne passenden Lauf: aus dem schnellsten längeren Lauf hochgerechnet
+    return '<div class="rec"><span>' + n + '</span><b>' + (b ? tm(b.sec) : l ? '≈ ' + tm(l.sec) : '–') + '</b><small>' + (b ? F.date(b.date) + (b.km > km * 1.01 ? ' · aus ' + F.num(b.km, 1) + ' km' : '') : l ? 'Ø-Tempo deines schnellsten Laufs über ' + F.num(l.km, 1) + ' km (' + F.date(l.date) + ')' : 'noch kein Lauf über ' + n) + (p ? '<br>Prognose aus deiner Form: ' + tm(p) : '') + '</small></div>' };
+  return '<div class="card s12" id="m-best"><h2>Bestwerte</h2><div class="sub">Was du über die Zeit verbessern willst. Klimmzüge aus dem Gym-Logbuch, Laufzeiten aus deinen Läufen.</div><div class="tiles4">' +
+    '<div class="rec"><span>Klimmzüge am Stück</span><b>' + (bwBest && bwBest.bw ? bwBest.bw : '–') + '</b><small>' + (bwBest && bwBest.bw ? F.date(bwBest.date) : 'im Gym-Logbuch „Klimmzüge“ eintragen') + (last && bwBest && last !== bwBest && last.bw ? '<br>zuletzt ' + last.bw + ' (' + F.date(last.date) + ')' : '') + '</small></div>' +
+    '<div class="rec"><span>Klimmzüge mit Gewicht</span><b>' + (wtBest ? '+' + F.num(wtBest.wt.w, wtBest.wt.w % 1 ? 1 : 0) + ' kg' : '–') + '</b><small>' + (wtBest ? '× ' + wtBest.wt.r + ' · ' + F.date(wtBest.date) : 'Zusatzgewicht als kg eintragen') + '</small></div>' +
+    run('5k', '5 km') + run('10k', '10 km') + '</div>' +
+    (pull.length >= 2 ? '<div class="mu" style="margin-top:8px">Klimmzüge-Verlauf (beste Serie ohne Gewicht): ' + pull.slice(-8).map(x => x.bw || '·').join(' → ') + '</div>' : '') + '</div>';
+}
+
 /* ---------- Aufbau ---------- */
 function addCard(R, st) {
   const last = R && R.ok ? R.log[0] : null, today = S.ctx.todayKey;
@@ -150,6 +224,7 @@ function render(host, R, ctx) {
   S.host = host; S.R = R; S.ctx = ctx;
   const st = ctx.st, ok = R && R.ok, N = narrate(R, st, new Date().getHours()), q = N.q;
   let h = '<div class="g" id="m-ueber"><div class="card s12"><div class="o1"><div class="avatar" aria-hidden="true">💪<b></b></div><div class="hello">' + esc(N.hello) + (N.name ? '<br>' + esc(N.name) + '<i>.</i>' : '') + '</div><h3 class="bh" style="margin:10px 0 4px">' + esc(N.head[0]) + ' <em>' + esc(N.head[1]) + '</em></h3><p class="sentence">' + esc(N.text) + '</p>' + (N.chips.length ? '<div class="chips">' + N.chips.map(c => '<span class="chip a">' + esc(c) + '</span>').join('') + '</div>' : '') + '</div></div></div>';
+  if (ok) h += pendingCard(R);
   h += '<div class="g">' + addCard(R, st) + profileCard(st, R) + '</div>';
   h += '<h2 class="sec" id="m-gym">Gym</h2><div class="secsub">Übungen, Sätze und Gewichte – zählt automatisch fürs Wochenziel.</div><div class="g"><div class="card s12 gymcard" id="gymBox"></div></div>';
   if (ok) {
@@ -158,11 +233,13 @@ function render(host, R, ctx) {
     h += '<h2 class="sec" id="m-woche">Diese Woche</h2><div class="secsub">Montag bis Sonntag · Ziel: ' + q.goal + ' ' + pl(q.goal, 'Einheit', 'Einheiten') + '</div><div class="g"><div class="card s5"><h2>' + wk.sessions + ' von ' + q.goal + '</h2><div class="bar" style="margin:8px 0"><i style="width:' + (pct * 100).toFixed(0) + '%"></i></div><div class="mini"><div><span>Stunden</span><b>' + f1(wk.hours) + '</b></div><div><span>Belastung</span><b>' + f0(wk.load) + '</b></div><div><span>Serie</span><b>' + q.streak + ' Wo.</b><small>Ziel geschafft</small></div></div>' +
       '<div class="wkdots">' + days.map((A, i) => '<div class="' + (wk.di + i === R.todayDi ? 'today' : '') + '"><span>' + C.WD[i] + '</span><b>' + (A.length ? A.map(a => EMO[a.sport] || '✨').join('') : '·') + '</b></div>').join('') + '</div></div>' +
       '<div class="card s7"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Wochen nach Sportart</h2><span class="seg" role="group" aria-label="Maß"><button data-w="h" aria-pressed="' + (S.wmode === 'h') + '">Stunden</button><button data-w="n" aria-pressed="' + (S.wmode === 'n') + '">Einheiten</button></span></div><div class="legend" style="margin-top:8px">' + Object.keys(R.totals.hoursBy).filter(s => R.totals.hoursBy[s] > 0).map(s => '<span><i style="background:' + sc(s) + '"></i>' + esc(s) + '</span>').join('') + '</div><div id="m-weeks"></div></div></div>';
+    h += '<div class="g">' + balanceCard(R, st) + '</div>';
     h += '<h2 class="sec" id="m-form">Form und Belastung</h2><div class="secsub">Fitness (42 Tage), Ermüdung (7 Tage) und ihre Differenz – für jede Sportart.</div><div class="g"><div class="card s8"><h2>Fitness, Ermüdung, Form</h2><div class="legend"><span><i style="background:#ff5460"></i>Fitness</span><span><i style="background:#8fa6bd"></i>Ermüdung</span><span><i style="background:#ff9a5c"></i>Form</span></div><div id="c-form"></div></div><div class="card s4"><h2>Belastung</h2><div class="sub">Akut zu chronisch</div><div id="c-gauge"></div><div class="mini" id="gaugeMini"></div><div class="note">Ohne Puls schätzt das Board die Belastung aus Dauer und Anstrengung (1–10). Akut zu chronisch ist in der Forschung umstritten – ein Hinweis, kein Urteil.</div></div></div>';
     const tot = Math.max.apply(null, Object.values(R.totals.hoursBy).concat([.01])), sports = C.SPORTS.filter(s => R.totals.hoursBy[s] > 0).sort((a, b) => R.totals.hoursBy[b] - R.totals.hoursBy[a]);
     const allH = Object.values(R.totals.hoursBy).reduce((a, b) => a + b, 0) || 1;
     h += '<h2 class="sec" id="m-sport">Sportarten</h2><div class="secsub">Letzte zwölf Monate</div><div class="g"><div class="card s7"><h2>Verteilung</h2>' + sports.map(s => '<div class="hb"><span style="width:96px">' + (EMO[s] || '') + ' ' + esc(s) + '</span><div class="bar"><i style="width:' + (R.totals.hoursBy[s] / tot * 100).toFixed(1) + '%;background:' + sc(s) + '"></i></div><b style="width:auto;min-width:110px">' + f0(R.totals.hoursBy[s]) + ' h · ' + R.counts[s] + '×</b></div>').join('') + '</div>' +
       '<div class="card s5"><h2>In Zahlen</h2><div class="tiles4" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="rec"><span>Einheiten</span><b>' + R.totals.acts + '</b><small>12 Monate</small></div><div class="rec"><span>Stunden</span><b>' + f0(R.totals.hours) + '</b><small>' + f0(R.totals.hours / allH * 100 / 100 * 0 + R.totals.hours / 52 * 10 / 10) + ' h pro Woche</small></div><div class="rec"><span>Lieblingssport</span><b>' + esc(sports[0] || '–') + '</b><small>' + F.num(R.totals.hoursBy[sports[0]] / allH * 100, 0) + ' % der Zeit</small></div><div class="rec"><span>Vielfalt</span><b>' + q.kinds + '</b><small>Sportarten in 4 Wochen</small></div></div></div></div>';
+    h += '<h2 class="sec" id="m-bestw">Bestwerte</h2><div class="g">' + bestCard(R, ctx) + '</div>';
     h += '<h2 class="sec" id="m-jahr">Dein Jahr</h2><div class="secsub">Jeder Tag eine Säule, höher = mehr Trainingszeit.</div><div class="g"><div class="card s12"><div class="top" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="margin:0">Jahr als Stadt</h2><span class="seg" role="group" aria-label="Maß"><button data-m="h" aria-pressed="' + (S.skymode === 'h') + '">Stunden</button><button data-m="load" aria-pressed="' + (S.skymode === 'load') + '">Belastung</button></span></div><div id="sky"></div></div>' +
       '<div class="card s7"><h2>Tag für Tag</h2><div class="sub">Farbe nach Trainingszeit</div><div id="c-cal"></div></div><div class="card s5"><h2>Wann du trainierst</h2><div id="habit"></div></div></div>';
     // Rekorde
@@ -187,11 +264,11 @@ function render(host, R, ctx) {
   h += '<h2 class="sec" id="m-daten">Daten und Quellen</h2><div class="secsub">Whoop, Strava oder CSV – doppelte Einheiten werden erkannt.</div><div class="g"><div class="card s12" id="mImp"></div></div>';
   host.innerHTML = h;
   // Navigation
-  const nav = $('trNav'); const L = [['m-ueber', 'Übersicht'], ['m-add', 'Eintragen'], ['m-gym', 'Gym']].concat(ok ? [['m-woche', 'Woche'], ['m-form', 'Form'], ['m-sport', 'Sportarten'], ['m-jahr', 'Jahr'], ['m-rek', 'Rekorde'], ['m-log', 'Logbuch']] : []).concat([['m-daten', 'Daten']]);
+  const nav = $('trNav'); const L = [['m-ueber', 'Übersicht']].concat(ok && pendingActs(R).length ? [['m-todo', 'Ergänzen']] : []).concat([['m-add', 'Eintragen'], ['m-gym', 'Gym']]).concat(ok ? [['m-woche', 'Woche'], ['m-bal', 'Balance'], ['m-form', 'Form'], ['m-bestw', 'Bestwerte'], ['m-sport', 'Sportarten'], ['m-jahr', 'Jahr'], ['m-rek', 'Rekorde'], ['m-log', 'Logbuch']] : []).concat([['m-daten', 'Daten']]);
   nav.innerHTML = L.map(x => '<a href="#' + x[0] + '">' + x[1] + '</a>').join('');
   nav.querySelectorAll('a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); const t = $(a.getAttribute('href').slice(1)); if (t) t.scrollIntoView({ behavior: ctx.noAnim() ? 'auto' : 'smooth', block: 'start' }) }));
   const imp = $('mImp'); const ob = ctx.importNode; if (ob) imp.appendChild(ob);
-  bindAdd(host); bindProfile(host);
+  bindAdd(host); bindProfile(host); bindTodo(host); bindBalance(host);
   if (window.TrainingGym && ctx.gym) window.TrainingGym.render($('gymBox'), ctx.gym);
   if (ok) {
     host.querySelectorAll('[data-w]').forEach(b => b.addEventListener('click', () => { S.wmode = b.dataset.w; host.querySelectorAll('[data-w]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); weeksStack($('m-weeks'), R, q.goal, S.wmode) }));

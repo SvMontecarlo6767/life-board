@@ -20,8 +20,8 @@ async function wfetch(path, body) {
 const say = (t, err) => { const m = $('msg'); m.textContent = t || ''; m.className = 'msg' + (err ? ' err' : '') };
 
 /* ---------- Speichern / Laden ---------- */
-const compact = a => ({ i: a.id, t: a.t, r: a.raw || '', n: a.name || '', k: a.km, s: a.sec, h: a.hr, m: a.hrmax, e: a.elev, c: a.cad, g: a.gear, q: a.kcal, p: a.steps, x: a.rpe || null, w: a.strain || null });
-const expand = o => { const a = { id: o.i, t: o.t, raw: o.r, name: o.n, km: o.k == null ? null : o.k, sec: o.s, hr: o.h == null ? null : o.h, hrmax: o.m == null ? null : o.m, elev: o.e == null ? null : o.e, cad: o.c == null ? null : o.c, gear: o.g || null, kcal: o.q == null ? null : o.q, steps: o.p == null ? null : o.p, rpe: o.x || null, strain: o.w || null, src: /^w/.test(o.i) ? 'whoop' : null }; a.sport = C.classify(a.raw, a.name, a.km, a.elev); if (a.cad != null && a.cad < 120 && (a.sport === 'Lauf' || a.sport === 'Trail')) a.cad *= 2; return a };
+const compact = a => ({ i: a.id, t: a.t, r: a.raw || '', n: a.name || '', k: a.km, s: a.sec, h: a.hr, m: a.hrmax, e: a.elev, c: a.cad, g: a.gear, q: a.kcal, p: a.steps, x: a.rpe || null, w: a.strain || null, o: a.sp || null, f: a.focus || null, no: a.note || null, ok: a.ok ? 1 : null });
+const expand = o => { const a = { id: o.i, t: o.t, raw: o.r, name: o.n, km: o.k == null ? null : o.k, sec: o.s, hr: o.h == null ? null : o.h, hrmax: o.m == null ? null : o.m, elev: o.e == null ? null : o.e, cad: o.c == null ? null : o.c, gear: o.g || null, kcal: o.q == null ? null : o.q, steps: o.p == null ? null : o.p, rpe: o.x || null, strain: o.w || null, src: /^w/.test(o.i) ? 'whoop' : null, sp: o.o || null, focus: o.f || null, note: o.no || null, ok: !!o.ok }; a.sport = a.sp && C.SPORTS.includes(a.sp) ? a.sp : C.classify(a.raw, a.name, a.km, a.elev); if (a.cad != null && a.cad < 120 && (a.sport === 'Lauf' || a.sport === 'Trail')) a.cad *= 2; return a };
 const YEARS = new Set(), GYEARS = new Set();
 let GYM = [];
 async function loadAll() {
@@ -38,8 +38,8 @@ function dedupe(list) {
   const byT = new Map(); [...m.values()].sort((a, b) => a.t - b.t).forEach(a => { const k = Math.round(a.t / 60000) + '|' + Math.round((a.km || 0) * 10); const p = byT.get(k); if (!p || (a.hr && !p.hr)) byT.set(k, a) });
   return [...byT.values()].sort((a, b) => a.t - b.t);
 }
-const gCompact = s => ({ i: s.id, d: s.date, t: s.t, m: s.min, x: s.rpe, n: s.note || '', p: s.plan || '', e: s.ex.map(e => ({ n: e.n, s: e.s.map(x => ({ w: x.w, r: x.r })) })) });
-const gExpand = o => ({ id: o.i, date: o.d, t: o.t, min: o.m, rpe: o.x, note: o.n || '', plan: o.p || '', ex: (o.e || []).map(e => ({ n: e.n, s: (e.s || []).map(x => ({ w: x.w, r: x.r })) })) });
+const gCompact = s => ({ i: s.id, d: s.date, t: s.t, m: s.min, x: s.rpe, n: s.note || '', p: s.plan || '', w: s.link || null, e: s.ex.map(e => ({ n: e.n, s: e.s.map(x => ({ w: x.w, r: x.r })) })) });
+const gExpand = o => ({ id: o.i, date: o.d, t: o.t, min: o.m, rpe: o.x, note: o.n || '', plan: o.p || '', link: o.w || null, ex: (o.e || []).map(e => ({ n: e.n, s: (e.s || []).map(x => ({ w: x.w, r: x.r })) })) });
 async function saveGym() {
   const by = {}; GYM.forEach(s => { const y = s.date.slice(0, 4); (by[y] = by[y] || []).push(gCompact(s)) });
   for (const y of Object.keys(by)) { await fs.doc(base + '/training/gym_' + y).set({ list: JSON.parse(JSON.stringify(by[y])) }); GYEARS.add(y) }
@@ -48,12 +48,13 @@ async function saveGym() {
 async function addGym(o) {
   const G = window.TrainingGym.core, [y, m, d] = o.date.split('-').map(Number), now = C.local(Date.now());
   const t = o.date === now.key ? Date.now() : C.localToMs(y, m, d, 18, 0, 0);
-  const s = { id: 'x' + t.toString(36) + Math.random().toString(36).slice(2, 6), date: o.date, t, min: o.min, rpe: o.rpe, note: o.note, plan: o.plan, ex: o.ex };
+  const linked = o.link && ACTS.find(a => a.id === o.link);
+  const s = { id: 'x' + t.toString(36) + Math.random().toString(36).slice(2, 6), date: o.date, t: linked ? linked.t : t, min: o.min, rpe: o.rpe, note: o.note, plan: o.plan, ex: o.ex, link: linked ? linked.id : null };
   const prs = G.prsOf(GYM, s, todayKey());
-  const keepG = GYM.slice(), keepA = ACTS.slice();
+  const keepG = GYM.slice(), keepA = ACTS.map(a => Object.assign({}, a));
   GYM = GYM.concat([s]);
-  const a = { id: 'g' + s.id, t, raw: 'Kraft', name: s.plan || 'Gym', km: null, sec: s.min * 60, hr: null, hrmax: null, elev: null, cad: null, gear: null, kcal: null, steps: null, rpe: s.rpe };
-  a.sport = 'Kraft'; ACTS = dedupe(ACTS.concat([a]));
+  if (linked) { linked.ok = true; if (!linked.rpe) linked.rpe = s.rpe; if (!linked.focus && s.plan) linked.focus = s.plan; if (!['Kraft', 'Isometrie', 'Plyometrie'].includes(linked.sport)) { linked.sp = 'Kraft'; linked.sport = 'Kraft' } }   // gehört zu einer Whoop-Einheit: nicht doppelt zählen
+  else { const a = { id: 'g' + s.id, t, raw: 'Kraft', name: s.plan || 'Gym', km: null, sec: s.min * 60, hr: null, hrmax: null, elev: null, cad: null, gear: null, kcal: null, steps: null, rpe: s.rpe }; a.sport = 'Kraft'; ACTS = dedupe(ACTS.concat([a])) }
   try { await saveGym(); await saveActs() } catch (e) { GYM = keepG; ACTS = keepA; throw e }
   renderAll(); return prs;
 }
@@ -93,7 +94,7 @@ function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidde
 function homeOnboard() { const o = $('onboard'), g = $('setup').querySelector('.g'); if (o && g && o.parentNode !== g) g.prepend(o) }
 let stvInit = false;
 function multiCtx() {
-  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
+  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
 }
 function renderMulti() {
   show('multi'); say(''); window.TrainingMulti.render($('mcontent'), R, multiCtx());
@@ -109,6 +110,15 @@ async function addAct(o) {
   a.sport = C.classify(a.raw, a.name, a.km, a.elev);
   const keep = ACTS.slice(); ACTS = dedupe(ACTS.concat([a]));
   try { await saveActs() } catch (e) { ACTS = keep; throw e }
+  renderAll();
+}
+/* Whoop-Einheit ergänzen: Sportart, Fokus, Anstrengung, Notiz */
+async function completeAct(id, o) {
+  const a = ACTS.find(x => x.id === id); if (!a) throw new Error('Einheit nicht gefunden');
+  const keep = Object.assign({}, a);
+  if (o.sport && C.SPORTS.includes(o.sport)) { a.sp = o.sport; a.sport = o.sport }
+  a.focus = o.focus ? String(o.focus).slice(0, 40) : null; a.rpe = o.rpe ? Math.max(1, Math.min(10, +o.rpe)) : a.rpe; a.note = o.note ? String(o.note).trim().slice(0, 200) : null; a.ok = true;
+  try { await saveActs() } catch (e) { Object.assign(a, keep); throw e }
   renderAll();
 }
 async function removeAct(id) {
