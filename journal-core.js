@@ -1,6 +1,6 @@
 /* Life Board – Check-in (Tagebuch): Datenform, Punkte und Hilfen. Reine Funktionen, keine Abhängigkeit von Firebase oder DOM.
    Wird von checkin.html, heute.html, dem Hub und muster.html benutzt; Tests: node tools/test-insights.mjs.
-   Firestore users/{uid}/journal/{Tag}: {m:{mood,energy,sleep,feel,at}, e:{good:[3],stress,line,at}, notes:[{at,mood,text}], t:{trackerId:Wert}, g:[{t,at,done}] Tagesziele, updatedAt}
+   Firestore users/{uid}/journal/{Tag}: {m:{mood,energy,sleep,feel,at}, e:{good:[3],stress,line,at}, notes:[{at,mood,text}], t:{trackerId:Wert}, g:[{t,at,done,r}] Tagesziele (r = Erinnerung), updatedAt}
    Wochen- und Monatsziele: users/{uid}/goals/W{Montag} bzw. M{JJJJ-MM}: {items:[{t,done}]} */
 (function(root){
 /* Gefühlswörter: ein Wort zu wählen hilft mehr als nur eine Zahl (Affect Labeling) */
@@ -29,7 +29,7 @@ function clean(doc){
   return o;
 }
 /* Ziele: höchstens 8, Text bis 140 Zeichen, optional Uhrzeit HH:MM */
-function cleanGoals(list,withTime){return(Array.isArray(list)?list:[]).filter(x=>x&&String(x.t||'').trim()).slice(0,8).map(x=>{const o={t:String(x.t).trim().slice(0,140),done:!!x.done};if(withTime)o.at=/^([01]\d|2[0-3]):[0-5]\d$/.test(x.at||'')?x.at:'';return o})}
+function cleanGoals(list,withTime){return(Array.isArray(list)?list:[]).filter(x=>x&&String(x.t||'').trim()).slice(0,8).map(x=>{const o={t:String(x.t).trim().slice(0,140),done:!!x.done};if(withTime){o.at=/^([01]\d|2[0-3]):[0-5]\d$/.test(x.at||'')?x.at:'';if(x.r&&o.at)o.r=true}return o})}
 const goodCount=d=>d&&d.e?d.e.good.filter(x=>x&&x.trim()).length:0;
 /* Punkte-Zähler fürs Dopamin-Konto (Aktionen MEN-01 … MEN-05 im Regelwerk v2) */
 function counts(d){

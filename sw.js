@@ -1,8 +1,8 @@
 /* Life Board – Service Worker. Zweck: App-Start auch bei schlechtem Netz.
    Strategie: Netz zuerst (damit Änderungen sofort ankommen), nur bei Fehler/Offline der zuletzt gespeicherte Stand.
    Gecacht wird nur die eigene Seite (HTML, Skripte, Styles, Icons) – nie Firebase, den Worker oder andere Anbieter. */
-const CACHE = 'lb-shell-v8';
-const SHELL = ['index.html', 'heute.html', 'recovery.html', 'learn.html', 'puzzle.html', 'training.html', 'calendar.html', 'checkin.html', 'muster.html', 'journal-core.js', 'insights-core.js', 'theme.css', 'theme.js', 'fb.js', 'engine.js', 'bg3d.js', 'hud-viz.js', 'learn-core.js', 'puzzle-dop.js', 'whoop-auto.js', 'whoop-cache.js', 'dop-account.js', 'sleep-lever.js', 'graph-stats.js', 'graph-full.js', 'sleep-card.js', 'calendar-core.js', 'calendar-store.js', 'training-core.js', 'training-text.js', 'training-viz.js', 'training-gym.js', 'training-multi.js', 'training.js', 'vendor/three.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
+const CACHE = 'lb-shell-v9';
+const SHELL = ['index.html', 'heute.html', 'recovery.html', 'learn.html', 'puzzle.html', 'training.html', 'calendar.html', 'checkin.html', 'muster.html', 'journal-core.js', 'insights-core.js', 'theme.css', 'theme.js', 'fb.js', 'engine.js', 'bg3d.js', 'hud-viz.js', 'learn-core.js', 'puzzle-dop.js', 'whoop-auto.js', 'whoop-cache.js', 'push-client.js', 'dop-account.js', 'sleep-lever.js', 'graph-stats.js', 'graph-full.js', 'sleep-card.js', 'calendar-core.js', 'calendar-store.js', 'training-core.js', 'training-text.js', 'training-viz.js', 'training-gym.js', 'training-multi.js', 'training.js', 'vendor/three.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 const SDK = /^https:\/\/www\.gstatic\.com\/firebasejs\//; // Firebase-Bibliothek: nötig, damit die Seiten offline überhaupt starten
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(SHELL.map(u => c.add(new Request(u, { cache: 'reload' }))))).then(() => self.skipWaiting())) });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())) });
@@ -24,4 +24,14 @@ self.addEventListener('fetch', e => {
       throw err;
     }
   })());
+});
+/* Benachrichtigungen vom Worker (Web Push): anzeigen und beim Antippen das Board öffnen */
+self.addEventListener('push', e => {
+  let d = {}; try { d = e.data ? e.data.json() : {} } catch (x) { d = { title: 'Life Board', body: e.data ? e.data.text() : '' } }
+  e.waitUntil(self.registration.showNotification(d.title || 'Life Board', { body: d.body || '', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png', tag: d.tag || undefined, data: { url: d.url || 'checkin.html' } }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || 'checkin.html', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => { const c = cs.find(x => x.url.startsWith(self.registration.scope)); if (c) { c.navigate(url).catch(() => {}); return c.focus() } return self.clients.openWindow(url) }));
 });

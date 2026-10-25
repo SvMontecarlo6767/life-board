@@ -26,6 +26,7 @@ const sleeps = [{ id: 's1', start: '2026-10-12T21:00:00.000Z', end: '2026-10-13T
 const workouts = [{ id: 'w1', sport_name: 'running', start: '2026-10-13T16:00:00.000Z', end: '2026-10-13T17:00:00.000Z', timezone_offset: '+02:00', score_state: 'SCORED', score: { strain: 9 } }];
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url); calls.push(url);
+  if (url.startsWith('https://push.example/')) { (globalThis.__pushes = globalThis.__pushes || []).push({ url, headers: opts.headers, body: opts.body }); return new Response('', { status: url.endsWith('/gone') ? 410 : 201 }) }
   const ok = d => new Response(JSON.stringify(d), { status: 200 });
   if (url.includes('securetoken')) return ok({ keys: [jwk] });
   if (url === 'https://www.strava.com/oauth/token') {
@@ -309,5 +310,48 @@ console.log('✓ Zeitraum-Schutz');
   const a5 = await ask({ messages: [{ role: 'user', content: 'hi' }] }); assert.equal(a5.status, 200); assert.ok(a5.body.answer.startsWith('Antwort'), 'ohne provider bleibt Gemini');
   const pr = await worker.fetch(new Request('https://w.example/ai/providers', { headers: { Authorization: 'Bearer ' + token() } }), gq); assert.deepEqual(await pr.json(), { gemini: true, groq: true, openrouter: false, mistral: false });
   console.log('✓ Weitere KI-Anbieter');
+}
+{ // Benachrichtigungen (Web Push)
+  const S = crypto.subtle, penv = { ...env, WB: kv() };
+  const api = async (path, body) => { const r = await worker.fetch(new Request('https://w.example' + path, { method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }), penv); return { status: r.status, body: await r.json() } };
+  const ua = await S.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']), uaPub = new Uint8Array(await S.exportKey('raw', ua.publicKey)), auth = crypto.getRandomValues(new Uint8Array(16));
+  const key = await api('/push/key'); assert.equal(key.status, 200); assert.equal(Buffer.from(key.body.key, 'base64url').length, 65, 'VAPID-Schlüssel (P-256, roh)');
+  assert.equal((await api('/push/key')).body.key, key.body.key, 'Schlüssel bleibt gleich');
+  assert.equal((await api('/push/subscribe', { sub: { endpoint: 'https://push.example/abc', keys: { p256dh: b64u(uaPub), auth: b64u(auth) } } })).body.subs, 1);
+  assert.equal((await api('/push/subscribe', { sub: { endpoint: 'http://unsicher' } })).status, 400);
+  // Montag 26.10.2026: Ziel 18:00 (nach der Schule), Ziel 10:00 (in der Schulzeit)
+  await api('/push/schedule', { days: ['2026-10-26'], items: [{ id: 'a', day: '2026-10-26', at: '18:00', title: 'Kraft Unterkörper' }, { id: 'b', day: '2026-10-26', at: '10:00', title: 'Vokabeln' }] });
+  await api('/push/config', { morning: { on: true, wd: '06:45', we: '09:30' } });
+  const run = async iso => { globalThis.__pushes = []; let p; await worker.scheduled({ scheduledTime: Date.parse(iso) }, penv, { waitUntil: x => { p = x } }); await p; return globalThis.__pushes };
+  const hk = async (salt, ikm, info, len) => new Uint8Array(await S.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info }, await S.importKey('raw', ikm, 'HKDF', false, ['deriveBits']), len * 8));
+  const decrypt = async body => { const b = new Uint8Array(body), salt = b.slice(0, 16), asPub = b.slice(21, 86), ct = b.slice(86);
+    const shared = new Uint8Array(await S.deriveBits({ name: 'ECDH', public: await S.importKey('raw', asPub, { name: 'ECDH', namedCurve: 'P-256' }, false, []) }, ua.privateKey, 256));
+    const ikm = await hk(auth, shared, Buffer.concat([Buffer.from('WebPush: info\0'), uaPub, asPub]), 32);
+    const cek = await hk(salt, ikm, Buffer.from('Content-Encoding: aes128gcm\0'), 16), nonce = await hk(salt, ikm, Buffer.from('Content-Encoding: nonce\0'), 12);
+    const pt = new Uint8Array(await S.decrypt({ name: 'AES-GCM', iv: nonce }, await S.importKey('raw', cek, 'AES-GCM', false, ['decrypt']), ct));
+    assert.equal(pt[pt.length - 1], 2, 'letzter Datensatz'); return JSON.parse(Buffer.from(pt.slice(0, -1)).toString()) };
+  let p1 = await run('2026-10-26T05:50:00Z');   // 06:50 Berlin
+  assert.equal(p1.length, 1); const m1 = await decrypt(p1[0].body); assert.equal(m1.tag, 'morning', 'Morgen-Check-Erinnerung');
+  assert.equal(p1[0].headers['Content-Encoding'], 'aes128gcm'); assert.ok(/^vapid t=.+\..+\..+, k=/.test(p1[0].headers.Authorization));
+  const jwt = p1[0].headers.Authorization.slice(8).split(',')[0].split('.'); assert.equal(JSON.parse(Buffer.from(jwt[1], 'base64url')).aud, 'https://push.example');
+  assert.ok(await S.verify({ name: 'ECDSA', hash: 'SHA-256' }, await S.importKey('raw', Buffer.from(key.body.key, 'base64url'), { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']), Buffer.from(jwt[2], 'base64url'), Buffer.from(jwt[0] + '.' + jwt[1])), 'VAPID-Signatur gültig');
+  assert.equal((await run('2026-10-26T06:00:00Z')).length, 0, 'Morgen-Check nur einmal');
+  assert.equal((await run('2026-10-26T09:05:00Z')).length, 0, 'in der Schulzeit nichts (10:05)');
+  const p2 = await run('2026-10-26T14:32:00Z');   // 15:32: Schulzeit vorbei -> verschobenes Ziel
+  assert.equal(p2.length, 1); const m2 = await decrypt(p2[0].body); assert.ok(m2.title.includes('Vokabeln') && m2.body.includes('10:00'), 'Ziel aus der Schulzeit kommt danach');
+  const p3 = await run('2026-10-26T17:00:00Z');   // 18:00
+  assert.equal(p3.length, 1); assert.ok((await decrypt(p3[0].body)).title.includes('Kraft'));
+  assert.equal((await run('2026-10-26T17:05:00Z')).length, 0, 'jedes Ziel nur einmal');
+  // Morgen-Check schon erledigt -> keine Erinnerung; Wochenende 09:30
+  await api('/push/done', { day: '2026-10-27' }); assert.equal((await run('2026-10-27T05:50:00Z')).length, 0, 'erledigt: keine Morgen-Erinnerung');
+  assert.equal((await run('2026-10-31T07:00:00Z')).length, 0, 'Samstag vor 09:30 nichts'); assert.equal((await run('2026-10-31T08:35:00Z')).length, 1, 'Samstag 09:35');
+  // höchstens 4 am Tag
+  await api('/push/schedule', { days: ['2026-11-01'], items: [1, 2, 3, 4, 5, 6].map(i => ({ id: 'x' + i, day: '2026-11-01', at: '12:0' + i, title: 'Z' + i })) });
+  assert.equal((await run('2026-11-01T11:10:00Z')).length, 4, 'höchstens 4 pro Tag');
+  // abgelaufenes Abo wird entfernt
+  await api('/push/subscribe', { sub: { endpoint: 'https://push.example/gone', keys: { p256dh: b64u(uaPub), auth: b64u(auth) } } });
+  const tst = (await api('/push/test', {})).body; assert.equal(tst.sent, 1); assert.equal((await api('/push/status')).body.subs, 1, '410 entfernt das Abo');
+  assert.equal((await worker.fetch(new Request('https://w.example/push/status'), penv)).status, 401, 'nur angemeldet');
+  console.log('✓ Benachrichtigungen');
 }
 console.log('Alle Tests bestanden');

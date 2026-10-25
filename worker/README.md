@@ -13,7 +13,7 @@ holt die Daten regelmäßig ab und liefert sie nur an den eingeloggten Besitzer 
    - Text: `FIREBASE_PROJECT_ID` = `life-board-81b90`
    - Text: `ALLOWED_ORIGIN` = `https://svmontecarlo6767.github.io`
    - Text: `BOARD_URL` = `https://svmontecarlo6767.github.io/life-board/index.html`
-5. Settings → Triggers → Cron: `*/30 * * * *`
+5. Settings → Triggers → Cron: `*/5 * * * *` (Erinnerungen pünktlich; Whoop wird trotzdem nur alle 30 Minuten abgeholt)
 6. Whoop Developer Dashboard: Redirect-URL `https://<dein-worker>.workers.dev/callback` eintragen.
    Scopes: read:recovery, read:sleep, read:cycles, read:workout, read:profile, read:body_measurement (und offline für den Login).
 

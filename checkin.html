@@ -88,6 +88,10 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 .gl li time{color:var(--mu);font-size:13px}
 .gl li .del{min-height:36px;padding:0 10px;background:none;border:0;color:var(--mu)}
 .gadd{display:flex;gap:6px;margin-top:6px}.gadd input[type=text]{flex:1}.gadd input[type=time]{width:110px;flex:none}.gadd button{flex:none}
+.gl li .bell{min-height:36px;min-width:40px;padding:0 6px;background:none;border:0;font-size:17px;opacity:.35}.gl li .bell[aria-pressed=true]{opacity:1}
+.gadd label{display:flex;align-items:center;gap:4px;font-size:13px;color:var(--mu);flex:none}
+.pr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--bd)}.pr:first-of-type{border-top:0}.pr input[type=time]{width:120px;flex:none}.pr select{width:auto}
+.days{display:flex;gap:4px}.days button{min-height:36px;min-width:36px;padding:0 6px;font-size:13px}.days button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
 .gh{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}.gh small{color:var(--mu)}
 .presets button{min-height:36px;padding:4px 12px;font-size:14px;border-radius:99px}
 </style><link rel="stylesheet" href="theme.css?v=8">
@@ -113,6 +117,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
   <section class="card" id="evening"></section>
   <section class="card"><h3>Letzte 7 Tage</h3><div class="week" id="week"></div>
     <div class="mu" style="margin-top:10px">Zusammenhänge und Rückblick: <a href="muster.html?v=1">Muster ansehen</a></div></section>
+  <section class="card" id="push"></section>
   <details class="card" id="setup"><summary>Morgens automatisch öffnen (iPhone)</summary>
     <div class="mu" style="line-height:1.5">
       <p>Eine Webseite merkt nicht, wann du dein Handy einschaltest – iOS bietet dafür auch keinen Auslöser. Am besten passt: <b>Check-in öffnet sich, sobald du morgens Whoop öffnest</b>, einmal pro Tag. So trägst du deine Stimmung ein, bevor du die Recovery siehst.</p>
@@ -139,6 +144,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 <script src="engine.js"></script>
 <script src="journal-core.js"></script>
 <script src="whoop-cache.js"></script>
+<script src="push-client.js"></script>
 <script>
 (async function(){
 const E=window.LBEngine,J=window.LBJournal;
@@ -149,9 +155,12 @@ const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
 const tmo=(p,ms,n)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error(n+': Zeitüberschreitung')),ms))]);
 const fromWhoop=new URLSearchParams(location.search).has('whoop');
-let user,base,today,cur,JD={},SET={},GOALS={},WH=null,draftM=null,draftE=null,nowMood=null,editTrk=false;
+let user,base,today,cur,JD={},SET={},GOALS={},WH=null,PUSH={on:false,cfg:null},draftM=null,draftE=null,nowMood=null,editTrk=false;
 const PKEY=()=>'lb_pending_journal_'+user.uid;
 
+async function api(path,body){const t=await user.getIdToken();const r=await tmo(fetch(WORKER+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+t,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}),15000,'Worker');const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||('Fehler '+r.status));return d}
+const inSchool=at=>{const q=(PUSH.cfg&&PUSH.cfg.quiet)||{days:[1,2,3,4,5],from:'08:00',to:'15:30'},[y,m,d]=cur.split('-').map(Number),dow=new Date(Date.UTC(y,m-1,d)).getUTCDay();return at&&q.days.includes(dow)&&at>=q.from&&at<q.to?q.to:null};
+function syncPush(){if(PUSH.on)LBPush.syncGoals(api,JD,today,E.addDays)}
 function showMsg(h,w){$('msg').innerHTML=h?'<div class="info'+(w?' warn':'')+'">'+h+'</div>':''}
 function setSave(t,err){const s=$('save');s.textContent=t;s.className='save'+(err?' err':'')}
 function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.remove(),2200)}
@@ -218,7 +227,7 @@ function renderMorning(){
   bindScale(el,(k,v)=>{dm[k]=v;renderMorning()});
   el.querySelectorAll('.chips button').forEach(b=>b.onclick=()=>{dm.feel=dm.feel===b.textContent?'':b.textContent;renderMorning()});
   if($('mCancel'))$('mCancel').onclick=()=>{draftM=null;renderMorning()};
-  $('mSave').onclick=async()=>{const d=day(cur);d.m={mood:dm.mood,energy:dm.energy,sleep:dm.sleep||null,feel:dm.feel||'',at:(d.m&&d.m.at)||Date.now()};draftM=null;await save(cur);render();loadWhoop()};
+  $('mSave').onclick=async()=>{const d=day(cur);d.m={mood:dm.mood,energy:dm.energy,sleep:dm.sleep||null,feel:dm.feel||'',at:(d.m&&d.m.at)||Date.now()};draftM=null;await save(cur);render();loadWhoop();if(PUSH.on&&cur===today)LBPush.done(api,cur)};
 }
 
 /* ---------- Ziele: Tag (mit Uhrzeit), Woche, Monat ---------- */
@@ -226,7 +235,7 @@ const weekId=k=>'W'+E.weekKey(k),monthId=k=>'M'+k.slice(0,7);
 async function saveGoals(id,items){GOALS[id]={items:J.cleanGoals(items,false),updatedAt:Date.now()};setSave('speichert …');
   try{await tmo(fs.doc(base+'/goals/'+id).set(GOALS[id]),10000,'Speichern');setSave('gespeichert ✓ '+hm(Date.now()))}catch(e){setSave('Ziel NICHT gespeichert',true);showMsg('Ziel nicht gespeichert: '+esc(errText(e)),true)}}
 function goalList(items,kind){
-  return '<ul class="gl">'+items.map((x,i)=>'<li class="'+(x.done?'done':'')+'"><button class="ck" type="button" data-'+kind+'-ck="'+i+'" aria-pressed="'+x.done+'" aria-label="erledigt">'+(x.done?'✓':'')+'</button><span class="tx">'+esc(x.t)+'</span>'+(x.at?'<time>'+x.at+'</time>':'')+'<button class="del" type="button" data-'+kind+'-del="'+i+'" aria-label="Ziel löschen">✕</button></li>').join('')+'</ul>';
+  return '<ul class="gl">'+items.map((x,i)=>'<li class="'+(x.done?'done':'')+'"><button class="ck" type="button" data-'+kind+'-ck="'+i+'" aria-pressed="'+x.done+'" aria-label="erledigt">'+(x.done?'✓':'')+'</button><span class="tx">'+esc(x.t)+(x.r&&inSchool(x.at)?'<br><small class="mu">in der Schulzeit – Erinnerung kommt um '+inSchool(x.at)+'</small>':'')+'</span>'+(x.at?'<time>'+x.at+'</time>':'')+(kind==='d'&&x.at?'<button class="bell" type="button" data-d-bell="'+i+'" aria-pressed="'+!!x.r+'" aria-label="Erinnerung" title="Erinnerung '+(x.r?'an':'aus')+'">🔔</button>':'')+'<button class="del" type="button" data-'+kind+'-del="'+i+'" aria-label="Ziel löschen">✕</button></li>').join('')+'</ul>';
 }
 function renderGoals(){
   const el=$('goals'),dg=(day(cur).g||[]).slice().sort((a,b)=>(a.at||'99').localeCompare(b.at||'99')),wid=weekId(cur),mid=monthId(cur);
@@ -235,20 +244,51 @@ function renderGoals(){
   el.innerHTML='<h3>Ziele</h3><div class="mu">Klein und konkret wirkt am besten: was, wann – z. B. „18:00 Kraft Unterkörper“.</div>'
     +'<div class="gh"><b>'+(cur===today?'Heute':dateLabel(cur))+cnt(dg)+'</b>'+(dg.length&&dg.every(x=>x.done)?'<small>alles geschafft · +300</small>':'')+'</div>'+goalList(dg,'d')
     +'<div class="gadd"><input type="text" id="gdT" maxlength="140" placeholder="Ziel für '+(cur===today?'heute':'diesen Tag')+' …"><input type="time" id="gdA" aria-label="Uhrzeit"><button type="button" id="gdAdd">+</button></div>'
+    +(PUSH.on?'<div class="mu" style="margin-top:4px">Mit Uhrzeit bekommst du eine Erinnerung (🔔 antippen zum Ein-/Ausschalten).</div>':'')
     +'<div class="gh"><b>Diese Woche'+cnt(wk)+'</b><small>'+dateLabel(ws).slice(4)+' – '+dateLabel(E.addDays(ws,6)).slice(4)+'</small></div>'+goalList(wk,'w')
     +'<div class="gadd"><input type="text" id="gwT" maxlength="140" placeholder="Wochenziel, z. B. 5 Einheiten"><button type="button" id="gwAdd">+</button></div>'
     +'<div class="gh"><b>'+['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'][+cur.slice(5,7)-1]+cnt(mo)+'</b><small>Monatsziele</small></div>'+goalList(mo,'m')
     +'<div class="gadd"><input type="text" id="gmT" maxlength="140" placeholder="Monatsziel …"><button type="button" id="gmAdd">+</button></div>';
-  const setDay=async list=>{day(cur).g=list;await save(cur);renderGoals();renderMorning()};
+  const setDay=async list=>{day(cur).g=list;await save(cur);renderGoals();renderMorning();syncPush()};
   el.querySelectorAll('[data-d-ck]').forEach(b=>b.onclick=()=>{const x=dg[+b.dataset.dCk];x.done=!x.done;setDay(dg)});
   el.querySelectorAll('[data-d-del]').forEach(b=>b.onclick=()=>{dg.splice(+b.dataset.dDel,1);setDay(dg)});
-  $('gdAdd').onclick=()=>{const t=$('gdT').value.trim();if(!t)return;setDay(dg.concat({t,at:$('gdA').value||'',done:false}))};
+  el.querySelectorAll('[data-d-bell]').forEach(b=>b.onclick=()=>{const x=dg[+b.dataset.dBell];x.r=!x.r;setDay(dg)});
+  $('gdAdd').onclick=()=>{const t=$('gdT').value.trim();if(!t)return;const at=$('gdA').value||'';setDay(dg.concat({t,at,done:false,r:!!(at&&PUSH.on)}))};
   const bind=(kind,id,list)=>{el.querySelectorAll('[data-'+kind+'-ck]').forEach(b=>b.onclick=async()=>{const x=list[+b.getAttribute('data-'+kind+'-ck')];x.done=!x.done;await saveGoals(id,list);renderGoals()});
     el.querySelectorAll('[data-'+kind+'-del]').forEach(b=>b.onclick=async()=>{list.splice(+b.getAttribute('data-'+kind+'-del'),1);await saveGoals(id,list);renderGoals()})};
   bind('w',wid,wk);bind('m',mid,mo);
   $('gwAdd').onclick=async()=>{const t=$('gwT').value.trim();if(!t)return;await saveGoals(wid,wk.concat({t,done:false}));renderGoals()};
   $('gmAdd').onclick=async()=>{const t=$('gmT').value.trim();if(!t)return;await saveGoals(mid,mo.concat({t,done:false}));renderGoals()};
   [['gdT','gdAdd'],['gwT','gwAdd'],['gmT','gmAdd']].forEach(([i,b])=>{$(i).onkeydown=e=>{if(e.key==='Enter')$(b).click()}});
+}
+
+/* ---------- Erinnerungen (Push) ---------- */
+async function renderPush(){
+  const el=$('push');let st;try{st=await LBPush.state()}catch(e){st={ok:false,why:'unsupported'}}
+  PUSH.on=!!(st.ok&&st.on);
+  if(!st.ok){el.innerHTML='<h3>Erinnerungen</h3><div class="mu">'+(st.why==='homescreen'?'Auf dem iPhone kommen Erinnerungen nur, wenn das Board als App auf dem Home-Bildschirm liegt: Safari → Teilen → „Zum Home-Bildschirm“, dann von dort öffnen.':st.why==='denied'?'Mitteilungen sind für das Board ausgeschaltet. Einstellungen → Mitteilungen → Life Board → „Mitteilungen erlauben“.':'Dieses Gerät oder dieser Browser unterstützt keine Push-Mitteilungen.')+'</div>';return}
+  if(!PUSH.on){el.innerHTML='<h3>Erinnerungen</h3><div class="mu">Wenige, die zählen: an deine Tagesziele zur geplanten Uhrzeit und an den Morgen-Check, falls du ihn vergisst. Nie in der Schulzeit (Mo–Fr 8:00–15:30), höchstens 4 am Tag.</div><div class="act"><button class="primary" id="pOn">Erinnerungen einschalten</button></div>';
+    $('pOn').onclick=async()=>{$('pOn').disabled=true;try{await LBPush.enable(api);toast('Erinnerungen an');await renderPush();syncPush();renderGoals()}catch(e){showMsg('Einschalten hat nicht geklappt: '+esc(e.message==='denied'?'Mitteilungen wurden nicht erlaubt':e.message),true);$('pOn').disabled=false}};return}
+  if(!PUSH.cfg){try{PUSH.cfg=await api('/push/status')}catch(e){PUSH.cfg={quiet:{days:[1,2,3,4,5],from:'08:00',to:'15:30'},morning:{on:true,wd:'06:45',we:'09:30'},lead:0}}}
+  const c=PUSH.cfg,q=c.quiet,m=c.morning,WD=['So','Mo','Di','Mi','Do','Fr','Sa'];
+  el.innerHTML='<h3>Erinnerungen · an</h3>'
+    +'<div class="pr"><span>Morgen-Check, falls noch offen</span><button type="button" id="pM" aria-pressed="'+m.on+'">'+(m.on?'an':'aus')+'</button></div>'
+    +(m.on?'<div class="pr"><span>Mo–Fr um</span><input type="time" id="pMwd" value="'+m.wd+'"></div><div class="pr"><span>Sa/So um</span><input type="time" id="pMwe" value="'+m.we+'"></div>':'')
+    +'<div class="pr"><span>Tagesziele</span><select id="pLead"><option value="0">zur Uhrzeit</option><option value="10">10 Min vorher</option><option value="15">15 Min vorher</option><option value="30">30 Min vorher</option></select></div>'
+    +'<div class="pr"><span>Ruhezeit (Schule) ab</span><input type="time" id="pQf" value="'+q.from+'"></div><div class="pr"><span>bis</span><input type="time" id="pQt" value="'+q.to+'"></div>'
+    +'<div class="pr"><span></span><div class="days">'+[1,2,3,4,5,6,0].map(d=>'<button type="button" data-qd="'+d+'" aria-pressed="'+q.days.includes(d)+'">'+WD[d]+'</button>').join('')+'</div></div>'
+    +'<div class="mu" style="margin-top:6px">Höchstens 4 am Tag. Erinnerungen, die in die Ruhezeit fallen, kommen direkt danach.</div>'
+    +'<div class="act"><button id="pTest">Test senden</button><button id="pOff">Ausschalten</button></div>';
+  $('pLead').value=String(c.lead||0);
+  const put=async()=>{try{await LBPush.config(api,{quiet:c.quiet,morning:c.morning,lead:c.lead});setSave('Erinnerungen gespeichert ✓')}catch(e){showMsg('Nicht gespeichert: '+esc(e.message),true)}};
+  $('pM').onclick=()=>{m.on=!m.on;put();renderPush()};
+  if($('pMwd'))$('pMwd').onchange=()=>{if($('pMwd').value){m.wd=$('pMwd').value;put()}};
+  if($('pMwe'))$('pMwe').onchange=()=>{if($('pMwe').value){m.we=$('pMwe').value;put()}};
+  $('pLead').onchange=()=>{c.lead=+$('pLead').value;put()};
+  $('pQf').onchange=()=>{if($('pQf').value){q.from=$('pQf').value;put();renderGoals()}};$('pQt').onchange=()=>{if($('pQt').value){q.to=$('pQt').value;put();renderGoals()}};
+  el.querySelectorAll('[data-qd]').forEach(b=>b.onclick=()=>{const d=+b.dataset.qd;q.days=q.days.includes(d)?q.days.filter(x=>x!==d):q.days.concat(d);put();renderPush();renderGoals()});
+  $('pTest').onclick=async()=>{try{const r=await LBPush.test(api);toast(r.sent?'Test gesendet':'Kein Gerät erreicht')}catch(e){showMsg('Test fehlgeschlagen: '+esc(e.message),true)}};
+  $('pOff').onclick=async()=>{await LBPush.disable(api);PUSH.on=false;toast('Erinnerungen aus');renderPush();renderGoals()};
 }
 
 /* ---------- Gerade (über den Tag) ---------- */
@@ -323,8 +363,8 @@ function renderEvening(){
   bindScale(el,(k,v)=>{de[k]=de[k]===v?null:v;renderEvening()});
   if($('eCancel'))$('eCancel').onclick=()=>{draftE=null;renderEvening()};
   $('eSave').onclick=async()=>{const d=day(cur);d.e={good:de.good,stress:de.stress,line:de.line,at:(d.e&&d.e.at)||Date.now()};
-    const nk=E.addDays(cur,1),add=(de.tg||[]).filter(x=>x&&x.t&&x.t.trim()).map(x=>({t:x.t.trim(),at:x.at||'',done:false}));
-    if(add.length){const nd=day(nk);nd.g=(nd.g||[]).concat(add.filter(a=>!(nd.g||[]).some(b=>b.t===a.t)));await save(nk,false)}
+    const nk=E.addDays(cur,1),add=(de.tg||[]).filter(x=>x&&x.t&&x.t.trim()).map(x=>({t:x.t.trim(),at:x.at||'',done:false,r:!!(x.at&&PUSH.on)}));
+    if(add.length){const nd=day(nk);nd.g=(nd.g||[]).concat(add.filter(a=>!(nd.g||[]).some(b=>b.t===a.t)));await save(nk,false);syncPush()}
     draftE=null;await save(cur);renderEvening();renderWeek()};
 }
 
@@ -367,6 +407,7 @@ async function boot(){
   const p=pget();
   for(const k of Object.keys(p)){if(!JD[k]||(JD[k].updatedAt||0)<=(p[k].updatedAt||0)){JD[k]=p[k];save(k,false)}}
   $('main').hidden=false;render();
+  renderPush().then(()=>{if(PUSH.on){syncPush();renderGoals()}}).catch(()=>{});
   if(day(today).m)loadWhoop();
   if(fromWhoop&&day(today).m)setTimeout(()=>{location.href=WHOOP_BACK},400);   // heute schon eingetragen: direkt zurück zu Whoop
   window.__checkinReady=true;
