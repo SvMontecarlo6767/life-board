@@ -1,5 +1,5 @@
 /* 3D-Hintergrund (Three.js): Partikelfeld mit Tiefe, driftendes Neuronen-Netz, Perspektiv-Grid.
-   Reagiert auf Scrollen, Geräteneigung (optional) und Jarvis' Zustand (Event "lb-jarvis").
+   Reagiert auf Scrollen und Geräteneigung (optional).
    Sparsam gebaut: ein Canvas, DPR max. 1.5, Pause bei verstecktem Tab. Im Performance-Modus wird er gar nicht erst geladen. */
 (function(){
 if(!window.THREE||document.getElementById('lb-bg'))return;
@@ -49,7 +49,6 @@ const gm=new T.LineBasicMaterial({color:acc.clone(),transparent:true,opacity:.16
 const grid=new T.LineSegments(gridG,gm);grid.position.y=-9;scene.add(grid);
 /* Zustand / Eingaben */
 let speed=1,targetSpeed=1,pulse=0,scrollY=0,tiltX=0,tiltY=0,visible=!document.hidden,raf=0,frame=0,last=performance.now();
-window.addEventListener('lb-jarvis',e=>{const s=(e.detail&&e.detail.state)||'idle';targetSpeed={idle:1,listening:1.6,thinking:3.2,speaking:2,error:1}[s]||1;if(s==='error')pulse=1});
 window.addEventListener('scroll',()=>{scrollY=window.scrollY||0},{passive:true});
 window.addEventListener('deviceorientation',e=>{if(!(window.LBUI&&LBUI.settings.tilt))return;tiltX=Math.max(-1,Math.min(1,(e.gamma||0)/30));tiltY=Math.max(-1,Math.min(1,((e.beta||45)-45)/30))});
 function resize(){const w=window.innerWidth,h=window.innerHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix()}

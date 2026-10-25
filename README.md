@@ -1,6 +1,6 @@
 # Life Board
 
-Persönliches Board (iPad, Safari): Hub, Heute (Dopamin-Konto), Recovery (Whoop), Lernen (Notion), Puzzle-Tracker, Jarvis.
+Persönliches Board (iPhone und iPad, Safari): Hub, Check-in (Stimmung, Gedanken, 3 gute Dinge), Muster (Zusammenhänge), Heute (Dopamin-Konto), Recovery (Whoop), Training, Lernen (Notion), Kalender, Puzzle-Tracker. Ohne KI – alles fest gerechnet.
 Statische Seiten auf GitHub Pages, Daten in Firebase (Auth + Firestore), Schnittstellen über einen Cloudflare-Worker (`worker/worker.js`).
 
 ## Cloudflare-Worker aktualisieren
@@ -23,13 +23,6 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Wetter und Ortssuche: einziger externer Abruf der Seite (Open-Meteo, nur Ort und Rennen-Datum).
 - Tests: `node tools/test-training.mjs`, `node worker/test.mjs`, Browser: `node tools/browser/gen_training_seed.mjs seed.json` und `python3 tools/browser/test_training.py <Ordner> seed.json`.
 
-## KI-Anbieter umstellen
-In **Optionen → KI-Anbieter** zwischen Gemini (Standard), Groq (Llama), OpenRouter und Mistral wählen. Der Chat und Jarvis' Antworten laufen dann über den gewählten Anbieter, inklusive Aktionen mit Rückfrage. Spracheingabe (STT) und Sprachausgabe (TTS) bleiben bei Gemini.
-- Im Cloudflare-Worker als Secret anlegen (nie im Chat posten): `GROQ_KEY`, `OPENROUTER_KEY`, `MISTRAL_KEY`. Optional Modelle per Variable `GROQ_MODEL`, `OPENROUTER_MODEL`, `MISTRAL_MODEL`.
-- Aktuelle `worker/worker.js` deployen.
-- **Automatisches Ausweichen:** Der gewählte Anbieter kommt zuerst, danach Gemini (alle Flash-Modelle, bestes zuerst), dann Groq, Mistral und OpenRouter – jeweils nur, wenn der Schlüssel im Worker hinterlegt ist. Überlastung (503), Kontingent (429), falscher Schlüssel oder Zeitüberschreitung (15 s) führen sofort zum nächsten. Jarvis zeigt unter der Antwort, welches Modell geantwortet hat. Je mehr Schlüssel hinterlegt sind, desto sicherer antwortet die KI.
-- Nur mit Mocks getestet.
-
 ## Gym-Logbuch (im Training, Ansicht „Allround“)
 - Vorlagen Push / Pull / Beine / Oberkörper / Unterkörper / Ganzkörper, „Wie zuletzt“ oder leer. Übungen frei hinzufügbar (Vorschläge aus deinen bisherigen Übungen).
 - Pro Übung Sätze mit Gewicht und Wiederholungen; die Werte vom letzten Mal sind vorbelegt, dazu ein Vorschlag (Doppelprogression: alle Sätze ≥ 10 Wdh → Gewicht erhöhen). Pausen-Timer, Entwurf bleibt bei Neuladen erhalten.
@@ -47,19 +40,29 @@ Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gle
 - Beim Blättern zeigt „Konto“ den Stand bis einschließlich des gewählten Tags.
 - Der Hub zeigt erst den gespeicherten Stand und rechnet ihn dann live nach (auch beim Zurückkehren aus „Heute“). Test: `node tools/browser/test_konto.mjs`.
 
-## Jarvis
-- Antippen öffnet, **halten = sprechen, loslassen = senden**. Tippen im Textfeld antwortet nur schriftlich.
-- Schalter „Jarvis spricht“ (Optionen) bzw. „nur schriftlich“ / „sprich mit mir“ per Zuruf.
-- Aktionen (immer erst Rückfrage, bestätigen per Knopf oder „ja“): Reiter wechseln, Einträge in Heute, Puzzle-Ergebnisse, Einstellungen. Die Handler liegen auf den Seiten (`window.JarvisHandlers`), Jarvis nutzt dieselben Funktionen wie die normale Bedienung.
-- Neue Aktion: Werkzeug in `jarvis-actions.js` (`tools()` + `handle()`), Handler auf der Zielseite registrieren.
+## Check-in (Reiter „Check-in“, fürs iPhone gebaut)
+- **Morgens, vor Whoop:** Stimmung, Energie, gefühlter Schlaf (je 1–5) und ein Gefühlswort. Erst nach dem Speichern lädt die Seite die Whoop-Recovery und zeigt beides nebeneinander („Dein Gefühl trifft die Whoop-Zone an X von Y Tagen“).
+- **Über den Tag:** Stimmung und Gedanken jederzeit festhalten. **Eigene Tracker** (Kaffee, Wasser, Handyzeit, Zeit mit Freunden … oder frei angelegt) – Definition in `settings/main.trackers`.
+- **Abends:** 3 gute Dinge (mit „weil …“), Stress 1–5, ein Satz zum Tag.
+- Punkte im Dopamin-Konto (Regelwerk v2, Kategorie MEN, in `tools/build_v2.py`): Morgen-Check 400, Abend mit 3 guten Dingen 500, Notizen 3 × 100, Tracker 150.
+- Daten: Firestore `users/{uid}/journal/{Tag}` (in der Sicherung). Logik: `journal-core.js`.
+- **Morgens automatisch öffnen:** iOS hat keinen Auslöser fürs Einschalten. Stattdessen Kurzbefehle-Automation „Whoop wird geöffnet“, die einmal pro Tag den Check-in öffnet – Anleitung unten auf der Check-in-Seite. `checkin.html?whoop=1` springt zurück zu Whoop (Kurzbefehl „Whoop öffnen“), wenn heute schon eingetragen ist.
+- Hintergrund: Gefühle benennen (Affect Labeling, Lieberman 2007), „Three Good Things“ (Seligman 2005), Aktivität + Stimmung (Verhaltensaktivierung). Reines Stimmungs-Tracking bringt allein wenig – deshalb gibt das Board über die Muster etwas zurück.
+
+## Muster (Reiter „Muster“)
+- **Was dir guttut / was dich bremst:** vergleicht Tage mit und ohne einen Faktor (Heute-Knöpfe, Sport, eigene Tracker) mit Stimmung, Energie, Stress, Recovery, HRV, Ruhepuls und Schlaf – am selben Tag und am Folgetag. Ein Muster erscheint nur bei mindestens 5 Tagen je Seite, Effektstärke ≥ 0,5 und t ≥ 2,2.
+- **Vergleichen:** zwei beliebige Werte als Kurven (30/90/365 Tage) mit Gleichlauf (r).
+- **Rückblick:** Woche/Monat mit Durchschnitten zum vorigen Zeitraum, bester Tag, Serien, häufigste Gefühle, zufällige „gute Dinge“.
+- Logik: `insights-core.js` (Tests: `node tools/test-insights.mjs`).
 
 ## Einstellungen (Zahnrad bzw. „Optionen“)
-Performance-Modus (schwächt 3D, Unschärfe, Animationen ab – nur per Schalter), UI-Sounds, Geräteneigung, Jarvis spricht, FPS-Anzeige.
+Performance-Modus (schwächt 3D, Unschärfe, Animationen ab – nur per Schalter), UI-Sounds, Geräteneigung, FPS-Anzeige.
 
 ## Tests
-- `node worker/test.mjs`, `node tools/test-learn.mjs`, `node tools/test-voice.mjs`
-- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, `test_heute.py`, `test_learn.py`, `test_jarvis.py`, `test_actions.py`, Screenshots mit `shot_hud.py`.
-- Notion, Gemini und Sprachausgabe sind nur mit Mocks getestet.
+- `node worker/test.mjs`, `node tools/test-learn.mjs`, `node tools/test-insights.mjs`
+- Browser (Node + Playwright): `node tools/browser/test_checkin.mjs`, `test_muster.mjs`, `test_konto.mjs`
+- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, `test_heute.py`, `test_learn.py`, Screenshots mit `shot_hud.py`.
+- Notion ist nur mit Mocks getestet. Die KI-Routen im Worker (`/ask`, `/stt`, `/tts`) werden vom Board nicht mehr benutzt.
 
 ## Hinweis zu Versionsnummern
 Die Seiten hängen `?v=N` an Skripte und Links, damit Safari nach Änderungen neu lädt. Bei Änderungen an einer Datei die Nummer erhöhen.
@@ -68,12 +71,11 @@ Die Seiten hängen `?v=N` an Skripte und Links, damit Safari nach Änderungen ne
 
 Die Karte „😴 Schlaf-Hebel“ im Recovery-Reiter beantwortet eine Frage: Was beeinflusst Schlaf und Erholung am stärksten, und was ändere ich deshalb? Ergebnis ist genau **ein** Hebel mit Zahlen, oder „Die Daten geben das noch nicht her“.
 
-- **Rechnet fest nach Regeln** in `sleep-lever.js` (kein Gemini, gleiche Daten = gleiches Ergebnis, Tests: `node tools/test-sleep.mjs`). Jarvis liest nur die gespeicherte Karte vor.
+- **Rechnet fest nach Regeln** in `sleep-lever.js` (keine KI, gleiche Daten = gleiches Ergebnis, Tests: `node tools/test-sleep.mjs`).
 - **Sechs Verdächtige:** späte harte Einheit, unregelmäßige Bettzeit, kurze Nächte, Trainingssprung, Alkohol am Abend, späte große Mahlzeit. Verglichen wird der Median des Wirkungswerts (Standard HRV) mit/ohne Merkmal, je Gruppe mindestens 5 Nächte, Schwelle nach Gruppengröße, dazu die „strengste Probe“.
 - **Daten:** Whoop (Schlaf, HRV, Ruhepuls, Workouts) plus Heute-Einträge: Alkohol, neu **„Letzte große Mahlzeit“** und **„Krank“** (Heute → Schlaf-Daten). Fehlende Angaben sind „unbekannt“, nie „nein“. Unter 14 Nächten wird nicht geprüft, stattdessen gibt es den Zwei-Wochen-Zettel.
 - **Sicherheitsfrage** (Schnarchen, Atemaussetzer, massive Tagesmüdigkeit): wird nie angenommen. „Ja“ stellt eine ärztliche Abklärung vor jeden Hebel. Keine Diagnose, keine Empfehlung für Melatonin, Schlafmittel oder Supplemente.
 - **Schlaf-Karte** wird in `users/{uid}/sleepcards/{Datum}` gespeichert (Verlauf), Einstellungen in `sleepcfg/main`. Beides ist in der Sicherung enthalten.
-- **Jarvis:** „Was ist mein Schlaf-Hebel?“, „Letzte Mahlzeit war um 21:15“ (mit Rückfrage), Antwort auf die Sicherheitsfrage.
 
 ## Graph-Vollbild
 
@@ -83,7 +85,6 @@ Jeder Graph hat oben rechts ein Vergrößern-Symbol (48 px). Es öffnet ein Voll
 - **Statistiken** (`graph-stats.js`, deterministisch, immer aus den Originaldaten, Tests: `node tools/test-graphstats.mjs`): Durchschnitt, Median, Bestwert/Tiefstwert (Richtung beachtet), Trend gegen den gleich langen Zeitraum davor, Datenpunkte gegen Tage, Summe, gute Tage und Serie, Wochentage.
 - **Alle übrigen Diagramme** (Radar, Zonen, Gym, Puzzle …) erkennt `GraphFull.auto()` selbst und zeigt sie vergrößert, ohne Zeitachsen-Bedienung und ohne neue Statistik.
 - **Neuer Graph = eine Zeile:** `GraphFull.attach('#id',{id:'x',title:'…',unit:'kg',dir:1,series:()=>[{date:'2026-10-01',value:70}]})`.
-- **Jarvis:** „Jarvis fragen“ übergibt Graph, Zeitraum und die berechneten Werte; Jarvis öffnet Graphen („zeig mir meinen Schlaf der letzten 30 Tage“), wechselt den Zeitraum und springt zu Daten, ohne Rückfrage.
 - Im Performance-Modus oder bei „Bewegung reduzieren“ gibt es nur ein kurzes Einblenden statt der Animation.
 
 ## Kalender (Reiter „Kalender“)
@@ -93,4 +94,4 @@ Eigener Kalender im Life Board (keine Verbindung zu Google/Apple). Ansichten: **
 - **Plan aus Heute:** Der „Fokus für morgen" aus dem Tagesabschluss erscheint am Folgetag im Kalender (Tagesfeld, 🎯 im Monat).
 - **Daten:** Firestore `users/{uid}/calendar` (`ev_JAHR` mit den Terminen, `notes_JAHR` mit den Tagesnotizen); gehört zur Datensicherung. Whoop-Werte werden monatsweise geladen.
 - **Erinnerungen:** erscheinen als Hinweis im Life Board (auf jeder Seite) und, wenn erlaubt, als Benachrichtigung – **nur solange die App geöffnet ist**. Eine Seite ohne Server kann keine Push-Nachrichten bei geschlossener App schicken. Dafür unter „⋯“ alle Termine als `.ics` laden und im Apple Kalender öffnen: Dort setzt das iPad die Alarme selbst.
-- **Jarvis:** „Trag morgen um 15 Uhr Zahnarzt ein“ (mit Bestätigung und Warnung bei Überschneidung), „Was steht heute/diese Woche an?“, „Öffne den Kalender im Wochenmodus“, „Schreib in die Notiz von heute …“. Rechenkern: `calendar-core.js` (Tests: `node tools/test-calendar.mjs`), Speicher/Erinnerungen: `calendar-store.js`, Browsertest: `tools/browser/test_calendar.py <Ordner> [ipad|phone|all]`.
+- Rechenkern: `calendar-core.js` (Tests: `node tools/test-calendar.mjs`), Speicher/Erinnerungen: `calendar-store.js`, Browsertest: `tools/browser/test_calendar.py <Ordner> [ipad|phone|all]`.

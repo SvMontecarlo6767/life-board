@@ -39,7 +39,7 @@ details{margin:10px 0}summary{cursor:pointer;color:var(--ac);min-height:32px}
 table{width:100%;border-collapse:collapse;font-size:14.5px}td,th{padding:7px 4px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mu);font-weight:600;font-size:12.5px}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 @media(max-width:600px){.grid{grid-template-columns:repeat(2,1fr)}}
-</style><link rel="stylesheet" href="theme.css?v=7">
+</style><link rel="stylesheet" href="theme.css?v=8">
 </head><body><div class="wrap">
 <div class="top"><div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>📚 Lernen</h1></div><a href="heute.html?v=3" class="mu">zu Heute</a></div>
 <div id="msg"></div>
@@ -58,7 +58,6 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="assistant.js?v=8"></script>
 <script src="engine.js"></script>
 <script src="learn-core.js"></script>
 <script>
@@ -127,17 +126,9 @@ function drawRound(){
   const q=R.items[R.i],pg=PAGES[q.pageId]||{};
   el.innerHTML='<h3>Frage '+(R.i+1)+' von '+R.items.length+' · '+esc(q.pageTitle)+'</h3><div class="prog"><i style="width:'+(R.i/R.items.length*100)+'%"></i></div><div class="q">'+esc(q.text)+'</div>'
    +'<textarea id="ans" placeholder="Antwort für dich eintippen (bleibt nur hier, wird nicht gespeichert)"'+(R.shown?' readonly':'')+'></textarea>'
-   +(R.shown?'<details open><summary>Nachschlagen: Zusammenfassung der Seite</summary><div class="ref">'+esc(pg.ref||'(Keine Zusammenfassung gespeichert)')+'</div>'+(pg.url?'<div class="mu"><a href="'+esc(pg.url)+'" target="_blank" rel="noopener">In Notion öffnen</a></div>':'')+'</details><div class="row"><button class="ok" data-r="ok">richtig</button><button class="fast" data-r="fast">fast</button><button class="bad" data-r="bad">falsch</button><button id="aiHint">KI-Vorschlag</button></div><div id="aiOut" class="ref" hidden></div>'
+   +(R.shown?'<details open><summary>Nachschlagen: Zusammenfassung der Seite</summary><div class="ref">'+esc(pg.ref||'(Keine Zusammenfassung gespeichert)')+'</div>'+(pg.url?'<div class="mu"><a href="'+esc(pg.url)+'" target="_blank" rel="noopener">In Notion öffnen</a></div>':'')+'</details><div class="row"><button class="ok" data-r="ok">richtig</button><button class="fast" data-r="fast">fast</button><button class="bad" data-r="bad">falsch</button></div>'
     :'<div class="row" style="margin-top:10px"><button class="primary" id="show">Antwort prüfen</button><button id="abort">Abbrechen</button></div>');
   if(!R.shown){$('show').onclick=()=>{const v=$('ans').value;R.ans=v;R.shown=true;drawRound();$('ans').value=v};$('abort').onclick=abort}
-  if(R.shown&&$('aiHint'))$('aiHint').onclick=async()=>{
-    const o=$('aiOut');o.hidden=false;o.textContent='Die KI prüft …';$('aiHint').disabled=true;
-    try{
-      const r=await window.Assistant.ask('Bewerte meine Antwort auf diese Lernfrage. Frage: "'+q.text+'". Meine Antwort: "'+(R.ans||'(nichts eingetippt)')+'". Nutze die Zusammenfassung der Seite unten als Grundlage. Gib einen Vorschlag (richtig / fast / falsch) mit kurzer Begründung und nenne, was gefehlt hat.','SEITENZUSAMMENFASSUNG ("'+q.pageTitle+'"):\n'+(pg.ref||'(keine)'));
-      o.textContent=r.answer;
-    }catch(e){o.textContent='KI nicht verfügbar: '+e.message}
-    $('aiHint').disabled=false;
-  };
   el.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>rate(b.dataset.r));
 }
 function abort(){R=null;$('round').hidden=true;$('start').hidden=false;$('topics').hidden=false;render()}
@@ -219,6 +210,5 @@ $('sync').onclick=syncNotion;
 $('fltSave').onclick=async()=>{SET.learnFilter=$('flt').value.trim();try{await fs.doc(base+'/settings/main').set({learnFilter:SET.learnFilter},{merge:true});$('syncMsg').textContent='Filter gespeichert.'}catch(e){showMsg(esc(errText(e)),true)}};
 if(!list().length)syncNotion();
 })();
-</script><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=2"></script><script src="theme.js?v=11"></script>
-<script src="jarvis.js?v=11"></script>
+</script><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=12"></script>
 </body></html>

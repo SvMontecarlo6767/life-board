@@ -1,0 +1,52 @@
+// Browsertest Check-in (iPhone-Größe, Firebase-Mock, Worker-Mock): Morgen-Check vor Whoop, Notiz, Tracker, Abend,
+// Punkte im Dopamin-Konto. Aufruf: node tools/browser/test_checkin.mjs [screenshot-ordner]
+import {createRequire} from 'node:module';
+const {chromium}=createRequire(import.meta.url)('playwright');
+import http from 'node:http';import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','..');const shots=process.argv[2];if(shots)fs.mkdirSync(shots,{recursive:true});
+const mock=fs.readFileSync(path.join(root,'tools/browser/firebase-mock.js'),'utf8');
+const srv=http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.url.split('?')[0]));if(!f.startsWith(root)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){r.writeHead(404);return r.end()}
+  r.writeHead(200,{'content-type':f.endsWith('.html')?'text/html':f.endsWith('.json')?'application/json':f.endsWith('.css')?'text/css':'application/javascript'});r.end(fs.readFileSync(f))});
+await new Promise(ok=>srv.listen(0,'127.0.0.1',ok));const URL='http://127.0.0.1:'+srv.address().port;
+const seed={'users/u1/days/2026-10-24':{date:'2026-10-24',rulesVersion:2,in:{},a:{},x:{},auto:{},net:1000,rank:'C',closed:true,focus:'',updatedAt:1}};
+const whoop={'2026-10-25':{recovery:{score:{recovery_score:41,hrv_rmssd_milli:60,resting_heart_rate:55}},cycle:{score:{strain:5},steps:1000},workouts:[]}};
+let fails=0;const ck=(n,c,x='')=>{console.log((c?'ok ':'FEHLER ')+n+(x!==''?' '+x:''));if(!c)fails++};
+const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,hasTouch:true,isMobile:true});
+await ctx.addInitScript('window.__seed='+JSON.stringify(seed)+';');
+for(const n of['app','auth','firestore'])await ctx.route(new RegExp('gstatic\\.com/firebasejs/.*/firebase-'+n+'-compat\\.js'),r=>r.fulfill({body:n==='app'?mock:'',contentType:'application/javascript'}));
+let whoopHits=0;
+await ctx.route(/life-board-whoop\.momo-haskamp\.workers\.dev/,r=>{const h={'access-control-allow-origin':'*','access-control-allow-headers':'*','content-type':'application/json'};
+  if(r.request().method()==='OPTIONS')return r.fulfill({status:204,headers:h});if(r.request().url().includes('/data'))whoopHits++;return r.fulfill({headers:h,body:JSON.stringify(r.request().url().includes('/data')?{days:whoop}:{ok:true})})});
+const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String(e)));pg.on('dialog',d=>d.accept());
+await pg.clock.setFixedTime(new Date('2026-10-25T07:10:00+01:00'));
+await pg.goto(URL+'/checkin.html');await pg.waitForFunction(()=>window.__checkinReady,null,{timeout:15000});
+if(shots)await pg.screenshot({path:shots+'/1-morgen.png',fullPage:true});
+ck('Morgen-Karte hervorgehoben',await pg.$eval('#morning',e=>e.classList.contains('now')));
+ck('Speichern erst nach Stimmung+Energie',await pg.$eval('#mSave',e=>e.disabled));
+ck('Whoop vor dem Morgen-Check nicht geladen',whoopHits===0,whoopHits);
+await pg.click('#morning [data-s=mood] [data-v="4"]');await pg.click('#morning [data-s=energy] [data-v="2"]');await pg.click('#morning [data-s=sleep] [data-v="2"]');
+await pg.click('#morning .chips.neg >> text=müde');
+await pg.click('#mSave');await pg.waitForFunction(()=>/41 %/.test(document.getElementById('morning').textContent),null,{timeout:5000}).catch(()=>{});
+const st=()=>pg.evaluate(()=>window.__store['users/u1/journal/2026-10-25']);
+let j=await st();
+ck('Morgen gespeichert',j&&j.m&&j.m.mood===4&&j.m.energy===2&&j.m.sleep===2&&j.m.feel==='müde',JSON.stringify(j&&j.m));
+ck('danach Whoop-Recovery im Vergleich',/41 %/.test(await pg.textContent('#morning')));
+if(shots)await pg.screenshot({path:shots+'/2-vergleich.png'});
+await pg.click('#nowMood [data-v="3"]');await pg.fill('#nowText','Mathe-Klausur macht mich nervös');await pg.click('#nowAdd');
+await pg.waitForTimeout(200);j=await st();ck('Notiz gespeichert',j.notes.length===1&&j.notes[0].mood===3&&j.notes[0].text.includes('Mathe'));
+await pg.click('#tEdit');await pg.click('[data-pre=kaffee]');await pg.click('[data-pre=freunde]');await pg.click('#tEdit');
+await pg.click('[data-p=kaffee]');await pg.click('[data-p=kaffee]');await pg.click('[data-b=freunde]');
+await pg.waitForTimeout(200);j=await st();
+ck('Tracker gespeichert',j.t.kaffee===2&&j.t.freunde===1,JSON.stringify(j.t));
+ck('Tracker-Definition in Einstellungen',(await pg.evaluate(()=>window.__store['users/u1/settings/main'].trackers.map(x=>x.id).join(',')))==='kaffee,freunde');
+await pg.fill('[data-g="0"]','Training geschafft, weil ich früh los bin');await pg.fill('[data-g="1"]','Gutes Gespräch mit Tom');await pg.fill('[data-g="2"]','Sonne beim Spaziergang');
+await pg.click('#evening [data-s=stress] [data-v="3"]');await pg.click('#eSave');await pg.waitForTimeout(200);
+j=await st();ck('Abend gespeichert',j.e.good.filter(Boolean).length===3&&j.e.stress===3);
+if(shots)await pg.screenshot({path:shots+'/3-ganz.png',fullPage:true});
+// Punkte in Heute
+await pg.goto(URL+'/heute.html');await pg.waitForFunction(()=>window.__heuteReady,null,{timeout:20000});await pg.waitForTimeout(300);
+const net=+(await pg.textContent('#hNet')).replace(/[^\d−-]/g,'').replace('−','-');
+ck('Check-in-Punkte in Heute (400+500+100+150 + Whoop)',net>=1150,net);
+ck('Konto enthält sie',(await pg.evaluate(()=>window.__store['users/u1/state/current'].account))===1000+net);
+ck('keine Seitenfehler',!errs.length,errs.join(' | '));
+await b.close();srv.close();console.log(fails?fails+' FEHLER':'alles ok');process.exit(fails?1:0);

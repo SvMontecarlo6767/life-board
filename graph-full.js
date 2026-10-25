@@ -201,7 +201,7 @@ function open(id,o){
   el.innerHTML='<div class="gf-back"></div><div class="gf-sheet"><div class="gf-grab" id="gfGrab"><i></i></div>'+
    '<div class="gf-head" id="gfHead"><div><h2>'+esc(cfg.title||'Graph')+'</h2><div class="gf-sub" id="gfSub"></div></div><div class="gf-tools">'+
    (S.clone?'':'<button class="gf-tb" id="gfCal" type="button" aria-label="Datum suchen"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg><span class="t">Datum</span></button>')+
-   '<button class="gf-tb" id="gfAsk" type="button">Jarvis fragen</button><button class="gf-tb x" id="gfX" type="button" aria-label="Schließen">✕</button></div></div>'+
+   '<button class="gf-tb x" id="gfX" type="button" aria-label="Schließen">✕</button></div></div>'+
    '<div class="gf-body" id="gfBody"><section class="gf-main"><div class="gf-bar" id="gfRanges"></div><div class="gf-bar" id="gfChips"></div><div class="gf-frame" id="gfFrame"><div class="gf-stage'+(S.clone?' clone':'')+'" id="gfStage"></div></div></section><aside class="gf-stats" id="gfStats"></aside></div></div>';
   doc.body.appendChild(el);S.el=el;OPEN=S;doc.documentElement.classList.add('gf-open');
   S.$=q=>el.querySelector(q);
@@ -211,7 +211,6 @@ function open(id,o){
   if(S.clone){buildClone(S)}else{buildSeries(S,o)}
   // Schließen
   S.$('#gfX').onclick=()=>close();
-  S.$('#gfAsk').onclick=()=>{try{if(root.Jarvis){root.Jarvis.open();if(root.Jarvis.ask)root.Jarvis.ask('Erkläre mir diesen Graphen: '+(cfg.title||'')+(S.clone?'':' ('+rangeLabel(S)+')')+'.')}}catch(x){}};
   S.keyH=ev=>{if(ev.key==='Escape')close()};doc.addEventListener('keydown',S.keyH);
   bindSwipeClose(S);
   S.ro=root.ResizeObserver?new ResizeObserver(()=>{if(S.closed||!S.ready)return;clearTimeout(S.rt);S.rt=setTimeout(()=>{if(!S.clone)drawChart(S,false)},60)}):null;

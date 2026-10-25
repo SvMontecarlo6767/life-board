@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="de" data-hud><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Life Board"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#04080f">
+<title>Muster – Life Board</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--bd:#e2e0d8;--ac:#2f6f4f;--ac2:#e8f2ec;--bad:#b3413a;--bad2:#f8e9e7;--warn:#9a6b00;--good:#2f6f4f;--s1:#2f6fb0;--s2:#c0622b}
+@media (prefers-color-scheme:dark){:root{--bg:#161715;--card:#20211f;--tx:#eeede8;--mu:#a09f97;--bd:#34352f;--ac:#6fbf94;--ac2:#243128;--bad:#e07a72;--bad2:#33201e;--warn:#e0b04a;--good:#6fbf94;--s1:#5cb2ff;--s2:#ff9a52}}
+html[data-hud]{--good:#4ee3a0;--s1:#4cc9ff;--s2:#ff9a52}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:960px;margin:0 auto;padding:8px 16px 90px}
+a{color:var(--ac)}
+button{font:inherit;color:var(--tx);background:var(--ac2);border:1px solid var(--bd);border-radius:12px;padding:8px 14px;cursor:pointer;min-height:44px;touch-action:manipulation}
+button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
+[hidden]{display:none!important}
+h1{margin:4px 0 0;font-size:22px}
+h2{font-size:15px;margin:22px 0 6px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px 16px;margin:12px 0}
+.card h3{margin:0 0 6px;font-size:13px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+.mu{color:var(--mu);font-size:13.5px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.f{padding:10px 0;border-top:1px solid var(--bd);font-size:15px}
+.f:first-of-type{border-top:0}
+.f .tag{display:inline-block;font-size:11.5px;border-radius:99px;padding:2px 8px;margin-right:6px;vertical-align:1px;border:1px solid currentColor}
+.f.good .tag{color:var(--good)}.f.bad .tag{color:var(--bad)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:8px;min-height:44px;flex:1;min-width:140px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1}
+svg.ch{width:100%;height:220px;display:block;margin-top:10px}
+.lg{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;margin-top:6px}
+.lg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+table{width:100%;border-collapse:collapse;font-size:14.5px}td,th{padding:7px 4px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mu);font-weight:600;font-size:12.5px}
+td.n{text-align:right;font-variant-numeric:tabular-nums}
+.up{color:var(--good)}.down{color:var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0}
+.kpis div{border:1px solid var(--bd);border-radius:12px;padding:10px;text-align:center}
+.kpis b{display:block;font-size:22px}
+.good-list{margin:6px 0 0;padding-left:18px}
+.good-list li{margin:4px 0}
+.info{margin:12px 0;padding:12px 14px;border-radius:12px;background:var(--ac2);border:1px solid var(--bd);font-size:14px}
+.info.warn{background:var(--bad2);color:var(--bad)}
+@media(max-width:700px){.cols{grid-template-columns:1fr}}
+</style><link rel="stylesheet" href="theme.css?v=8">
+</head><body><div class="wrap">
+<div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>📈 Muster</h1>
+<div class="mu" id="status">wird geladen …</div></div>
+<div id="msg"></div>
+<div id="main" hidden>
+  <div class="cols">
+    <section class="card" id="goodC"><h3>Was dir guttut</h3><div id="goodL"></div></section>
+    <section class="card" id="badC"><h3>Was dich bremst</h3><div id="badL"></div></section>
+  </div>
+  <div class="mu">Zusammenhang heißt nicht Ursache – aber ein guter Hinweis, was du ausprobieren kannst. Ein Muster erscheint erst, wenn es auf mindestens 5 Tagen je Seite beruht und der Unterschied deutlich größer ist als der Zufall.</div>
+  <section class="card"><h3>Vergleichen</h3>
+    <div class="row"><select id="sA" aria-label="Erste Kurve"></select><select id="sB" aria-label="Zweite Kurve"></select></div>
+    <div class="seg" style="margin-top:8px" id="rng"><button data-r="30" aria-pressed="true">30 Tage</button><button data-r="90">90 Tage</button><button data-r="365">1 Jahr</button></div>
+    <svg class="ch" id="ch" role="img" aria-label="Verlauf"></svg>
+    <div class="lg" id="lg"></div>
+    <div class="mu" id="corr" style="margin-top:6px"></div>
+  </section>
+  <section class="card"><h3>Rückblick</h3>
+    <div class="row"><div class="seg" style="flex:1" id="per"><button data-p="w" aria-pressed="true">Woche</button><button data-p="m">Monat</button></div>
+      <div class="seg"><button id="rPrev" aria-label="früher">‹</button><button id="rNext" aria-label="später">›</button></div></div>
+    <div id="rev"></div>
+  </section>
+</div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="fb.js"></script>
+<script src="engine.js"></script>
+<script src="whoop-auto.js"></script>
+<script src="journal-core.js"></script>
+<script src="insights-core.js"></script>
+<script>
+(async function(){
+const E=window.LBEngine,J=window.LBJournal,I=window.LBInsights;
+const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
+const tmo=(p,ms,n)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error(n+': Zeitüberschreitung')),ms))]);
+let today,JD={},DATA=null,range=30,per='w',off=0;
+const fmtD=k=>{const [y,m,d]=k.split('-');return d+'.'+m+'.'};
+
+/* ---------- Zusammenhänge ---------- */
+function renderFindings(){
+  const F=I.findings(DATA);
+  const item=r=>'<div class="f '+(r.good?'good':'bad')+'"><span class="tag">'+I.strength(r.d)+'</span>'+esc(I.sentence(r))+'</div>';
+  const g=F.filter(r=>r.good).slice(0,6),b=F.filter(r=>!r.good).slice(0,6);
+  const ck=Object.keys(JD).filter(k=>JD[k].m).length;
+  const empty='<div class="mu">Noch keine sicheren Muster. Je mehr Tage mit Check-in, desto mehr findet das Board'+(ck<14?' – nach etwa zwei Wochen erscheinen die ersten ('+ck+' Morgen-Checks bisher).':'.')+'</div>';
+  $('goodL').innerHTML=g.length?g.map(item).join(''):empty;
+  $('badL').innerHTML=b.length?b.map(item).join(''):empty;
+}
+
+/* ---------- Vergleichen ---------- */
+function metricList(){
+  const L=Object.entries(I.OUTCOMES).map(([id,o])=>({id,name:o.name}));
+  L.push({id:'strain',name:'Strain'},{id:'steps',name:'Schritte'},{id:'dop',name:'Dopamin-Punkte'});
+  for(const f of Object.values(DATA.factors))L.push({id:f.id,name:f.name+(f.kind==='bool'?' (ja/nein)':'')});
+  return L;
+}
+function fillSelects(){
+  const L=metricList(),opt=sel=>L.map(m=>'<option value="'+m.id+'"'+(m.id===sel?' selected':'')+'>'+esc(m.name)+'</option>').join('');
+  $('sA').innerHTML=opt('moodAvg');$('sB').innerHTML=opt('rec');
+}
+function renderChart(){
+  const a=$('sA').value,b=$('sB').value,from=E.addDays(today,-range+1);
+  const A=I.series(DATA,a,from,today),B=I.series(DATA,b,from,today);
+  const W=600,H=220,P=8,n=A.length;
+  const line=(S,col)=>{const vs=S.map(x=>x.v).filter(v=>v!=null);if(!vs.length)return'';let lo=Math.min(...vs),hi=Math.max(...vs);if(lo===hi){lo-=1;hi+=1}
+    let d='',pen=false;S.forEach((x,i)=>{if(x.v==null){pen=false;return}const X=P+i*(W-2*P)/Math.max(1,n-1),Y=H-P-(x.v-lo)/(hi-lo)*(H-2*P);d+=(pen?'L':'M')+X.toFixed(1)+' '+Y.toFixed(1);pen=true});
+    const dots=vs.length<40?S.map((x,i)=>x.v==null?'':'<circle cx="'+(P+i*(W-2*P)/Math.max(1,n-1)).toFixed(1)+'" cy="'+(H-P-(x.v-lo)/(hi-lo)*(H-2*P)).toFixed(1)+'" r="2.5" fill="'+col+'"/>').join(''):'';
+    return '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="2.2" stroke-linejoin="round"/>'+dots};
+  const grid=[0.25,0.5,0.75].map(f=>'<line x1="0" x2="'+W+'" y1="'+(H*f)+'" y2="'+(H*f)+'" stroke="currentColor" opacity=".12"/>').join('');
+  $('ch').setAttribute('viewBox','0 0 '+W+' '+H);$('ch').setAttribute('preserveAspectRatio','none');
+  $('ch').innerHTML=grid+line(A,'var(--s1)')+line(B,'var(--s2)');
+  const nm=id=>(metricList().find(m=>m.id===id)||{}).name||id;
+  const rng=S=>{const v=S.map(x=>x.v).filter(x=>x!=null);return v.length?I.fmtNum(Math.min(...v),1)+'–'+I.fmtNum(Math.max(...v),1):'keine Daten'};
+  $('lg').innerHTML='<span><i style="background:var(--s1)"></i>'+esc(nm(a))+' <span class="mu">('+rng(A)+')</span></span><span><i style="background:var(--s2)"></i>'+esc(nm(b))+' <span class="mu">('+rng(B)+')</span></span>';
+  // Korrelation (gleicher Tag)
+  const pr=A.map((x,i)=>[x.v,B[i].v]).filter(p=>p[0]!=null&&p[1]!=null);
+  if(pr.length>=8&&a!==b){const ma=I.mean(pr.map(p=>p[0])),mb=I.mean(pr.map(p=>p[1]));let sxy=0,sxx=0,syy=0;pr.forEach(([x,y])=>{sxy+=(x-ma)*(y-mb);sxx+=(x-ma)**2;syy+=(y-mb)**2});
+    const r=sxx&&syy?sxy/Math.sqrt(sxx*syy):0,ar=Math.abs(r);
+    $('corr').textContent='Gleichlauf: '+(ar<0.2?'kaum':ar<0.4?'schwach':ar<0.6?'mittel':'stark')+(ar>=0.2?(r>0?' (steigen zusammen)':' (gegenläufig)'):'')+' · r = '+I.fmtNum(r,2)+' über '+pr.length+' Tage. Kurven sind jeweils auf ihren eigenen Bereich skaliert.'}
+  else $('corr').textContent='Für eine Aussage braucht es mindestens 8 Tage, an denen beide Werte da sind. Kurven sind jeweils auf ihren eigenen Bereich skaliert.';
+}
+$('sA').onchange=$('sB').onchange=renderChart;
+$('rng').querySelectorAll('button').forEach(b=>b.onclick=()=>{range=+b.dataset.r;$('rng').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderChart()});
+
+/* ---------- Rückblick ---------- */
+function period(){
+  if(per==='w'){const [y,m,d]=today.split('-').map(Number);const dow=(new Date(Date.UTC(y,m-1,d)).getUTCDay()+6)%7;const from=E.addDays(today,-dow+7*off);return[from,E.addDays(from,6)]}
+  const [y,m]=today.split('-').map(Number);const t=new Date(Date.UTC(y,m-1+off,1));const from=t.toISOString().slice(0,10);const to=new Date(Date.UTC(t.getUTCFullYear(),t.getUTCMonth()+1,0)).toISOString().slice(0,10);return[from,to];
+}
+function renderReview(){
+  const [from,to]=period(),R=I.review(DATA,JD,from,to>today?today:to);
+  $('rNext').disabled=off>=0;
+  const row=id=>{const O=I.OUTCOMES[id],s=R.stats[id];if(!s.cur)return'';const c=s.cur.v,p=s.prev&&s.prev.v;let tr='';
+    if(p!=null){const d=c-p,good=d*O.better>0;tr=Math.abs(d)<(O.dec?0.05:0.5)?'<span class="mu">±0</span>':'<span class="'+(good?'up':'down')+'">'+(d>0?'▲ ':'▼ ')+I.fmtNum(Math.abs(d),O.dec)+'</span>'}
+    return '<tr><td>'+esc(O.name)+'</td><td class="n">'+I.fmtNum(c,O.dec)+O.unit+'</td><td class="n">'+tr+'</td></tr>'};
+  const rows=['moodAvg','energy','stress','rec','sleepH','hrv'].map(row).join('');
+  const pick=R.good.slice().sort(()=>Math.random()-.5).slice(0,3);
+  $('rev').innerHTML='<div class="mu" style="margin-top:8px">'+fmtD(from)+' – '+fmtD(to)+'</div>'
+    +'<div class="kpis"><div><span class="mu">Check-ins</span><b>'+R.checkins+'/'+R.days+'</b></div><div><span class="mu">Längste Serie</span><b>'+R.streak+' T</b></div><div><span class="mu">Gute Dinge</span><b>'+R.good.length+'</b></div></div>'
+    +(rows?'<table><tr><th>Ø</th><th class="n">Zeitraum</th><th class="n">zum vorigen</th></tr>'+rows+'</table>':'<div class="mu">In diesem Zeitraum gibt es noch keine Werte.</div>')
+    +(R.best&&R.worst&&R.best.k!==R.worst.k?'<div style="margin-top:10px">Bester Tag: <b>'+fmtD(R.best.k)+'</b> ('+J.EMO[Math.round(R.best.v)-1]+') · schwierigster: <b>'+fmtD(R.worst.k)+'</b> ('+J.EMO[Math.round(R.worst.v)-1]+')</div>':'')
+    +(R.feelings.length?'<div style="margin-top:8px">Häufigste Gefühle: '+R.feelings.map(([f,n])=>esc(f)+' <span class="mu">×'+n+'</span>').join(', ')+'</div>':'')
+    +(pick.length?'<div style="margin-top:10px"><b>Erinnerst du dich?</b><ul class="good-list">'+pick.map(g=>'<li>'+esc(g.t)+' <span class="mu">('+fmtD(g.k)+')</span></li>').join('')+'</ul></div>':'');
+}
+$('per').querySelectorAll('button').forEach(b=>b.onclick=()=>{per=b.dataset.p;off=0;$('per').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderReview()});
+$('rPrev').onclick=()=>{off--;renderReview()};$('rNext').onclick=()=>{if(off<0){off++;renderReview()}};
+
+/* ---------- Start ---------- */
+async function boot(){
+  const user=await new Promise(res=>{let done=false;auth.onAuthStateChanged(u=>{if(!done){done=true;res(u)}});setTimeout(()=>{if(!done){done=true;res(auth.currentUser)}},8000)});
+  if(!user){$('status').textContent='';$('msg').innerHTML='<div class="info warn">Du bist nicht angemeldet. <a href="index.html">Zur Startseite und anmelden</a></div>';return}
+  const base='users/'+user.uid;today=E.dayKey(new Date(),'Europe/Berlin',4);
+  let DAYS={},SET={},RULES=null,WH={},whErr=null;
+  try{
+    const [js,ds,ss,rr]=await Promise.all([fs.collection(base+'/journal').get(),fs.collection(base+'/days').get(),fs.doc(base+'/settings/main').get(),fetch('rules/v2.json?c=2',{cache:'no-cache'}).then(r=>r.json())]);
+    js.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))JD[x.id]=x.data()});
+    ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))DAYS[x.id]=x.data()});
+    SET=ss.exists?ss.data():{};RULES=rr;
+  }catch(e){$('msg').innerHTML='<div class="info warn">Laden fehlgeschlagen: '+esc(errText(e))+'</div>';return}
+  try{const t=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+E.addDays(today,-365)+'&to='+today,{headers:{Authorization:'Bearer '+t}}),15000,'Whoop');const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);WH=d.days||{}}catch(e){whErr=errText(e)}
+  DATA=I.build({journal:JD,days:DAYS,whoop:WH,rules:RULES,trackers:SET.trackers||[]});
+  $('status').textContent=Object.keys(JD).length+' Tage mit Check-in · '+Object.keys(DAYS).length+' mit Heute · '+Object.keys(WH).length+' mit Whoop'+(whErr?' (Whoop gerade nicht erreichbar)':'');
+  $('main').hidden=false;
+  renderFindings();fillSelects();renderChart();renderReview();
+  window.__musterReady=true;
+}
+boot().catch(e=>{$('msg').innerHTML='<div class="info warn">Fehler: '+esc(errText(e))+'</div>'});
+})();
+</script>
+<script src="theme.js?v=12"></script>
+</body></html>

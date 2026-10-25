@@ -423,6 +423,10 @@
   {
    "id": "SON",
    "name": "Sonstiges und Modi"
+  },
+  {
+   "id": "MEN",
+   "name": "Mental und Check-in"
   }
  ],
  "actions": [
@@ -3785,6 +3789,43 @@
    "src": "tap",
    "max": 2,
    "use": "inaktiv"
+  },
+  {
+   "id": "MEN-01",
+   "cat": "MEN",
+   "text": "Morgen-Check (Stimmung und Energie vor dem Blick auf Whoop)",
+   "points": 400,
+   "capture": "Check-in",
+   "src": "checkin",
+   "use": "checkin"
+  },
+  {
+   "id": "MEN-02",
+   "cat": "MEN",
+   "text": "Abend-Check mit 3 guten Dingen",
+   "points": 500,
+   "capture": "Check-in",
+   "src": "checkin",
+   "use": "checkin"
+  },
+  {
+   "id": "MEN-03",
+   "cat": "MEN",
+   "text": "Stimmung oder Gedanke über den Tag notiert",
+   "points": 100,
+   "max": 3,
+   "capture": "Check-in",
+   "src": "checkin",
+   "use": "checkin"
+  },
+  {
+   "id": "MEN-04",
+   "cat": "MEN",
+   "text": "Eigene Tracker ausgefüllt",
+   "points": 150,
+   "capture": "Check-in",
+   "src": "checkin",
+   "use": "checkin"
   }
  ],
  "ui": {

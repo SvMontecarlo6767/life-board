@@ -205,7 +205,6 @@ html[data-tab="puzzle"] button.primary,html[data-tab="puzzle"] button.pri{backgr
 @media(max-width:600px){
   html[data-hud]{--navh:0px!important;--tabh:calc(58px + env(safe-area-inset-bottom))}
   html[data-hud] body{padding-top:14px!important;padding-bottom:calc(var(--tabh) + 22px)!important}
-  html[data-hud][data-jarvis] body{padding-bottom:calc(var(--tabh) + 22px)!important}
   #lb-nav{top:auto;bottom:0;height:var(--tabh);padding:0 8px env(safe-area-inset-bottom);gap:2px;border-top:1px solid var(--edge);border-bottom:0}
   #lb-nav::after{top:-1px;bottom:auto}
   #lb-nav .tabs{gap:2px;justify-content:space-between;overflow:visible}

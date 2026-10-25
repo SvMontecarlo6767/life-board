@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="de" data-hud><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Life Board"><meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#04080f">
+<title>Check-in – Life Board</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--tx:#1d1d1b;--mu:#6b6a64;--bd:#e2e0d8;--ac:#2f6f4f;--ac2:#e8f2ec;--bad:#b3413a;--bad2:#f8e9e7;--warn:#9a6b00}
+@media (prefers-color-scheme:dark){:root{--bg:#161715;--card:#20211f;--tx:#eeede8;--mu:#a09f97;--bd:#34352f;--ac:#6fbf94;--ac2:#243128;--bad:#e07a72;--bad2:#33201e;--warn:#e0b04a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:640px;margin:0 auto;padding:8px 16px 90px}
+a{color:var(--ac)}
+button{font:inherit;color:var(--tx);background:var(--ac2);border:1px solid var(--bd);border-radius:12px;padding:10px 14px;cursor:pointer;min-height:44px;touch-action:manipulation}
+button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
+button:disabled{opacity:.5}
+[hidden]{display:none!important}
+h1{margin:4px 0 0;font-size:22px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.dnav{display:flex;align-items:center;gap:6px}
+.dnav button{padding:0 12px}
+.dnav .dt{min-width:110px;text-align:center;font-weight:600;font-size:15px}
+.dnav .dt small{display:block;font-weight:400;color:var(--mu);font-size:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:14px 16px;margin:12px 0}
+.card h3{margin:0 0 4px;font-size:13px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+.card.now{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset}
+.mu{color:var(--mu);font-size:13.5px}
+.q{font-weight:600;margin:14px 0 6px}
+.q small{font-weight:400;color:var(--mu);margin-left:6px}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.scale button{padding:6px 0;font-size:26px;line-height:1;min-height:54px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.scale button span{font-size:10.5px;color:var(--mu);line-height:1.1}
+.scale button[aria-pressed=true]{background:var(--ac);border-color:var(--ac)}
+.scale button[aria-pressed=true] span{color:#fff}
+.scale.num button{font-size:20px;font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{min-height:38px;padding:6px 12px;border-radius:99px;font-size:14.5px}
+.chips button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
+.chips.neg button[aria-pressed=true]{background:var(--bad);border-color:var(--bad)}
+input,textarea,select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;min-height:44px;width:100%}
+textarea{min-height:70px;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1}
+.act{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+.act button{flex:1}
+.sum{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:15px}
+.sum b{font-size:22px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.cmp>div{border:1px solid var(--bd);border-radius:12px;padding:10px;text-align:center}
+.cmp b{display:block;font-size:26px;font-variant-numeric:tabular-nums}
+.rec-g{color:#4ee3a0}.rec-y{color:#ffc15a}.rec-r{color:#ff6a5c}
+.notes{list-style:none;margin:10px 0 0;padding:0}
+.notes li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--bd);font-size:15px}
+.notes li time{color:var(--mu);font-size:13px;min-width:40px;padding-top:2px}
+.notes li .tx{flex:1;white-space:pre-wrap}
+.notes li button{min-height:32px;padding:2px 10px;background:none;border:0;color:var(--mu)}
+.trk{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--bd)}
+.trk:first-of-type{border-top:0}
+.trk .nm{flex:1}
+.trk .nm small{display:block;color:var(--mu);font-size:12px}
+.trk .ctl{display:flex;align-items:center;gap:6px}
+.trk .ctl button{min-width:44px;padding:0}
+.trk .ctl b{min-width:34px;text-align:center;font-size:18px;font-variant-numeric:tabular-nums}
+.trk .ctl input{width:84px;text-align:center}
+.trk .ctl button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-top:6px}
+.week div{border:1px solid var(--bd);border-radius:10px;padding:6px 0;font-size:20px}
+.week div small{display:block;font-size:11px;color:var(--mu)}
+.week div.cur{border-color:var(--ac)}
+.info{margin:12px 0;padding:12px 14px;border-radius:12px;background:var(--ac2);border:1px solid var(--bd);font-size:14px}
+.info.warn{background:var(--bad2);color:var(--bad)}
+.save{font-size:12px;color:var(--mu);text-align:right;min-height:16px}
+.save.err{color:var(--bad)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ac);color:#fff;padding:10px 18px;border-radius:99px;font-weight:600;z-index:50;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;align-items:center}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.presets button{min-height:36px;padding:4px 12px;font-size:14px;border-radius:99px}
+</style><link rel="stylesheet" href="theme.css?v=8">
+</head><body><div class="wrap">
+<div class="top">
+  <div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>☀️ Check-in</h1></div>
+  <div class="dnav"><button id="prev" aria-label="Vortag">‹</button><div class="dt" id="dt"></div><button id="next" aria-label="Nächster Tag">›</button></div>
+</div>
+<div id="msg"></div>
+<div class="save" id="save"></div>
+<div id="main" hidden>
+  <section class="card" id="morning"></section>
+  <section class="card" id="nowCard">
+    <h3>Gerade</h3>
+    <div class="mu">Wie geht's dir jetzt? Kurz festhalten, was passiert oder dir durch den Kopf geht.</div>
+    <div class="scale" id="nowMood"></div>
+    <textarea id="nowText" placeholder="Gedanke, Erlebnis, was dich gerade beschäftigt …" style="margin-top:8px"></textarea>
+    <div class="act"><button class="primary" id="nowAdd">Festhalten</button></div>
+    <ul class="notes" id="notes"></ul>
+  </section>
+  <section class="card" id="trackCard"></section>
+  <section class="card" id="evening"></section>
+  <section class="card"><h3>Letzte 7 Tage</h3><div class="week" id="week"></div>
+    <div class="mu" style="margin-top:10px">Zusammenhänge und Rückblick: <a href="muster.html?v=1">Muster ansehen</a></div></section>
+  <details class="card" id="setup"><summary>Morgens automatisch öffnen (iPhone)</summary>
+    <div class="mu" style="line-height:1.5">
+      <p>Eine Webseite merkt nicht, wann du dein Handy einschaltest – iOS bietet dafür auch keinen Auslöser. Am besten passt: <b>Check-in öffnet sich, sobald du morgens Whoop öffnest</b>, einmal pro Tag. So trägst du deine Stimmung ein, bevor du die Recovery siehst.</p>
+      <p><b>1. Kurzbefehl „Whoop öffnen“</b> (für den Rückweg): Kurzbefehle → + → Aktion „App öffnen“ → Whoop → Name „Whoop öffnen“.</p>
+      <p><b>2. Automation:</b> Kurzbefehle → Automation → + → „App“ → Whoop → „Wird geöffnet“ → „Sofort ausführen“. Aktionen:</p>
+      <ol style="padding-left:18px;margin:0">
+        <li>„Aktuelles Datum“, dann „Datum formatieren“ → Eigenes Format <code>yyyy-MM-dd</code></li>
+        <li>„Datei abrufen“ aus Ordner „Kurzbefehle“, Pfad <code>checkin.txt</code>, „Fehler, wenn nicht gefunden“ aus</li>
+        <li>„Wenn“ Datei <i>ist nicht</i> formatiertes Datum:</li>
+        <li style="list-style:none">→ „Text“ mit dem formatierten Datum → „Datei sichern“ nach <code>checkin.txt</code> im Ordner „Kurzbefehle“, „Ersetzen“ an</li>
+        <li style="list-style:none">→ „URLs öffnen“: <code id="ckUrl"></code></li>
+        <li>„Ende Wenn“</li>
+      </ol>
+      <p>Damit öffnet sich der Check-in nur beim ersten Whoop-Öffnen des Tages. Nach dem Speichern bringt dich „Weiter zu Whoop“ zurück.</p>
+      <p>Tipp: Lege den Check-in zusätzlich als Widget oder Symbol auf den Home-Bildschirm (Safari → Teilen → Zum Home-Bildschirm).</p>
+    </div>
+  </details>
+</div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="fb.js"></script>
+<script src="engine.js"></script>
+<script src="journal-core.js"></script>
+<script>
+(async function(){
+const E=window.LBEngine,J=window.LBJournal;
+const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
+const WHOOP_BACK='shortcuts://run-shortcut?name='+encodeURIComponent('Whoop öffnen');
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const errText=e=>e&&e.code==='permission-denied'?'Firestore-Regeln verbieten das':(e&&e.message)||String(e);
+const tmo=(p,ms,n)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error(n+': Zeitüberschreitung')),ms))]);
+const fromWhoop=new URLSearchParams(location.search).has('whoop');
+let user,base,today,cur,JD={},SET={},WH=null,draftM=null,draftE=null,nowMood=null,editTrk=false;
+const PKEY=()=>'lb_pending_journal_'+user.uid;
+
+function showMsg(h,w){$('msg').innerHTML=h?'<div class="info'+(w?' warn':'')+'">'+h+'</div>':''}
+function setSave(t,err){const s=$('save');s.textContent=t;s.className='save'+(err?' err':'')}
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;document.body.append(d);setTimeout(()=>d.remove(),2200)}
+function pget(){try{return JSON.parse(localStorage.getItem(PKEY())||'{}')}catch(e){return{}}}
+function pset(o){try{localStorage.setItem(PKEY(),JSON.stringify(o))}catch(e){}}
+const day=k=>JD[k]||(JD[k]={notes:[],t:{}});
+const hm=t=>new Date(t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+function dateLabel(k){const [y,m,d]=k.split('-').map(Number);return new Intl.DateTimeFormat('de-DE',{weekday:'short',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d)))+', '+String(d).padStart(2,'0')+'.'+String(m).padStart(2,'0')+'.'}
+
+/* ---------- Speichern: erst lokal, dann Firestore ---------- */
+async function save(k,pts){
+  const before=J.counts(JD[k]);
+  const doc=Object.assign(J.clean(JD[k]),{updatedAt:Date.now()});JD[k]=doc;
+  const p=pget();p[k]=doc;pset(p);
+  setSave('speichert …');
+  try{
+    await tmo(fs.doc(base+'/journal/'+k).set(doc),10000,'Speichern');
+    const q=pget();if(q[k]&&q[k].updatedAt<=doc.updatedAt){delete q[k];pset(q)}
+    setSave('gespeichert ✓ '+hm(Date.now()));
+  }catch(e){setSave('NICHT gespeichert – lokal gesichert',true);showMsg('<b>Nicht gespeichert:</b> '+esc(errText(e))+'. Dein Eintrag ist auf diesem Gerät gesichert und wird beim nächsten Öffnen erneut gesendet.',true)}
+  if(pts!==false){const after=J.counts(doc),gain={'MEN-01':400,'MEN-02':500,'MEN-03':100,'MEN-04':150};let g=0;for(const id in gain)g+=Math.max(0,(after[id]|0)-(before[id]|0))*gain[id];if(g)toast('+'+g+' Dopamin')}
+}
+
+/* ---------- Bausteine ---------- */
+function scale(id,key,val,emoji){
+  const lab=J.SCALE[key];
+  return '<div class="scale'+(emoji?'':' num')+'" data-s="'+id+'">'+lab.map((l,i)=>'<button type="button" data-v="'+(i+1)+'" aria-pressed="'+(val===i+1)+'" aria-label="'+esc(l)+'">'+(emoji?J.EMO[i]:i+1)+'<span>'+esc(l)+'</span></button>').join('')+'</div>';
+}
+function bindScale(root,fn){root.querySelectorAll('.scale').forEach(s=>s.querySelectorAll('button').forEach(b=>b.onclick=()=>{fn(s.dataset.s,+b.dataset.v);}))}
+function recZone(r){return r==null?'':r>=67?'g':r>=34?'y':'r'}
+function whoopRec(k){const d=WH&&WH[k];const s=d&&d.recovery&&d.recovery.score;return s&&typeof s.recovery_score==='number'?Math.round(s.recovery_score):null}
+/* Wie gut trifft dein Gefühl die Whoop-Recovery? (Zone gefühlt vs. Zone gemessen) */
+function calibration(){
+  if(!WH)return null;let hit=0,n=0;
+  for(const k of Object.keys(JD)){const m=JD[k].m;const r=whoopRec(k);if(!m||r==null)continue;
+    const f=Math.round(((m.sleep||m.energy)+(m.energy||m.sleep))/2);const fz=f>=4?'g':f<=2?'r':'y';n++;if(fz===recZone(r))hit++}
+  return n>=3?{hit,n}:null;
+}
+
+/* ---------- Morgen ---------- */
+function renderMorning(){
+  const d=day(cur),m=d.m,el=$('morning');
+  const hr=new Date().getHours();el.classList.toggle('now',cur===today&&!m&&hr<14);
+  if(m&&!draftM){
+    const r=whoopRec(cur),cal=calibration();
+    el.innerHTML='<h3>Morgen'+(m.at?' · '+hm(m.at):'')+'</h3><div class="sum"><span>'+J.EMO[m.mood-1]+' Stimmung <b>'+m.mood+'</b>/5</span><span>⚡ Energie <b>'+m.energy+'</b>/5</span>'+(m.sleep?'<span>😴 Schlaf gefühlt <b>'+m.sleep+'</b>/5</span>':'')+(m.feel?'<span>„'+esc(m.feel)+'“</span>':'')+'</div>'
+      +'<div class="cmp"><div><span class="mu">Gefühlt erholt</span><b>'+(m.sleep||m.energy)+'/5</b><span class="mu">'+esc(J.SCALE.sleep[(m.sleep||m.energy)-1])+'</span></div><div><span class="mu">Whoop-Recovery</span><b class="rec-'+recZone(r)+'">'+(r==null?(WH?'–':'…'):r+' %')+'</b><span class="mu">'+(r==null?(WH?'noch keine Daten':'wird geladen'):r>=67?'grün':r>=34?'gelb':'rot')+'</span></div></div>'
+      +(cal?'<div class="mu" style="margin-top:8px">Dein Gefühl trifft die Whoop-Zone an <b>'+cal.hit+' von '+cal.n+'</b> Tagen.</div>':'')
+      +'<div class="act"><button id="mEdit">Ändern</button>'+(cur===today?'<a href="'+WHOOP_BACK+'" style="flex:1;display:flex"><button class="primary" style="flex:1">Weiter zu Whoop</button></a>':'')+'</div>';
+    $('mEdit').onclick=()=>{draftM=Object.assign({},m);renderMorning()};
+    return;
+  }
+  const dm=draftM||(draftM={});
+  el.innerHTML='<h3>Morgen</h3><div class="mu">Bevor du auf Whoop schaust: Wie fühlst du dich – ehrlich, aus dem Bauch?</div>'
+    +'<div class="q">Stimmung</div>'+scale('mood','mood',dm.mood,true)
+    +'<div class="q">Energie</div>'+scale('energy','energy',dm.energy,false)
+    +'<div class="q">Wie ausgeschlafen fühlst du dich?</div>'+scale('sleep','sleep',dm.sleep,false)
+    +'<div class="q">Ein Wort für dein Gefühl <small>benennen hilft</small></div>'
+    +'<div class="chips" data-c="pos">'+J.FEELINGS.pos.map(f=>'<button type="button" aria-pressed="'+(dm.feel===f)+'">'+f+'</button>').join('')+'</div>'
+    +'<div class="chips neg" data-c="neg" style="margin-top:6px">'+J.FEELINGS.neg.map(f=>'<button type="button" aria-pressed="'+(dm.feel===f)+'">'+f+'</button>').join('')+'</div>'
+    +'<div class="act">'+(day(cur).m?'<button id="mCancel">Abbrechen</button>':'')+'<button class="primary" id="mSave"'+(dm.mood&&dm.energy?'':' disabled')+'>Speichern & Whoop zeigen</button></div>';
+  bindScale(el,(k,v)=>{dm[k]=v;renderMorning()});
+  el.querySelectorAll('.chips button').forEach(b=>b.onclick=()=>{dm.feel=dm.feel===b.textContent?'':b.textContent;renderMorning()});
+  if($('mCancel'))$('mCancel').onclick=()=>{draftM=null;renderMorning()};
+  $('mSave').onclick=async()=>{const d=day(cur);d.m={mood:dm.mood,energy:dm.energy,sleep:dm.sleep||null,feel:dm.feel||'',at:(d.m&&d.m.at)||Date.now()};draftM=null;await save(cur);render();loadWhoop()};
+}
+
+/* ---------- Gerade (über den Tag) ---------- */
+function renderNow(){
+  $('nowMood').innerHTML=J.EMO.map((e,i)=>'<button type="button" data-v="'+(i+1)+'" aria-pressed="'+(nowMood===i+1)+'" aria-label="'+esc(J.SCALE.mood[i])+'">'+e+'<span>'+esc(J.SCALE.mood[i])+'</span></button>').join('');
+  $('nowMood').querySelectorAll('button').forEach(b=>b.onclick=()=>{nowMood=nowMood===+b.dataset.v?null:+b.dataset.v;renderNow()});
+  const ns=(day(cur).notes||[]).slice().sort((a,b)=>b.at-a.at);
+  $('notes').innerHTML=ns.map(n=>'<li><time>'+hm(n.at)+'</time><span>'+(n.mood?J.EMO[n.mood-1]:'')+'</span><span class="tx">'+esc(n.text)+'</span><button data-del="'+n.at+'" aria-label="Löschen">✕</button></li>').join('');
+  $('notes').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Eintrag löschen?'))return;const d=day(cur);d.notes=d.notes.filter(n=>String(n.at)!==b.dataset.del);await save(cur,false);renderNow()});
+}
+$('nowAdd').onclick=async()=>{
+  const t=$('nowText').value.trim();if(!t&&!nowMood)return;
+  const d=day(cur);d.notes=(d.notes||[]).concat({at:cur===today?Date.now():Date.parse(cur+'T20:00:00'),mood:nowMood,text:t});
+  $('nowText').value='';nowMood=null;await save(cur);renderNow();renderWeek();
+};
+
+/* ---------- Eigene Tracker ---------- */
+function trackers(){return Array.isArray(SET.trackers)?SET.trackers:[]}
+async function saveTrackers(list){SET.trackers=list;try{await tmo(fs.doc(base+'/settings/main').set({trackers:list},{merge:true}),10000,'Speichern')}catch(e){showMsg('Tracker nicht gespeichert: '+esc(errText(e)),true)}}
+function renderTrackers(){
+  const el=$('trackCard'),list=trackers(),t=day(cur).t||{};
+  let h='<h3>Eigene Tracker</h3>';
+  if(!list.length&&!editTrk)h+='<div class="mu">Zähl, was dir wichtig ist – Kaffee, Wasser, Handyzeit, Zeit mit Freunden … Die Muster-Seite sucht dann Zusammenhänge mit Stimmung, Schlaf und Recovery.</div>';
+  h+=list.map(x=>{const v=t[x.id];
+    const ctl=x.kind==='bool'?'<button type="button" data-b="'+x.id+'" aria-pressed="'+(v>0)+'">'+(v>0?'✓ ja':'nein')+'</button>'
+      :x.kind==='num'?'<input type="number" inputmode="decimal" min="0" step="any" data-n="'+x.id+'" value="'+(v==null?'':v)+'" placeholder="–">'
+      :'<button type="button" data-m="'+x.id+'" aria-label="weniger">−</button><b>'+(v==null?0:v)+'</b><button type="button" data-p="'+x.id+'" aria-label="mehr">+</button>';
+    return '<div class="trk"><div class="nm">'+esc(x.name)+(x.unit?'<small>'+esc(x.unit)+'</small>':'')+'</div><div class="ctl">'+ctl+(editTrk?'<button type="button" data-x="'+x.id+'" aria-label="Tracker entfernen">🗑</button>':'')+'</div></div>'}).join('');
+  if(editTrk){
+    const have=new Set(list.map(x=>x.id));
+    h+='<div class="q">Vorschläge</div><div class="presets">'+J.TRACKER_PRESETS.filter(p=>!have.has(p.id)).map(p=>'<button type="button" data-pre="'+p.id+'">+ '+esc(p.name)+'</button>').join('')+'</div>'
+      +'<div class="q">Eigener Tracker</div><div class="row"><input id="tName" placeholder="Name, z. B. Zeit am Handy"><select id="tKind"><option value="count">Zähler (+/−)</option><option value="num">Zahl (z. B. Std)</option><option value="bool">Ja/Nein</option></select></div>'
+      +'<div class="row" style="margin-top:8px"><input id="tUnit" placeholder="Einheit (optional)"><button type="button" id="tAdd">Hinzufügen</button></div>';
+  }
+  h+='<div class="act"><button type="button" id="tEdit">'+(editTrk?'Fertig':list.length?'Tracker bearbeiten':'Tracker anlegen')+'</button></div>';
+  el.innerHTML=h;
+  const setV=async(id,v)=>{const d=day(cur);d.t=Object.assign({},d.t);if(v==null||v==='')delete d.t[id];else d.t[id]=v;await save(cur);renderTrackers()};
+  el.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{const x=list.find(y=>y.id===b.dataset.p);setV(x.id,Math.min((t[x.id]|0)+1,x.max||99))});
+  el.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const v=(t[b.dataset.m]|0)-1;setV(b.dataset.m,v>0?v:null)});
+  el.querySelectorAll('[data-b]').forEach(b=>b.onclick=()=>setV(b.dataset.b,t[b.dataset.b]>0?0:1));
+  el.querySelectorAll('[data-n]').forEach(i=>i.onchange=()=>{const v=parseFloat(String(i.value).replace(',','.'));setV(i.dataset.n,isFinite(v)&&v>=0?v:null)});
+  el.querySelectorAll('[data-x]').forEach(b=>b.onclick=async()=>{if(!confirm('Tracker entfernen? Bisherige Einträge bleiben gespeichert.'))return;await saveTrackers(list.filter(x=>x.id!==b.dataset.x));renderTrackers()});
+  el.querySelectorAll('[data-pre]').forEach(b=>b.onclick=async()=>{await saveTrackers(list.concat(J.TRACKER_PRESETS.find(p=>p.id===b.dataset.pre)));renderTrackers()});
+  if($('tAdd'))$('tAdd').onclick=async()=>{const n=$('tName').value.trim();if(!n)return;let id=J.trackerId(n);while(list.some(x=>x.id===id))id=(id+'_2').slice(-24);
+    await saveTrackers(list.concat({id,name:n.slice(0,40),unit:$('tUnit').value.trim().slice(0,12),kind:$('tKind').value,max:99}));renderTrackers()};
+  $('tEdit').onclick=()=>{editTrk=!editTrk;renderTrackers()};
+}
+
+/* ---------- Abend ---------- */
+function renderEvening(){
+  const d=day(cur),e=d.e,el=$('evening');
+  el.classList.toggle('now',cur===today&&new Date().getHours()>=18&&J.goodCount(d)<3);
+  if(e&&!draftE&&J.goodCount(d)){
+    el.innerHTML='<h3>Abend'+(e.at?' · '+hm(e.at):'')+'</h3><div class="mu">3 gute Dinge</div><ol style="margin:6px 0 0;padding-left:20px">'+e.good.filter(Boolean).map(g=>'<li>'+esc(g)+'</li>').join('')+'</ol>'
+      +(e.stress?'<div style="margin-top:8px">Stress: <b>'+e.stress+'</b>/5 · '+esc(J.SCALE.stress[e.stress-1])+'</div>':'')+(e.line?'<div class="mu" style="margin-top:6px">„'+esc(e.line)+'“</div>':'')
+      +'<div class="act"><button id="eEdit">Ändern</button></div>';
+    $('eEdit').onclick=()=>{draftE=JSON.parse(JSON.stringify(e));renderEvening()};return;
+  }
+  const de=draftE||(draftE={good:['','',''],stress:null,line:''});
+  el.innerHTML='<h3>Abend</h3><div class="mu">Drei Dinge, die heute gut waren – auch kleine. Und warum sie passiert sind.</div>'
+    +[0,1,2].map(i=>'<input data-g="'+i+'" style="margin-top:8px" placeholder="'+(i+1)+'. … weil …" value="'+esc(de.good[i]||'')+'">').join('')
+    +'<div class="q">Stress heute</div>'+scale('stress','stress',de.stress,false)
+    +'<div class="q">Ein Satz zum Tag <small>optional</small></div><textarea id="eLine" placeholder="Was nimmst du mit?">'+esc(de.line||'')+'</textarea>'
+    +'<div class="act">'+(e?'<button id="eCancel">Abbrechen</button>':'')+'<button class="primary" id="eSave">Speichern</button></div>';
+  el.querySelectorAll('[data-g]').forEach(i=>i.oninput=()=>{de.good[+i.dataset.g]=i.value});
+  $('eLine').oninput=()=>{de.line=$('eLine').value};
+  bindScale(el,(k,v)=>{de[k]=de[k]===v?null:v;renderEvening()});
+  if($('eCancel'))$('eCancel').onclick=()=>{draftE=null;renderEvening()};
+  $('eSave').onclick=async()=>{const d=day(cur);d.e={good:de.good,stress:de.stress,line:de.line,at:(d.e&&d.e.at)||Date.now()};draftE=null;await save(cur);renderEvening();renderWeek()};
+}
+
+/* ---------- Woche ---------- */
+function renderWeek(){
+  let h='';for(let i=6;i>=0;i--){const k=E.addDays(cur,-i),v=J.dayValues(JD[k]),m=v.mood||(v.moodAvg?Math.round(v.moodAvg):null);
+    h+='<div class="'+(k===cur?'cur':'')+'" data-k="'+k+'">'+(m?J.EMO[m-1]:'·')+'<small>'+dateLabel(k).slice(0,2)+'</small></div>'}
+  $('week').innerHTML=h;
+  $('week').querySelectorAll('[data-k]').forEach(d=>d.onclick=()=>go(d.dataset.k));
+}
+
+function render(){
+  $('dt').innerHTML=dateLabel(cur)+'<small>'+(cur===today?'heute':'')+'</small>';
+  $('next').disabled=cur>=today;
+  renderMorning();renderNow();renderTrackers();renderEvening();renderWeek();
+}
+function go(k){cur=k;draftM=null;draftE=null;nowMood=null;render();window.scrollTo(0,0)}
+$('prev').onclick=()=>go(E.addDays(cur,-1));
+$('next').onclick=()=>{if(cur<today)go(E.addDays(cur,1))};
+
+/* Whoop erst nach dem Morgen-Check laden, damit die Zahl dein Gefühl nicht beeinflusst */
+async function loadWhoop(){
+  if(WH)return;
+  try{const t=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+E.addDays(today,-60)+'&to='+today,{headers:{Authorization:'Bearer '+t}}),15000,'Whoop');
+    const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);WH=d.days||{};}catch(e){WH={}}
+  renderMorning();
+}
+
+/* ---------- Start ---------- */
+async function boot(){
+  user=await new Promise(res=>{let done=false;auth.onAuthStateChanged(u=>{if(!done){done=true;res(u)}});setTimeout(()=>{if(!done){done=true;res(auth.currentUser)}},8000)});
+  if(!user){showMsg('Du bist nicht angemeldet. <a href="index.html">Zur Startseite und anmelden</a>',true);return}
+  base='users/'+user.uid;today=E.dayKey(new Date(),'Europe/Berlin',4);cur=today;
+  $('ckUrl').textContent=location.href.split(/[?#]/)[0]+'?whoop=1';
+  try{
+    const [js,ss]=await Promise.all([tmo(fs.collection(base+'/journal').get(),10000,'Check-in'),tmo(fs.doc(base+'/settings/main').get(),10000,'Einstellungen')]);
+    js.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))JD[x.id]=x.data()});SET=ss.exists?ss.data():{};
+  }catch(e){showMsg('<b>Laden fehlgeschlagen:</b> '+esc(errText(e))+'. Neue Einträge werden lokal gesichert.',true)}
+  const p=pget();
+  for(const k of Object.keys(p)){if(!JD[k]||(JD[k].updatedAt||0)<=(p[k].updatedAt||0)){JD[k]=p[k];save(k,false)}}
+  $('main').hidden=false;render();
+  if(day(today).m)loadWhoop();
+  if(fromWhoop&&day(today).m)setTimeout(()=>{location.href=WHOOP_BACK},400);   // heute schon eingetragen: direkt zurück zu Whoop
+  window.__checkinReady=true;
+}
+boot().catch(e=>showMsg('Fehler: '+esc(errText(e)),true));
+})();
+</script>
+<script src="theme.js?v=12"></script>
+</body></html>
