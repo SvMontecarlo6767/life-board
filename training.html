@@ -197,6 +197,22 @@ table.log{border-collapse:collapse;width:100%;font-size:13px}
 table.log th,table.log td{padding:7px 9px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
 table.log th:nth-child(-n+3),table.log td:nth-child(-n+3){text-align:left}
 table.log th{color:var(--muted);font-weight:600;cursor:pointer;user-select:none}
+.todo{border-top:1px solid var(--border);padding:12px 0}.todo:first-of-type{border-top:0}
+.todo .th{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;margin-bottom:8px}.todo .th b{text-transform:capitalize}
+.todo .rpe{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:8px 0}.todo .rpe .mu{margin-right:6px;font-size:13px}
+.todo .rpe button{min-width:34px;min-height:34px;padding:0;border-radius:10px;border:1px solid var(--border);background:rgba(150,200,255,.08);color:inherit;font:inherit;font-size:13px}
+.todo .rpe button[aria-pressed=true]{background:rgb(var(--acc));color:#03111a;border-color:rgb(var(--acc));font-weight:700}
+.todo .tnote{width:100%;min-height:42px;border-radius:10px;border:1px solid var(--border);background:rgba(6,12,22,.5);color:inherit;font:inherit;padding:8px 10px}
+.todo .btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.bal{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:8px}
+@media(max-width:700px){.bal{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bal .bc{display:block;border:1px solid var(--border);border-radius:14px;padding:10px 12px;position:relative}
+.bal .bc i{position:absolute;top:12px;right:12px;width:12px;height:12px;border-radius:50%}
+.bal .bc.lg i{background:#4ee3a0;box-shadow:0 0 10px #4ee3a0}.bal .bc.ly i{background:#ffc15a;box-shadow:0 0 10px #ffc15a}.bal .bc.lr i{background:#ff6a5c;box-shadow:0 0 10px #ff6a5c}
+.bal .bc span{display:block;font-size:13px;opacity:.85}.bal .bc b{display:block;font-size:26px}.bal .bc b small{font-size:13px;opacity:.6}.bal .bc em{font-style:normal;font-size:12px;opacity:.8}
+.baltb{width:100%;table-layout:fixed;border-collapse:collapse;margin-top:10px;font-size:13.5px}.baltb th,.baltb td{padding:5px;text-align:center;border-bottom:1px solid var(--border)}.baltb td:first-child,.baltb th:first-child{text-align:left;width:38%}
+.baltb td.lg{color:#4ee3a0}.baltb td.ly{color:#ffc15a}.baltb td.lr{color:#ff6a5c}
+.balset{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px}.balset input{width:64px;min-height:38px;border-radius:10px;border:1px solid var(--border);background:rgba(6,12,22,.5);color:inherit;font:inherit;padding:4px 8px}
 .tiles4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 @media(max-width:700px){.tiles4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .rec{background:rgba(150,200,255,.07);border:1px solid var(--border);border-radius:14px;padding:12px;position:relative}
@@ -314,8 +330,8 @@ html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
 <script src="training-core.js?v=3"></script>
 <script src="training-text.js?v=1"></script>
 <script src="training-viz.js?v=3"></script>
-<script src="training-gym.js?v=3"></script>
-<script src="training-multi.js?v=4"></script>
-<script src="training.js?v=5"></script>
+<script src="training-gym.js?v=4"></script>
+<script src="training-multi.js?v=5"></script>
+<script src="training.js?v=6"></script>
 <script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=13"></script>
 </body></html>

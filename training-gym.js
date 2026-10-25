@@ -24,7 +24,9 @@ const TEMPLATES = {
   Beine: ['Kniebeuge', 'Rumänisches Kreuzheben', 'Beinpresse', 'Beinbeuger', 'Wadenheben'],
   Oberkörper: ['Bankdrücken', 'Rudern', 'Schulterdrücken', 'Latzug', 'Bizepscurls', 'Trizepsdrücken'],
   Unterkörper: ['Kniebeuge', 'Rumänisches Kreuzheben', 'Ausfallschritte', 'Hip Thrust', 'Wadenheben'],
-  Ganzkörper: ['Kniebeuge', 'Bankdrücken', 'Rudern', 'Schulterdrücken', 'Plank']
+  Ganzkörper: ['Kniebeuge', 'Bankdrücken', 'Rudern', 'Schulterdrücken', 'Plank'],
+  Isometrie: ['Wandsitz', 'Plank', 'Isometrische Kniebeuge', 'Klimmzug-Halt', 'Seitstütz'],
+  Plyometrie: ['Box Jumps', 'Counter Movement Jumps', 'Drop Jumps', 'Broad Jumps', 'Skippings']
 };
 const COMMON = ['Bankdrücken', 'Schrägbankdrücken', 'Kniebeuge', 'Kreuzheben', 'Rumänisches Kreuzheben', 'Schulterdrücken', 'Klimmzüge', 'Rudern', 'Latzug', 'Beinpresse', 'Ausfallschritte', 'Hip Thrust', 'Bizepscurls', 'Trizepsdrücken', 'Seitheben', 'Face Pulls', 'Beinbeuger', 'Beinstrecker', 'Wadenheben', 'Dips', 'Liegestütze', 'Plank', 'Crunches'];
 
@@ -134,7 +136,7 @@ function starter() {
 }
 function editor(d) {
   const st = liveStats(), known = [...new Set(G.A.ex.map(o => o.name).concat(COMMON))];
-  let h = '<div class="gedit"><div class="gtop"><b>' + (d.plan ? esc(d.plan) : 'Gym-Einheit') + '</b><span class="mu" id="gLive">' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg Volumen</span></div>';
+  let h = '<div class="gedit"><div class="gtop"><b>' + (d.plan ? esc(d.plan) : 'Gym-Einheit') + '</b><span class="mu" id="gLive">' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg Volumen</span></div>' + (d.link ? '<div class="mu" style="margin:4px 0 8px">⌚ Gehört zur Whoop-Einheit vom ' + window.TrainingCore.fmt.date(d.date) + ' – zählt nur einmal.</div>' : '');
   h += '<div class="grest" id="gRest">' + [60, 90, 120, 180].map(s => '<button type="button" class="chip" data-a="rest" data-s="' + s + '">' + (s >= 120 ? s / 60 + ' min' : s + ' s') + '</button>').join('') + '<span id="gRestT" class="grt" aria-live="off"></span></div>';
   d.ex.forEach((e, i) => {
     const o = G.A.byKey.get(key(e.n));
@@ -224,10 +226,12 @@ function bind() {
     if (!(min >= 5 && min <= 400)) return setMsg('Dauer bitte zwischen 5 und 400 Minuten.', true);
     $('gSave').disabled = true;
     try {
-      const prs = await G.ctx.save({ plan: d.plan || '', date: d.date, min: Math.round(min), rpe: d.rpe, note: String(d.note || '').trim().slice(0, 120), ex: c.ex });
+      const prs = await G.ctx.save({ plan: d.plan || '', date: d.date, min: Math.round(min), rpe: d.rpe, note: String(d.note || '').trim().slice(0, 120), ex: c.ex, link: d.link || null });
       stopRest(); G.draft = null; saveDraft(); G.prs = prs; G.msg = 'Gespeichert: ' + c.ex.length + ' Übungen, ' + sessStats(c).sets + ' Sätze.'; draw();
     } catch (er) { $('gSave').disabled = false; setMsg('Konnte nicht speichern: ' + er.message, true) }
   });
 }
-window.TrainingGym = { render, draw: () => { if (G.host && G.A) chart() }, core: Core };
+/* Übungen zu einer Whoop-Einheit eintragen (aus „Noch ergänzen“): Vorlage nach Fokus, Datum und Dauer vorbelegt */
+function start(o) { G.prs = null; G.msg = ''; const p = TEMPLATES[o.plan] ? o.plan : ''; G.draft = newDraft(p || o.plan || '', TEMPLATES[p] || []); G.draft.date = o.date; G.draft.min = o.min ? String(o.min) : ''; G.draft.start = null; G.draft.link = o.link || null; if (o.rpe) G.draft.rpe = o.rpe; saveDraft(); if (G.host) draw() }
+window.TrainingGym = { render, start, draw: () => { if (G.host && G.A) chart() }, core: Core };
 })(typeof window !== 'undefined' ? window : globalThis);

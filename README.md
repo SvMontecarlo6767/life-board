@@ -23,6 +23,12 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Wetter und Ortssuche: einziger externer Abruf der Seite (Open-Meteo, nur Ort und Rennen-Datum).
 - Tests: `node tools/test-training.mjs`, `node worker/test.mjs`, Browser: `node tools/browser/gen_training_seed.mjs seed.json` und `python3 tools/browser/test_training.py <Ordner> seed.json`.
 
+## Allround-Training (nach dem Sportler-Interview)
+- **Noch ergänzen:** Whoop-Einheiten der letzten 14 Tage (z. B. „Functional Fitness“) bekommen Sportart (Kraft, Isometrie, Plyometrie, Fußball, Lauf …), Fokus (z. B. Pull, Sprungkraft, Spiel), Anstrengung 1–10 und Notiz. Gespeichert am Eintrag (`o`, `f`, `x`, `no`, `ok`). „Speichern + Übungen eintragen“ öffnet das Gym-Logbuch mit Vorlage; die Gym-Einheit wird mit der Whoop-Einheit verknüpft (`w`) und zählt nur einmal.
+- **Balance-Ampel:** Kraft (Kraft, Isometrie), Ausdauer (Lauf, Rad …), Explosiv (Plyometrie, HIIT), Fußball pro Woche gegen Ziele (Standard 2/2/1/2, änderbar, `settings.balance`).
+- **Bestwerte:** Klimmzüge (am Stück und mit Zusatzgewicht, aus dem Gym-Logbuch), 5 km und 10 km (passende Läufe, sonst aus dem schnellsten längeren Lauf hochgerechnet, dazu Prognose aus der Form).
+- Test: `node tools/browser/test_training_allround.mjs`.
+
 ## Gym-Logbuch (im Training, Ansicht „Allround“)
 - Vorlagen Push / Pull / Beine / Oberkörper / Unterkörper / Ganzkörper, „Wie zuletzt“ oder leer. Übungen frei hinzufügbar (Vorschläge aus deinen bisherigen Übungen).
 - Pro Übung Sätze mit Gewicht und Wiederholungen; die Werte vom letzten Mal sind vorbelegt, dazu ein Vorschlag (Doppelprogression: alle Sätze ≥ 10 Wdh → Gewicht erhöhen). Pausen-Timer, Entwurf bleibt bei Neuladen erhalten.
