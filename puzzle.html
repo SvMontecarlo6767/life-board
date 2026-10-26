@@ -45,7 +45,8 @@ textarea{resize:vertical;box-sizing:border-box;display:block}
 .dist{display:flex;align-items:flex-end;gap:4px;height:80px;max-width:100%;overflow:hidden}
 .dist div{flex:1;min-width:0;text-align:center;font-size:11px;color:var(--mu);display:flex;flex-direction:column;justify-content:flex-end;height:100%;overflow:hidden}
 .dist div span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dist u{display:block;background:var(--ac);border-radius:3px 3px 0 0}
+.dist b{flex:1;min-height:0;display:flex;align-items:flex-end;font-weight:inherit}   /* eigene Spur: Zahl und Beschriftung stauchen die Säule nicht */
+.dist u{display:block;width:100%;background:var(--ac);border-radius:3px 3px 0 0}
 .distnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;font-size:12px;color:var(--mu)}
 .distnav button{padding:4px 10px;flex:none}
 .distnav button:disabled{opacity:.35}
@@ -631,7 +632,7 @@ function dist(g,S){
  S.ns.forEach(n=>c[n]=(c[n]||0)+1);
  const keys=[];for(let i=1;i<=g.max;i++)keys.push(i);
  const m=Math.max(1,fails,...keys.map(k=>c[k]||0));
- const col=(l,n,bad)=>`<div><span>${n||''}</span><u style="height:${n/m*100*.7}%;${bad?'background:var(--bad)':''}"></u>${l}</div>`;
+ const col=(l,n,bad)=>`<div><span>${n||''}</span><b><u style="height:${n/m*100}%;${bad?'background:var(--bad)':''}"></u></b>${l}</div>`;
  return '<h3>Verteilung der Versuche</h3><div class="dist">'+keys.map(k=>col(k,c[k]||0)).join('')+col('✗',fails,1)+'</div>'}
 
 function dayPct(d){
@@ -707,7 +708,7 @@ function dayHist(dp){
  const buckets=[0,0,0,0,0],labels=['0–20','20–40','40–60','60–80','80–100'];
  dp.forEach(x=>buckets[Math.min(4,Math.max(0,Math.floor(x.p/20)))]++);
  const m=Math.max(1,...buckets);
- return '<div class="dist">'+buckets.map((c,i)=>`<div><span>${c||''}</span><u style="height:${c/m*100*.7}%"></u>${labels[i]}</div>`).join('')+'</div>';
+ return '<div class="dist">'+buckets.map((c,i)=>`<div><span>${c||''}</span><b><u style="height:${c/m*100}%"></u></b>${labels[i]}</div>`).join('')+'</div>';
 }
 function weekdayBars(){
  const buckets=[[],[],[],[],[],[],[]],names=['Mo','Di','Mi','Do','Fr','Sa','So'];
@@ -1023,8 +1024,8 @@ function ratingDeltaBars(ctx){
  if(!last.length)return '<div class="hint">Noch keine Tagesänderungen.</div>';
  const m=Math.max(1,...last.map(s=>Math.abs(s.delta)));
  return '<div class="dist">'+last.map(s=>{
-  const h=Math.abs(s.delta)/m*100*.7;
-  return `<div><span>${s.delta>=0?'+':''}${Math.round(s.delta)}</span><u style="height:${h}%;${s.delta<0?'background:var(--bad)':''}"></u>${s.date.slice(8,10)}</div>`;
+  const h=Math.abs(s.delta)/m*100;
+  return `<div><span>${s.delta>=0?'+':''}${Math.round(s.delta)}</span><b><u style="height:${h}%;${s.delta<0?'background:var(--bad)':''}"></u></b>${s.date.slice(8,10)}</div>`;
  }).join('')+'</div>';
 }
 function ratingForecast(ctx){
