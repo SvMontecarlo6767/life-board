@@ -75,14 +75,14 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="engine.js"></script>
-<script src="whoop-auto.js"></script>
+<script src="day.js"></script>
+<script src="whoop-row.js"></script>
 <script src="journal-core.js"></script>
 <script src="insights-core.js"></script>
 <script src="whoop-cache.js"></script>
 <script>
 (async function(){
-const E=window.LBEngine,J=window.LBJournal,I=window.LBInsights;
+const E=window.LBDay,J=window.LBJournal,I=window.LBInsights;
 const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -105,7 +105,7 @@ function renderFindings(){
 /* ---------- Vergleichen ---------- */
 function metricList(){
   const L=Object.entries(I.OUTCOMES).map(([id,o])=>({id,name:o.name}));
-  L.push({id:'strain',name:'Strain'},{id:'steps',name:'Schritte'},{id:'dop',name:'Dopamin-Punkte'});
+  L.push({id:'strain',name:'Strain'},{id:'steps',name:'Schritte'});
   for(const f of Object.values(DATA.factors))L.push({id:f.id,name:f.name+(f.kind==='bool'?' (ja/nein)':'')});
   return L;
 }
@@ -167,7 +167,7 @@ async function boot(){
   const base='users/'+user.uid;today=E.dayKey(new Date(),'Europe/Berlin',4);
   let DAYS={},SET={},RULES=null,WH={},whErr=null;
   try{
-    const [js,ds,ss,rr]=await Promise.all([fs.collection(base+'/journal').get(),fs.collection(base+'/days').get(),fs.doc(base+'/settings/main').get(),fetch('rules/v2.json?c=2',{cache:'no-cache'}).then(r=>r.json())]);
+    const [js,ds,ss,rr]=await Promise.all([fs.collection(base+'/journal').get(),fs.collection(base+'/days').get(),fs.doc(base+'/settings/main').get(),fetch('heute-labels.json',{cache:'no-cache'}).then(r=>r.json()).then(x=>({ui:{buttons:x.buttons}})).catch(()=>({ui:{buttons:[]}}))]);
     js.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))JD[x.id]=x.data()});
     ds.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))DAYS[x.id]=x.data()});
     SET=ss.exists?ss.data():{};RULES=rr;
@@ -183,5 +183,5 @@ async function boot(){
 boot().catch(e=>{$('msg').innerHTML='<div class="info warn">Fehler: '+esc(errText(e))+'</div>'});
 })();
 </script>
-<script src="theme.js?v=14"></script>
+<script src="theme.js?v=15"></script>
 </body></html>

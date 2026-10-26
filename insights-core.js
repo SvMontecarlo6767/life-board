@@ -1,8 +1,8 @@
-/* Life Board – Muster: Zusammenhänge, Verläufe und Rückblick aus Check-in, Heute und Whoop. Reine Statistik, keine KI.
+/* Life Board – Muster: Zusammenhänge, Verläufe und Rückblick aus Check-in und Whoop. Reine Statistik, keine KI.
    Reine Funktionen (keine Abhängigkeit von Firebase oder DOM); benutzt von muster.html, Tests: node tools/test-insights.mjs. */
 (function(root){
 const J=root.LBJournal||(typeof require!=='undefined'?require('./journal-core.js'):null);
-const WA=root.WhoopAuto||(typeof require!=='undefined'?require('./whoop-auto.js'):null);
+const WA=root.WhoopRow||(typeof require!=='undefined'?require('./whoop-row.js'):null);
 function addDays(key,n){const [y,m,d]=key.split('-').map(Number);const t=new Date(Date.UTC(y,m-1,d+n));return t.getUTCFullYear()+'-'+String(t.getUTCMonth()+1).padStart(2,'0')+'-'+String(t.getUTCDate()).padStart(2,'0')}
 const mean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 const sd=a=>{if(a.length<2)return 0;const m=mean(a);return Math.sqrt(a.reduce((s,x)=>s+(x-m)*(x-m),0)/(a.length-1))};
@@ -39,11 +39,15 @@ function build(opt){
       for(const b of btn){
         const val=inp[b.id]|0;
         if(b.group==='sport'){if(val>0)sport=1;continue}
+        if(d&&b.id==='alkohol'){v.alk=val>0?1:0;continue}   // ältere Heute-Einträge: Alkohol wie im Check-in
         if(d){v['in_'+b.id]=val>0?1:0;fac('in_'+b.id,b.label,'bool')}
       }
       v.sport=sport;fac('sport','Sport / Training','bool');
-      if(d&&typeof d.net==='number')v.dop=d.net;
     }
+    const jd=journal[k];   // Check-in: Alkohol und späte Mahlzeit (gehen vor ältere Heute-Einträge)
+    if(jd&&(jd.alc===true||jd.alc===false))v.alk=jd.alc?1:0;
+    if(jd&&jd.meal)v.lateMeal=jd.meal>='20:30'?1:0;
+    if(v.alk!=null)fac('alk','Alkohol','bool');if(v.lateMeal!=null)fac('lateMeal','Späte große Mahlzeit (ab 20:30)','bool');
     for(const t of trackers){const x=journal[k]&&journal[k].t&&journal[k].t[t.id];if(x!=null){v['t_'+t.id]=x;fac('t_'+t.id,t.name,t.kind==='bool'?'bool':'num')}}
     out[k]=v;
   }

@@ -114,6 +114,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
     <ul class="notes" id="notes"></ul>
   </section>
   <section class="card" id="trackCard"></section>
+  <section class="card" id="body"></section>
   <section class="card" id="evening"></section>
   <section class="card"><h3>Letzte 7 Tage</h3><div class="week" id="week"></div>
     <div class="mu" style="margin-top:10px">Zusammenhänge und Rückblick: <a href="muster.html?v=1">Muster ansehen</a></div></section>
@@ -141,13 +142,13 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="engine.js"></script>
+<script src="day.js"></script>
 <script src="journal-core.js"></script>
 <script src="whoop-cache.js"></script>
 <script src="push-client.js"></script>
 <script>
 (async function(){
-const E=window.LBEngine,J=window.LBJournal;
+const E=window.LBDay,J=window.LBJournal;
 const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
 const WHOOP_BACK='shortcuts://run-shortcut?name='+encodeURIComponent('Whoop öffnen');
 const $=id=>document.getElementById(id);
@@ -171,8 +172,7 @@ const hm=t=>new Date(t).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-dig
 function dateLabel(k){const [y,m,d]=k.split('-').map(Number);return new Intl.DateTimeFormat('de-DE',{weekday:'short',timeZone:'UTC'}).format(new Date(Date.UTC(y,m-1,d)))+', '+String(d).padStart(2,'0')+'.'+String(m).padStart(2,'0')+'.'}
 
 /* ---------- Speichern: erst lokal, dann Firestore ---------- */
-async function save(k,pts){
-  const before=J.counts(JD[k]);
+async function save(k){
   const doc=Object.assign(J.clean(JD[k]),{updatedAt:Date.now()});JD[k]=doc;
   const p=pget();p[k]=doc;pset(p);
   setSave('speichert …');
@@ -181,7 +181,6 @@ async function save(k,pts){
     const q=pget();if(q[k]&&q[k].updatedAt<=doc.updatedAt){delete q[k];pset(q)}
     setSave('gespeichert ✓ '+hm(Date.now()));
   }catch(e){setSave('NICHT gespeichert – lokal gesichert',true);showMsg('<b>Nicht gespeichert:</b> '+esc(errText(e))+'. Dein Eintrag ist auf diesem Gerät gesichert und wird beim nächsten Öffnen erneut gesendet.',true)}
-  if(pts!==false){const after=J.counts(doc),gain={'MEN-01':400,'MEN-02':500,'MEN-03':100,'MEN-04':150,'MEN-05':300};let g=0;for(const id in gain)g+=Math.max(0,(after[id]|0)-(before[id]|0))*gain[id];if(g)toast('+'+g+' Dopamin')}
 }
 
 /* ---------- Bausteine ---------- */
@@ -242,7 +241,7 @@ function renderGoals(){
   const wk=(GOALS[wid]||{}).items||[],mo=(GOALS[mid]||{}).items||[],ws=E.weekKey(cur);
   const cnt=a=>a.length?' <small>'+a.filter(x=>x.done).length+'/'+a.length+'</small>':'';
   el.innerHTML='<h3>Ziele</h3><div class="mu">Klein und konkret wirkt am besten: was, wann – z. B. „18:00 Kraft Unterkörper“.</div>'
-    +'<div class="gh"><b>'+(cur===today?'Heute':dateLabel(cur))+cnt(dg)+'</b>'+(dg.length&&dg.every(x=>x.done)?'<small>alles geschafft · +300</small>':'')+'</div>'+goalList(dg,'d')
+    +'<div class="gh"><b>'+(cur===today?'Heute':dateLabel(cur))+cnt(dg)+'</b>'+(dg.length&&dg.every(x=>x.done)?'<small>alles geschafft ✓</small>':'')+'</div>'+goalList(dg,'d')
     +'<div class="gadd"><input type="text" id="gdT" maxlength="140" placeholder="Ziel für '+(cur===today?'heute':'diesen Tag')+' …"><input type="time" id="gdA" aria-label="Uhrzeit"><button type="button" id="gdAdd">+</button></div>'
     +(PUSH.on?'<div class="mu" style="margin-top:4px">Mit Uhrzeit bekommst du eine Erinnerung (🔔 antippen zum Ein-/Ausschalten).</div>':'')
     +'<div class="gh"><b>Diese Woche'+cnt(wk)+'</b><small>'+dateLabel(ws).slice(4)+' – '+dateLabel(E.addDays(ws,6)).slice(4)+'</small></div>'+goalList(wk,'w')
@@ -302,7 +301,7 @@ function renderNow(){
   $('nowMood').querySelectorAll('button').forEach(b=>b.onclick=()=>{nowMood=nowMood===+b.dataset.v?null:+b.dataset.v;renderNow()});
   const ns=(day(cur).notes||[]).slice().sort((a,b)=>b.at-a.at);
   $('notes').innerHTML=ns.map(n=>'<li><time>'+hm(n.at)+'</time><span>'+(n.mood?J.EMO[n.mood-1]:'')+'</span><span class="tx">'+esc(n.text)+'</span><button data-del="'+n.at+'" aria-label="Löschen">✕</button></li>').join('');
-  $('notes').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Eintrag löschen?'))return;const d=day(cur);d.notes=d.notes.filter(n=>String(n.at)!==b.dataset.del);await save(cur,false);renderNow()});
+  $('notes').querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Eintrag löschen?'))return;const d=day(cur);d.notes=d.notes.filter(n=>String(n.at)!==b.dataset.del);await save(cur);renderNow()});
 }
 $('nowAdd').onclick=async()=>{
   const t=$('nowText').value.trim();if(!t&&!nowMood)return;
@@ -342,6 +341,18 @@ function renderTrackers(){
   $('tEdit').onclick=()=>{editTrk=!editTrk;renderTrackers()};
 }
 
+/* ---------- Körper heute: Alkohol, letzte große Mahlzeit, krank (Schlaf-Hebel in Recovery, Muster) ---------- */
+function renderBody(){
+  const d=day(cur),el=$('body');
+  el.innerHTML='<h3>Körper heute</h3><div class="mu">Hilft dem Schlaf-Hebel in Recovery und den Mustern.</div>'
+    +'<div class="trk"><div class="nm">Alkohol</div><div class="ctl"><button type="button" data-alc="0" aria-pressed="'+(d.alc===false)+'">nein</button><button type="button" data-alc="1" aria-pressed="'+(d.alc===true)+'">ja</button></div></div>'
+    +'<div class="trk"><div class="nm">Letzte große Mahlzeit<small>Uhrzeit</small></div><div class="ctl"><input type="time" id="bMeal" value="'+esc(d.meal||'')+'" aria-label="Uhrzeit der letzten großen Mahlzeit"></div></div>'
+    +'<div class="trk"><div class="nm">Krank<small>Nacht zählt nicht im Schlaf-Hebel</small></div><div class="ctl"><button type="button" id="bSick" aria-pressed="'+!!d.sick+'">'+(d.sick?'✓ krank':'nein')+'</button></div></div>';
+  el.querySelectorAll('[data-alc]').forEach(b=>b.onclick=async()=>{const v=b.dataset.alc==='1',x=day(cur);x.alc=x.alc===v?null:v;await save(cur);renderBody()});
+  $('bMeal').onchange=async()=>{day(cur).meal=$('bMeal').value||null;await save(cur)};
+  $('bSick').onclick=async()=>{const x=day(cur);x.sick=!x.sick;await save(cur);renderBody()};
+}
+
 /* ---------- Abend ---------- */
 function renderEvening(){
   const d=day(cur),e=d.e,el=$('evening');
@@ -369,7 +380,7 @@ function renderEvening(){
   if($('eCancel'))$('eCancel').onclick=()=>{draftE=null;renderEvening()};
   $('eSave').onclick=async()=>{const d=day(cur);d.e={good:de.good,stress:de.stress,line:de.line,at:(d.e&&d.e.at)||Date.now()};
     const nk=E.addDays(cur,1),add=(de.tg||[]).filter(x=>x&&x.t&&x.t.trim()).map(x=>({t:x.t.trim(),at:x.at||'',done:false,r:!!(x.at&&PUSH.on)}));
-    if(add.length){const nd=day(nk);nd.g=(nd.g||[]).concat(add.filter(a=>!(nd.g||[]).some(b=>b.t===a.t)));await save(nk,false);syncPush()}
+    if(add.length){const nd=day(nk);nd.g=(nd.g||[]).concat(add.filter(a=>!(nd.g||[]).some(b=>b.t===a.t)));await save(nk);syncPush()}
     draftE=null;await save(cur);renderEvening();renderWeek()};
 }
 
@@ -384,7 +395,7 @@ function renderWeek(){
 function render(){
   $('dt').innerHTML=dateLabel(cur)+'<small>'+(cur===today?'heute':'')+'</small>';
   $('next').disabled=cur>=today;
-  renderMorning();renderGoals();renderNow();renderTrackers();renderEvening();renderWeek();
+  renderMorning();renderGoals();renderNow();renderTrackers();renderBody();renderEvening();renderWeek();
 }
 function go(k){cur=k;draftM=null;draftE=null;nowMood=null;render();window.scrollTo(0,0)}
 $('prev').onclick=()=>go(E.addDays(cur,-1));
@@ -410,7 +421,7 @@ async function boot(){
     js.docs.forEach(x=>{if(/^\d{4}-\d\d-\d\d$/.test(x.id))JD[x.id]=x.data()});SET=ss.exists?ss.data():{};
   }catch(e){showMsg('<b>Laden fehlgeschlagen:</b> '+esc(errText(e))+'. Neue Einträge werden lokal gesichert.',true)}
   const p=pget();
-  for(const k of Object.keys(p)){if(!JD[k]||(JD[k].updatedAt||0)<=(p[k].updatedAt||0)){JD[k]=p[k];save(k,false)}}
+  for(const k of Object.keys(p)){if(!JD[k]||(JD[k].updatedAt||0)<=(p[k].updatedAt||0)){JD[k]=p[k];save(k)}}
   $('main').hidden=false;render();
   renderPush().then(()=>{if(PUSH.on){syncPush();renderGoals()}}).catch(()=>{});
   if(day(today).m)loadWhoop();
@@ -420,5 +431,5 @@ async function boot(){
 boot().catch(e=>showMsg('Fehler: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=14"></script>
+<script src="theme.js?v=15"></script>
 </body></html>

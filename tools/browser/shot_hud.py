@@ -29,7 +29,7 @@ with sync_playwright() as p:
             ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%n),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))
         ctx.route(re.compile(r'workers\.dev'),worker)
         ctx.route(re.compile(r'fonts\.(googleapis|gstatic)\.com'),lambda r:r.abort())
-        for page,sel in(('index.html','#hub:not([hidden])'),('heute.html','.chip[data-b]'),('recovery.html','#content:not([hidden])'),('learn.html','#stats')):
+        for page,sel in(('index.html','#hub:not([hidden])'),('checkin.html','#morning'),('recovery.html','#content:not([hidden])'),('learn.html','#stats')):
             pg=ctx.new_page(); errs=[]
             pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m:errs.append(m.text) if m.type=='error' and 'fonts' not in m.text and 'ERR_FAILED' not in m.text else None)
             pg.clock.set_fixed_time('2026-10-14T12:00:00+02:00') if False else None

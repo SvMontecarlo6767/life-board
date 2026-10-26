@@ -121,22 +121,6 @@ svg circle.pt{cursor:pointer}
 @media (prefers-reduced-motion: reduce){#dopCard::before{animation:none}}
 #dopCard h2{display:flex;align-items:center;gap:7px;letter-spacing:.3px}
 #dopCard h2::before{content:'⚡';filter:drop-shadow(0 0 6px color-mix(in srgb,var(--ac) 70%,transparent))}
-.dophead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;position:relative;z-index:1}
-.dopbig{font-size:44px;font-weight:800;line-height:1;transition:color .2s;background:linear-gradient(135deg,var(--ac),#e8b73a);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 2px 24px color-mix(in srgb,var(--ac) 40%,transparent)}
-.doptoday{font-size:13px;color:var(--mu);font-weight:700;background:var(--ac2);border:1px solid var(--bd);border-radius:999px;padding:3px 10px}
-.dopgain{font-size:22px;font-weight:800;margin-top:6px;animation:dopPop .4s ease;position:relative;z-index:1}
-.dopgain.up{color:var(--ac);text-shadow:0 0 16px color-mix(in srgb,var(--ac) 50%,transparent)}
-.dopgain.down{color:var(--bad)}
-.dopparts{position:absolute;inset:0;pointer-events:none;overflow:hidden;border-radius:14px}
-.doppart{position:absolute;top:30%;left:50%;width:6px;height:6px;border-radius:50%;opacity:0;animation:dopPart var(--dur) ease-out var(--delay) forwards}
-@keyframes dopPop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.08);opacity:1}100%{transform:scale(1)}}
-@keyframes dopPart{0%{opacity:1;transform:translate(-50%,-50%) rotate(var(--ang)) translateX(0)}100%{opacity:0;transform:translate(-50%,-50%) rotate(var(--ang)) translateX(var(--dist))}}
-@media (prefers-reduced-motion: reduce){.dopgain{animation:none}.doppart{display:none}}
-.dopstar{color:#e8b73a}
-.doprank{font-weight:700;font-size:14.5px;margin-top:10px;display:flex;align-items:center;gap:7px;position:relative;z-index:1}
-.dopranki{font-size:19px;filter:drop-shadow(0 0 5px color-mix(in srgb,var(--ac) 60%,transparent))}
-.doprankbar{height:7px;background:var(--bd);border-radius:5px;overflow:hidden;margin-top:6px;position:relative;z-index:1}
-.doprankbar u{display:block;height:100%;background:linear-gradient(90deg,var(--ac),#e8b73a);transition:width .5s ease}
 .msrow-cur{outline:2px solid var(--ac);outline-offset:-2px;border-radius:10px}
 .minical{margin:10px 0;padding:10px;border:1px solid var(--bd);border-radius:12px;background:var(--bg)}
 .mcHead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-weight:700}
@@ -199,19 +183,7 @@ svg circle.pt{cursor:pointer}
 <datalist id="dlAnimals"></datalist>
 <div class="card sb" id="sb"><div><b id="sbt">Speicher wird geprüft …</b><div class="hint" id="sbs"></div></div><button id="savebtn">💾 Jetzt speichern</button></div>
 
-<div class="card" id="dopCard">
-  <h2>Dopamin</h2>
-  <div class="dophead">
-   <div class="dopbig" id="dopTotal">0</div>
-   <div class="doptoday" id="dopToday"></div>
-  </div>
-  <div class="doprank" id="dopRankChip"></div>
-  <div class="doprankbar"><u id="dopRankBar" style="width:0%"></u></div>
-  <div class="hint" id="dopRankNext"></div>
-  <div class="dopgain" id="dopGain" style="display:none"></div>
-  <div class="hint" id="dopBreak"></div>
-  <div class="hint" id="insightStrip" style="display:none;margin-top:8px;position:relative;z-index:1"></div>
-  <div class="dopparts" id="dopParts"></div>
+<div class="card hint" id="insightStrip" style="display:none;position:relative;z-index:1"></div>
 </div>
 
 <div class="card">
@@ -283,7 +255,7 @@ svg circle.pt{cursor:pointer}
   <button data-hr="30">30 Tage</button><button data-hr="90">90 Tage</button><button data-hr="all" class="on">Alles</button>
  </div>
  <div class="tools" id="heatMetricBtns">
-  <button data-hm="dev" class="on">Abweichung</button><button data-hm="succ">Erfolgsquote</button><button data-hm="dop">Ø Dopamin</button><button data-hm="count">Anzahl</button><button data-hm="abs">Ø Leistung</button>
+  <button data-hm="dev" class="on">Abweichung</button><button data-hm="succ">Erfolgsquote</button><button data-hm="count">Anzahl</button><button data-hm="abs">Ø Leistung</button>
  </div>
  <div class="hint" id="heatLowData" style="display:none;margin:6px 0">Muster werden erst mit mehr Einträgen belastbar.</div>
  <div class="heatwrap" id="heatWrap" style="margin-top:8px">
@@ -292,19 +264,6 @@ svg circle.pt{cursor:pointer}
  </div>
  <div class="heatLegend" id="heatLegend"></div>
  <div class="hint" style="margin-top:8px">Zahlen & Farben unter 3 Einträgen sind neutral grau (noch nicht belastbar) · ★ = bester Wochentag dieses Spiels · auf eine Zelle tippen für Details</div>
-</div>
-
-<div class="card" id="dopVerlaufCard">
-  <h2>Dopamin-Verlauf</h2>
-  <div class="tools" id="dopRangeBtns">
-   <button data-r="30">30 Tage</button>
-   <button data-r="90">90 Tage</button>
-   <button data-r="all" class="on">Alles</button>
-  </div>
-  <div id="dopLine"></div>
-  <h3>Pro Tag</h3><div id="dopBars"></div>
-  <div class="chips" id="dopStats"></div>
-  <h3>Pro Spiel</h3><div class="scroll"><table id="dopTable"></table></div>
 </div>
 
 <div class="card"><h2>Rekorde</h2><div class="scroll"><table id="rec"></table></div></div>
@@ -338,7 +297,6 @@ svg circle.pt{cursor:pointer}
   <h3 style="margin-top:12px">Filter</h3>
   <div class="tools" id="msTabs">
    <button data-t="all" class="on">Allgemein</button>
-   <button data-t="ranks">Ränge</button>
    <button data-t="special">Spezial</button>
   </div>
   <div id="msList" style="margin-top:6px"></div>
@@ -490,7 +448,7 @@ async function initCloud(){
   await pullCloudMSOnce();
   msRef.onSnapshot(snap=>{
    if(snap.exists&&!snap.metadata.hasPendingWrites){
-    if(mergeCloudMS(snap.data())){saveMS();window._msRows&&renderMilestones(window._msRows,window._msSpecials,window._msDopTotal||0)}
+    if(mergeCloudMS(snap.data())){saveMS();window._msRows&&renderMilestones(window._msRows,window._msSpecials)}
    }
   },()=>{});
   ratingRef=col.doc('__rating');
@@ -610,26 +568,22 @@ $('form').addEventListener('click',e=>{
 });
 $('form').addEventListener('input',e=>{
  const row=e.target.closest('.row'),id=row.dataset.g,g=G.find(x=>x.id===id),v=e.target.value.trim();
- if(isX(v)&&g.win){set(id,'',0);form();render();dopamineLiveUpdate(id);return}
+ if(isX(v)&&g.win){set(id,'',0);form();render();return}
  set(id,v);
  if(v&&g.win&&((D[cur]||{})[id]||{}).w==null)set(id,undefined,1);
  if(g.win)row.querySelector('.ok').classList.toggle('on',(((D[cur]||{})[id])||{}).w===1);
  if(g.hint){const hb=row.querySelector('.hintbtn');if(hb)hb.disabled=(((D[cur]||{})[id])||{}).w!==1}
- render();dopamineLiveUpdate(id);
+ render();
 });
 $('form').addEventListener('click',e=>{
  const hb=e.target.closest('button[data-hb]');
  if(hb){const id=hb.closest('.row').dataset.g,c=(((D[cur]||{})[id])||{}).hint;
-  set(id,undefined,undefined,!c);form();render();dopamineLiveUpdate(id);return}
+  set(id,undefined,undefined,!c);form();render();return}
  const b=e.target.closest('button[data-b]');if(!b)return;
  const id=b.closest('.row').dataset.g,w=+b.dataset.b,c=(((D[cur]||{})[id])||{}).w;
- set(id,undefined,c===w?null:w);form();render();dopamineLiveUpdate(id);
+ set(id,undefined,c===w?null:w);form();render();
 });
 
-function dopamineLiveUpdate(gameId){
- const ctx=computeDopamineCtx();window._dopCtx=ctx;
- renderDopamineHead(ctx,{gameId,date:cur});renderDopamine(ctx);
-}
 
 function entries(g){const r=[];Object.keys(D).sort().forEach(d=>{if(!inRange(d))return;const e=D[d][g.id];if(!e)return;
  if((e.s==null||e.s==='')&&e.w==null)return;
@@ -1166,24 +1120,22 @@ function computeHeatmapData(cutoffArg){
  const cutoff=cutoffArg!==undefined?cutoffArg:heatCutoff();
  const rows=GA.map(g=>{
   const es=rawEntries(g).filter(e=>!cutoff||e.d>=cutoff);
-  const dopMap={};dopamineGameSeries(g).series.forEach(s=>{dopMap[s.date]=s.total});
-  const cells=Array.from({length:7},()=>({n:0,sumPerf:0,sumSucc:0,sumDop:0,entries:[]}));
-  let rowSumPerf=0,rowSumSucc=0,rowSumDop=0,rowN=0;
+  const cells=Array.from({length:7},()=>({n:0,sumPerf:0,sumSucc:0,entries:[]}));
+  let rowSumPerf=0,rowSumSucc=0,rowN=0;
   es.forEach(e=>{
    const perf=heatPerfValue(g,e);if(perf==null)return;
-   const dow=(new Date(e.d+'T12:00:00').getDay()+6)%7,succ=g.win?(e.w===1?100:0):(perf>=70?100:0),dop=dopMap[e.d]!=null?dopMap[e.d]:0;
-   const c=cells[dow];c.n++;c.sumPerf+=perf;c.sumSucc+=succ;c.sumDop+=dop;c.entries.push({d:e.d,perf,succ,dop,raw:e});
-   rowSumPerf+=perf;rowSumSucc+=succ;rowSumDop+=dop;rowN++;
+   const dow=(new Date(e.d+'T12:00:00').getDay()+6)%7,succ=g.win?(e.w===1?100:0):(perf>=70?100:0);
+   const c=cells[dow];c.n++;c.sumPerf+=perf;c.sumSucc+=succ;c.entries.push({d:e.d,perf,succ,raw:e});
+   rowSumPerf+=perf;rowSumSucc+=succ;rowN++;
   });
-  return{g,cells,rowN,rowAvgPerf:rowN?rowSumPerf/rowN:null,rowAvgSucc:rowN?rowSumSucc/rowN:null,rowAvgDop:rowN?rowSumDop/rowN:null};
+  return{g,cells,rowN,rowAvgPerf:rowN?rowSumPerf/rowN:null,rowAvgSucc:rowN?rowSumSucc/rowN:null};
  });
  return{rows,cutoff};
 }
-function heatAgg(c){return c&&c.n?{n:c.n,avgPerf:c.sumPerf/c.n,avgSucc:c.sumSucc/c.n,avgDop:c.sumDop/c.n}:null}
+function heatAgg(c){return c&&c.n?{n:c.n,avgPerf:c.sumPerf/c.n,avgSucc:c.sumSucc/c.n}:null}
 function heatValueAndDev(agg,baseline){
  if(heatMetric==='count')return{v:agg.n,dev:null,divisor:1};
  if(heatMetric==='succ')return{v:agg.avgSucc,dev:baseline?agg.avgSucc-baseline.avgSucc:0,divisor:40};
- if(heatMetric==='dop')return{v:agg.avgDop,dev:baseline?agg.avgDop-baseline.avgDop:0,divisor:Math.max(10,Math.abs((baseline&&baseline.avgDop)||10)*0.6)};
  return{v:agg.avgPerf,dev:baseline?agg.avgPerf-baseline.avgPerf:0,divisor:30};
 }
 function heatCellHTML(agg,baseline,attrs,starHTML){
@@ -1194,14 +1146,13 @@ function heatCellHTML(agg,baseline,attrs,starHTML){
   const r=heatValueAndDev(agg,baseline),t=Math.max(-1,Math.min(1,(r.dev||0)/(r.divisor||30)));col=heatColorOKLCH(t);
   if(heatMetric==='dev')text=(r.dev>=0?'+':'')+Math.round(r.dev);
   else if(heatMetric==='succ')text=Math.round(r.v)+'%';
-  else if(heatMetric==='dop')text=(r.v>=0?'+':'')+Math.round(r.v);
   else text=Math.round(r.v);
  }
  return `<div class="heatcell" style="background:${col.css};color:${col.L<58?'#fff':'#111'}" ${attrs||''}>${starHTML||''}${text}</div>`;
 }
 function heatAvgColHTML(agg){
  if(!agg||!agg.n)return `<div class="heatcell neutral" style="font-weight:700">–</div>`;
- const text=heatMetric==='count'?agg.n:heatMetric==='succ'?Math.round(agg.avgSucc)+'%':heatMetric==='dop'?Math.round(agg.avgDop):Math.round(agg.avgPerf);
+ const text=heatMetric==='count'?agg.n:heatMetric==='succ'?Math.round(agg.avgSucc)+'%':Math.round(agg.avgPerf);
  return `<div class="heatcell neutral" style="font-weight:700">${text}</div>`;
 }
 function renderHeatLegend(){
@@ -1216,14 +1167,14 @@ window._heatData=null;
 function renderHeatmap(){
  const data=computeHeatmapData();window._heatData=data;
  const names=['Mo','Di','Mi','Do','Fr','Sa','So'];
- const aggRows=data.rows.map(r=>({g:r.g,cellsAgg:r.cells.map(heatAgg),rowAgg:r.rowN?{n:r.rowN,avgPerf:r.rowAvgPerf,avgSucc:r.rowAvgSucc,avgDop:r.rowAvgDop}:null}));
+ const aggRows=data.rows.map(r=>({g:r.g,cellsAgg:r.cells.map(heatAgg),rowAgg:r.rowN?{n:r.rowN,avgPerf:r.rowAvgPerf,avgSucc:r.rowAvgSucc}:null}));
  HEAT_MAXCOUNT=1;aggRows.forEach(r=>r.cellsAgg.forEach(c=>{if(c&&c.n>HEAT_MAXCOUNT)HEAT_MAXCOUNT=c.n}));
  const bottomAgg=names.map((_,dow)=>{
   const vs=aggRows.map(r=>r.cellsAgg[dow]).filter(c=>c&&c.n>=3);if(!vs.length)return null;
-  return{n:vs.reduce((a,v)=>a+v.n,0),avgPerf:vs.reduce((a,v)=>a+v.avgPerf,0)/vs.length,avgSucc:vs.reduce((a,v)=>a+v.avgSucc,0)/vs.length,avgDop:vs.reduce((a,v)=>a+v.avgDop,0)/vs.length};
+  return{n:vs.reduce((a,v)=>a+v.n,0),avgPerf:vs.reduce((a,v)=>a+v.avgPerf,0)/vs.length,avgSucc:vs.reduce((a,v)=>a+v.avgSucc,0)/vs.length};
  });
  const bottomRowAgg=(()=>{const vs=bottomAgg.filter(Boolean);if(!vs.length)return null;
-  return{n:vs.reduce((a,v)=>a+v.n,0),avgPerf:vs.reduce((a,v)=>a+v.avgPerf,0)/vs.length,avgSucc:vs.reduce((a,v)=>a+v.avgSucc,0)/vs.length,avgDop:vs.reduce((a,v)=>a+v.avgDop,0)/vs.length};
+  return{n:vs.reduce((a,v)=>a+v.n,0),avgPerf:vs.reduce((a,v)=>a+v.avgPerf,0)/vs.length,avgSucc:vs.reduce((a,v)=>a+v.avgSucc,0)/vs.length};
  })();
  let html='<span></span>'+names.map(n=>`<span>${n}</span>`).join('')+'<span>Ø</span>';
  aggRows.forEach(r=>{
@@ -1278,213 +1229,6 @@ document.addEventListener('click',e=>{
  if(cell){showHeatPopover(cell);return}
  if($('heatPop')&&$('heatPop').style.display==='block'&&!e.target.closest('#heatPop'))$('heatPop').style.display='none';
 });
-
-/* ===================== DOPAMIN ===================== */
-function dopRawEntries(g){const r=[];Object.keys(D).sort().forEach(d=>{const e=D[d][g.id];if(!e)return;
- if((e.s==null||e.s==='')&&e.w==null)return;
- const n=e.w===0?null:num(e.s);
- r.push({d,n,w:g.win?(e.w===0?0:1):null,hint:!!(g.hint&&e.hint)})});return r}
-function dopTableValue(g,n){
- switch(g.id){
-  case 'fermi':return n<=1.5?35:n<2?30:n<3?20:n<5?10:n<8?0:-20;
-  case 'spm':case 'spm2':return n<=3?35:n<=5?25:n<=7?15:5;
-  case 'ner':return n===1?100:n===2?50:n===3?25:n===4?12:n===5?-10:-20;
-  case 'glo':return n<=3?35:n<=5?25:n<=8?15:n<=10?5:n<=14?-10:-20;
-  case 'tra':return n===0?20:n===1?5:n===2?-10:n===3?-20:-25;
-  case 'ran':return n===4?35:n===3?15:-5;
-  case 'tim':{const k=n/1000;return k>45?100:k>42?50:k>40?40:k>38?30:k>36?20:k>33?10:k>30?-5:k>25?-15:-30;}
-  case 'stl':return n===1?70:n===2?40:n===3?25:n===4?20:n===5?10:-5;
-  case 'col':return n>47?60:n>45?40:n>43?25:n>40?10:n>37?-5:-15;
-  case 'hol':return n>=25?100:n>23?50:n>21?25:n>19?15:n>17?5:-10;
-  case 'satl':return n===1?70:n===2?40:n===3?25:n===4?15:n===5?10:-10;
-  case 'tmd':return n>=36?100:n>34?50:n>32?25:n>30?15:n>28?5:n>25?-5:-15;
-  case 'hf':case 'vlt':return n===1?50:n===2?20:-10;
-  case 'krl':return n>=630?60:n>=560?40:n>=490?25:n>=420?10:n>=350?-5:-15;
-  case 'zoo':return n<=2?70:n<=4?40:n<=6?25:n<=8?10:-10;
-  default:return 0;
- }
-}
-function dopamineGameSeries(g){
- const es=dopRawEntries(g);
- const series=[];let bestSoFar=null;const seenCounts={};
- let sumTotal=0,hsCount=0,failCount=0;
- es.forEach((e,i)=>{
-  const parts=[{label:'Basis',v:1}];let total,isHS=false,bonus=0;
-  if(e.w===0){
-   parts.push({label:'Nicht geschafft',v:-30});total=1-30;failCount++;
-  } else {
-   const tbl=dopTableValue(g,e.n);
-   parts.push({label:'Ergebnis',v:tbl});total=1+tbl;
-   if(i>=3){
-    const better=bestSoFar==null||(g.dir==='low'?e.n<=bestSoFar:e.n>=bestSoFar);
-    if(better){
-     isHS=true;const rep=seenCounts[e.n]||0;bonus=rep>5?20:50;
-     parts.push({label:'Highscore',v:bonus});total+=bonus;hsCount++;
-    }
-   }
-   if(g.hint&&e.hint){parts.push({label:'Hinweis',v:-15});total-=15}
-  }
-  sumTotal+=total;
-  series.push({date:e.d,total,cum:sumTotal,parts,isHS,w:e.w});
-  if(e.w!==0&&e.n!=null){
-   bestSoFar=bestSoFar==null?e.n:(g.dir==='low'?Math.min(bestSoFar,e.n):Math.max(bestSoFar,e.n));
-   seenCounts[e.n]=(seenCounts[e.n]||0)+1;
-  }
- });
- return{series,sumTotal,hsCount,failCount,played:es.length};
-}
-function computeDopamineCtx(){
- const perGame={};let totalAll=0,hsAll=0,failAll=0;
- const dayMap={};
- G.forEach(g=>{
-  const gs=dopamineGameSeries(g);perGame[g.id]=gs;
-  totalAll+=gs.sumTotal;hsAll+=gs.hsCount;failAll+=gs.failCount;
-  gs.series.forEach(pt=>{const dm=dayMap[pt.date]=dayMap[pt.date]||{delta:0,hs:false};dm.delta+=pt.total;if(pt.isHS)dm.hs=true});
- });
- const days=Object.keys(dayMap).sort();
- let run=0;const daySeries=days.map(d=>{run+=dayMap[d].delta;return{date:d,delta:dayMap[d].delta,total:run,hs:dayMap[d].hs}});
- return{perGame,totalAll,hsAll,failAll,daySeries};
-}
-
-/* ---- Dopamin-Ränge: 25-stufige Leiter oberhalb der 6 Meilenstein-Stufen ---- */
-const DOP_RANKS=[
- {n:'Dopamin-Nullstufe',icon:'💤',th:0,tier:0},
- {n:'Erster Kick',icon:'✨',th:50,tier:0},
- {n:'Leichtes Prickeln',icon:'🫧',th:100,tier:0},
- {n:'Belohnungs-Sucher',icon:'🔍',th:175,tier:0},
- {n:'Dauerfeuer',icon:'🔥',th:300,tier:1},
- {n:'Serotonin-Schub',icon:'💫',th:500,tier:1},
- {n:'Endorphin-Rausch',icon:'🌈',th:800,tier:1},
- {n:'Dopamin-Junkie',icon:'💉',th:1250,tier:1},
- {n:'Glücks-Dealer',icon:'🎰',th:2000,tier:2},
- {n:'Highscore-Hamster',icon:'🐹',th:3000,tier:2},
- {n:'Punkte-Magnet',icon:'🧲',th:4500,tier:2},
- {n:'Belohnungszentrum-Overload',icon:'🤯',th:7000,tier:2},
- {n:'Dopamin-Veteran',icon:'🎖️',th:10000,tier:3},
- {n:'Serienfarmer',icon:'🌾',th:15000,tier:3},
- {n:'Punkte-Baron',icon:'🎩',th:22000,tier:3},
- {n:'Glücksgigant',icon:'🍀',th:32000,tier:3},
- {n:'Dopamin-Champion',icon:'🏆',th:46000,tier:4},
- {n:'Highscore-Legende',icon:'👑',th:65000,tier:4},
- {n:'Belohnungs-Titan',icon:'⚔️',th:90000,tier:4},
- {n:'Dopamin-Übermensch',icon:'🦾',th:125000,tier:4},
- {n:'Punkte-Imperator',icon:'🏛️',th:175000,tier:5},
- {n:'Galaktischer Farmer',icon:'🛸',th:250000,tier:5},
- {n:'Dopamin-Halbgott',icon:'🔱',th:350000,tier:5},
- {n:'Unendlicher Rausch',icon:'♾️',th:500000,tier:5},
- {n:'Dopamin-Gottheit',icon:'🌌',th:750000,tier:5}
-];
-function dopRankOf(total){
- let idx=0;
- for(let i=0;i<DOP_RANKS.length;i++)if(total>=DOP_RANKS[i].th)idx=i;
- const cur=DOP_RANKS[idx],next=DOP_RANKS[idx+1]||null;
- const progress=next?Math.max(0,Math.min(1,(total-cur.th)/(next.th-cur.th))):1;
- return{idx,cur,next,progress};
-}
-
-let dopRangeMode='all';
-function animateDopNumber(el,to){
- const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
- const from=parseFloat(el.dataset.v||el.textContent)||0;
- if(reduced||from===to){el.textContent=Math.round(to);el.dataset.v=to;return}
- const dur=500,t0=performance.now();
- function step(t){
-  const p=Math.min(1,(t-t0)/dur),v=from+(to-from)*(1-Math.pow(1-p,3));
-  el.textContent=Math.round(v);
-  if(p<1)requestAnimationFrame(step);else el.dataset.v=to;
- }
- requestAnimationFrame(step);
-}
-function dopSparkle(container){
- if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
- let html='';
- for(let i=0;i<14;i++){
-  const ang=Math.random()*360,dist=30+Math.random()*60,dur=(0.5+Math.random()*0.5).toFixed(2),delay=(Math.random()*0.15).toFixed(2);
-  html+=`<i class="doppart" style="--ang:${ang}deg;--dist:${dist}px;--dur:${dur}s;--delay:${delay}s;background:#e8b73a"></i>`;
- }
- container.innerHTML=html;
- clearTimeout(container._to);container._to=setTimeout(()=>{container.innerHTML=''},1100);
-}
-function renderDopamineHead(ctx,live){
- const el=$('dopTotal');
- animateDopNumber(el,ctx.totalAll);
- const today=iso(new Date());
- const todayPt=ctx.daySeries.find(d=>d.date===today);
- $('dopToday').textContent='Heute: '+(todayPt?(todayPt.delta>=0?'+':'')+Math.round(todayPt.delta):'+0');
- const rk=dopRankOf(ctx.totalAll);
- $('dopRankChip').innerHTML=`<span class="dopranki">${rk.cur.icon}</span> ${rk.cur.n}`;
- $('dopRankBar').style.width=(rk.progress*100).toFixed(1)+'%';
- $('dopRankNext').textContent=rk.next?'Noch '+Math.max(0,Math.ceil(rk.next.th-ctx.totalAll)).toLocaleString('de-DE')+' bis '+rk.next.n:'Höchster Rang erreicht';
- if(live){
-  const gs=ctx.perGame[live.gameId];
-  const pt=gs&&gs.series.find(p=>p.date===live.date);
-  const gain=$('dopGain'),brk=$('dopBreak');
-  if(pt){
-   gain.style.display='';
-   gain.className='dopgain '+(pt.total>=0?'up':'down');
-   gain.textContent=(pt.total>=0?'+':'')+Math.round(pt.total);
-   gain.style.animation='none';requestAnimationFrame(()=>{gain.style.animation=''});
-   brk.textContent=pt.parts.map(p=>(p.v>=0?'+':'')+p.v+' '+p.label).join(' · ');
-   if(pt.isHS||pt.total>=50)dopSparkle($('dopParts'));
-  } else {
-   gain.style.display='none';brk.textContent='';
-  }
- }
-}
-function dopLineChart(ctx,mode){
- let s=ctx.daySeries;
- if(mode==='30')s=s.slice(-30);else if(mode==='90')s=s.slice(-90);
- if(s.length<2)return '<div class="hint">Noch nicht genug Tage für den Verlauf.</div>';
- const W=300,H=110,p=10,vals=s.map(x=>x.total);
- let mn=Math.min(...vals),mx=Math.max(...vals);if(mn===mx){mn-=1;mx+=1}
- const X=i=>p+i*(W-2*p)/(s.length-1),Y=v=>p+(mx-v)*(H-2*p)/(mx-mn);
- const line=s.map((x,i)=>X(i)+','+Y(x.total)).join(' ');
- const dots=s.map((x,i)=>`<circle class="pt" data-label="${x.date.split('-').reverse().join('.')}" data-v="${Math.round(x.total)}" cx="${X(i)}" cy="${Y(x.total)}" r="${x.hs?3.2:2.4}" style="fill:${x.hs?'#e8b73a':'var(--ac)'}"/>`).join('');
- return `<svg viewBox="0 0 ${W} ${H}"><polyline points="${line}" fill="none" stroke="var(--ac)" stroke-width="2"/>${dots}</svg>
- <div class="hint">${s.length} Tage · goldener Punkt = Tag mit Highscore · auf Punkt tippen für Details</div>`;
-}
-let dopBarOffset=0;
-const DOP_BAR_PAGE=8;
-function dopBarChart(ctx,mode){
- let base=ctx.daySeries;
- if(mode==='30')base=base.slice(-30);else if(mode==='90')base=base.slice(-90);
- if(!base.length)return '<div class="hint">Noch keine Tage.</div>';
- const maxOffset=Math.max(0,Math.ceil(base.length/DOP_BAR_PAGE)-1);
- if(dopBarOffset>maxOffset)dopBarOffset=maxOffset;
- if(dopBarOffset<0)dopBarOffset=0;
- const end=base.length-dopBarOffset*DOP_BAR_PAGE,start=Math.max(0,end-DOP_BAR_PAGE);
- const s=base.slice(start,end);
- const m=Math.max(1,...s.map(x=>Math.abs(x.delta)));
- const rangeLabel=s.length?s[0].date.split('-').reverse().join('.')+' – '+s[s.length-1].date.split('-').reverse().join('.'):'';
- const nav=`<div class="distnav"><button data-dopnav="prev" ${start<=0?'disabled':''} title="Ältere Tage">‹</button><span>${rangeLabel}</span><button data-dopnav="next" ${dopBarOffset<=0?'disabled':''} title="Neuere Tage">›</button></div>`;
- return nav+'<div class="dist">'+s.map(x=>{
-  const h=Math.abs(x.delta)/m*100*.7;
-  return `<div><span>${x.hs?'<i class="dopstar">★</i>':''}${x.delta>=0?'+':''}${Math.round(x.delta)}</span><u style="height:${h}%;${x.delta<0?'background:var(--bad)':''}"></u>${x.date.slice(8,10)}</div>`;
- }).join('')+'</div>';
-}
-function renderDopamine(ctx){
- $('dopLine').innerHTML=dopLineChart(ctx,dopRangeMode);
- $('dopBars').innerHTML=dopBarChart(ctx,dopRangeMode);
- const pb=$('dopBars').querySelector('[data-dopnav="prev"]'),nb=$('dopBars').querySelector('[data-dopnav="next"]');
- if(pb)pb.onclick=()=>{dopBarOffset++;renderDopamine(ctx)};
- if(nb)nb.onclick=()=>{dopBarOffset=Math.max(0,dopBarOffset-1);renderDopamine(ctx)};
- const s=ctx.daySeries;
- if(s.length){
-  const best=s.reduce((a,b)=>b.delta>a.delta?b:a),worst=s.reduce((a,b)=>b.delta<a.delta?b:a);
-  const avg=s.reduce((a,b)=>a+b.delta,0)/s.length;
-  $('dopStats').innerHTML=chip(best.date.split('-').reverse().join('.')+' ('+Math.round(best.delta)+')','Bester Tag')
-   +chip(worst.date.split('-').reverse().join('.')+' ('+Math.round(worst.delta)+')','Schwächster Tag')
-   +chip(f(avg),'Ø pro Tag')+chip(ctx.hsAll,'Highscore-Boni')+chip(ctx.failAll,'Fehlschläge (−30)');
- } else $('dopStats').innerHTML='';
- const dopTableGames=G.filter(g=>ctx.perGame[g.id].played).sort((a,b)=>{
-  const ga=ctx.perGame[a.id],gb=ctx.perGame[b.id];
-  return (gb.sumTotal/gb.played)-(ga.sumTotal/ga.played);
- });
- $('dopTable').innerHTML='<tr><th>Puzzle</th><th>Summe</th><th>Ø/Eintrag</th><th>Highscores</th><th>Nicht geschafft</th></tr>'+
-  dopTableGames.map(g=>{const gs=ctx.perGame[g.id];
-   return `<tr><td>${g.n}</td><td>${Math.round(gs.sumTotal)}</td><td>${f(gs.sumTotal/gs.played)}</td><td>${gs.hsCount}</td><td>${gs.failCount}</td></tr>`;
-  }).join('');
-}
 
 function msContext(){
  const days=Object.keys(D).sort();
@@ -1605,12 +1349,7 @@ function evaluateMilestones(silentFirstRun){
  rows.push({id:'rt3',icon:'🥇',n:'Spiele mit Rating in Gold+',th:[1,3,6,9,12,15],v:rctx.gamesInGold,tab:'all'});
  rows.push({id:'rt4',icon:'🔥',n:'Tage in Folge positive Tagesänderung',th:[2,3,5,7,10,14],v:rctx.bestPosRun,tab:'all'});
  rows.push({id:'rt5',icon:'🏔️',n:'Neue Rating-Höchstwerte insgesamt',th:[3,10,25,50,100,200],v:rctx.newPeakCount,tab:'all'});
- const dctx=computeDopamineCtx();
- const bestDopDay=dctx.daySeries.length?Math.max(...dctx.daySeries.map(d=>d.delta)):0;
- rows.push({id:'dop1',icon:'⚡',n:'Gesamt-Dopamin',th:[100,500,1500,4000,10000,25000],v:Math.round(dctx.totalAll),tab:'all'});
- rows.push({id:'dop2',icon:'📅',n:'Bester Dopamin-Tag',th:[50,100,150,250,400,600],v:Math.round(bestDopDay),tab:'all'});
- rows.push({id:'dop3',icon:'🌟',n:'Highscore-Boni insgesamt',th:[3,10,25,50,100,200],v:dctx.hsAll,tab:'all'});
- rows.forEach(r=>{if(r.id.startsWith('rt')||r.id.startsWith('dop'))r.stage=tierOf(r.v,r.th)});
+ rows.forEach(r=>{if(r.id.startsWith('rt'))r.stage=tierOf(r.v,r.th)});
  const totalStageSum=rows.reduce((a,r)=>a+r.stage,0);
  const g19={id:'g19',icon:'🎒',n:'Sammler: freigeschaltete Stufen',th:[10,30,75,150,300,450],v:totalStageSum,tab:'all'};
  g19.stage=tierOf(g19.v,g19.th);rows.push(g19);
@@ -1634,11 +1373,6 @@ function evaluateMilestones(silentFirstRun){
    MS.sp[s.id]={ok:true,date:today};
   }
  });
- const rk=dopRankOf(dctx.totalAll),prevRankIdx=MS.rank?MS.rank.idx:-1;
- if(rk.idx>prevRankIdx){
-  if(!firstRun){for(let i=Math.max(0,prevRankIdx+1);i<=rk.idx;i++)newlyUnlocked.push({kind:'rank',rankIdx:i});}
-  MS.rank={idx:rk.idx,date:(MS.rank&&MS.rank.date)?MS.rank.date:today};
- }
  if(firstRun){
   MS.__init=true;MS.__initDate=today;
   MS.__firstRunCount=rows.reduce((a,r)=>a+(MS.rows[r.id]?MS.rows[r.id].stage:0),0);
@@ -1646,8 +1380,8 @@ function evaluateMilestones(silentFirstRun){
  }
  saveMS();
  if(db)scheduleMsPush();
- window._msRows=rows;window._msSpecials=specials;window._msDopTotal=dctx.totalAll;
- renderMilestones(rows,specials,dctx.totalAll);
+ window._msRows=rows;window._msSpecials=specials;
+ renderMilestones(rows,specials);
  if(firstRun&&(MS.__firstRunCount>0||MS.__firstRunSpecials>0)){
   queueUnlock({kind:'summary',count:MS.__firstRunCount,specials:MS.__firstRunSpecials});
  }
@@ -1674,9 +1408,6 @@ function showUnlockOverlay(u){
  } else if(u.kind==='league-summary'){
   const tv=TIERS[u.leagueIdx];
   title='Willkommen zurück!';sub='Du bist bereits in der '+tv.n+'-Liga unterwegs.';icon='🎉';color='#e8b73a';glow='rgba(232,183,58,.6)';tierIdx=3;
- } else if(u.kind==='rank'){
-  const rk=DOP_RANKS[u.rankIdx],tv=TIERS[Math.max(0,Math.min(5,rk.tier))];
-  title='Neuer Rang!';sub='Du bist jetzt: '+rk.n;icon=rk.icon;color=tv.c;glow=tv.glow;tierIdx=rk.tier+1;
  } else {
   const tv=tierVisual(u.stage);
   title=u.row.n;sub=tv.n+' erreicht';icon=u.row.icon;color=tv.c;glow=tv.glow;tierIdx=u.stage;
@@ -1705,12 +1436,11 @@ function showUnlockOverlay(u){
 }
 function closeUnlock(){const ov=$('msOverlay');ov.style.display='none';ov.innerHTML='';setTimeout(playNextUnlock,150)}
 function skipAllUnlocks(){msQueue=[];closeUnlock()}
-function replayUnlock(rowId,isSpecial,isRank){
- if(isRank){const idx=parseInt(rowId,10);if(DOP_RANKS[idx])queueUnlock({kind:'rank',rankIdx:idx});return}
+function replayUnlock(rowId,isSpecial){
  if(isSpecial){const s=(window._msSpecials||[]).find(x=>x.id===rowId);if(s)queueUnlock({kind:'special',row:s});return}
  const r=(window._msRows||[]).find(x=>x.id===rowId);if(r&&r.stage>0)queueUnlock({kind:'row',row:r,stage:r.stage});
 }
-function renderMilestones(rows,specials,dopTotal){
+function renderMilestones(rows,specials){
  const totalPossible=rows.length*6,totalDone=rows.reduce((a,r)=>a+r.stage,0);
  const unlockedEntries=[];
  Object.keys(MS.rows||{}).forEach(id=>{const info=MS.rows[id];const r=rows.find(x=>x.id===id);if(r&&info.stage>0)unlockedEntries.push({n:r.n+' · '+tierVisual(info.stage).n,date:info.date})});
@@ -1742,22 +1472,8 @@ function renderMilestones(rows,specials,dopTotal){
    ${ok?`<button class="msreplay" data-rid="${s.id}" data-sp="1">▶</button>`:''}
   </div>`;
  }).join('');
- const rk=dopRankOf(dopTotal||0);
- const rankHtml=DOP_RANKS.map((r,i)=>{
-  const reached=i<=rk.idx,isCur=i===rk.idx,tv=TIERS[Math.max(0,Math.min(5,r.tier))];
-  const nextInfo=isCur?(rk.next?'Noch '+Math.max(0,Math.ceil(rk.next.th-(dopTotal||0))).toLocaleString('de-DE')+' bis '+rk.next.n:'Höchster Rang erreicht'):null;
-  return `<div class="msrow ${isCur?'msrow-cur':''}">
-   <div class="msicon" style="background:${reached?tv.c:'var(--bd)'};color:${reached?'#fff':'var(--mu)'}">${reached?r.icon:'🔒'}</div>
-   <div class="msbody">
-    <div class="msname">${reached?r.n:'???'}</div>
-    <div class="msprog">ab ${r.th.toLocaleString('de-DE')} Dopamin${nextInfo?' · '+nextInfo:''}</div>
-    ${isCur&&rk.next?`<div class="doprankbar" style="margin-top:4px"><u style="width:${(rk.progress*100).toFixed(1)}%"></u></div>`:''}
-   </div>
-   ${reached?`<button class="msreplay" data-rid="${i}" data-rank="1">▶</button>`:''}
-  </div>`;
- }).join('');
- $('msList').innerHTML=tab==='special'?spHtml:tab==='ranks'?rankHtml:rowHtml;
- $('msList').querySelectorAll('.msreplay').forEach(b=>b.onclick=()=>replayUnlock(b.dataset.rid,!!b.dataset.sp,!!b.dataset.rank));
+ $('msList').innerHTML=tab==='special'?spHtml:rowHtml;
+ $('msList').querySelectorAll('.msreplay').forEach(b=>b.onclick=()=>replayUnlock(b.dataset.rid,!!b.dataset.sp));
 }
 
 /* ===================== AUTO-INSIGHTS ===================== */
@@ -1843,15 +1559,8 @@ function insightWeekVsWeek(){
  if(last7.length<3||prev7.length<3)return null;
  const l=last7.reduce((a,b)=>a+b.p,0)/last7.length,pr=prev7.reduce((a,b)=>a+b.p,0)/prev7.length,delta=l-pr;
  if(Math.abs(delta)<5)return null;
- let dopTxt='';
- try{const dctx=computeDopamineCtx();
-  if(dctx&&dctx.daySeries&&dctx.daySeries.length>=10){
-   const dlast=dctx.daySeries.slice(-7).reduce((a,x)=>a+x.delta,0),dprev=dctx.daySeries.slice(-14,-7).reduce((a,x)=>a+x.delta,0);
-   dopTxt=` (Dopamin ${dlast>=0?'+':''}${Math.round(dlast)} statt ${dprev>=0?'+':''}${Math.round(dprev)})`;
-  }
- }catch(e){}
  return{type:6,cat:'Trend',title:'Woche im Vergleich',
-  text:`Diese Woche Ø Tagesform ${f(l)} statt ${f(pr)} letzte Woche (${delta>=0?'+':''}${Math.round(delta)})${dopTxt}.`,
+  text:`Diese Woche Ø Tagesform ${f(l)} statt ${f(pr)} letzte Woche (${delta>=0?'+':''}${Math.round(delta)}).`,
   detail:'Letzte 7 Tage mit Einträgen vs. die 7 Tage davor.',key:'wvw'+Math.round(l)+'_'+Math.round(pr)};
 }
 function insightNoFailStreak(){
@@ -1896,15 +1605,10 @@ function insightMilestoneProximity(){
  const full=ds.filter(d=>GA.every(g=>D[d][g.id])).length;
  const cats=[{n:'Tagen erfasst',v:ds.length,th:[10,25,50,100,200,365]},{n:'perfekten Tagen',v:full,th:[5,10,25,50,100]},{n:'Tagen Serie',v:ls,th:[7,14,30,60,100]}];
  let best=null;
- cats.forEach(c=>{const next=c.th.find(t=>c.v<t);if(next!=null){const gap=next-c.v;if(gap<=5&&(!best||gap<best.gap))best={n:c.n,next,gap,isDop:false}}});
- try{const dctx=computeDopamineCtx();
-  if(dctx){const rk=dopRankOf(dctx.totalAll);
-   if(rk&&rk.next){const gap=Math.ceil(rk.next.th-dctx.totalAll);
-    if(gap>0&&gap<=50)if(!best)best={n:'Dopamin-Rang',next:rk.next.n,gap,isDop:true};}}
- }catch(e){}
+ cats.forEach(c=>{const next=c.th.find(t=>c.v<t);if(next!=null){const gap=next-c.v;if(gap<=5&&(!best||gap<best.gap))best={n:c.n,next,gap}}});
  if(!best)return null;
  return{type:10,cat:'Rekord',title:'Meilenstein in Reichweite',
-  text:best.isDop?`Noch ${best.gap} Dopamin bis Rang „${best.next}“.`:`Noch ${best.gap} bis ${best.next} ${best.n}.`,
+  text:`Noch ${best.gap} bis ${best.next} ${best.n}.`,
   detail:'Basierend auf deinem aktuellen Stand.',key:'ms'+best.n+'_'+best.next};
 }
 function insightAlbum(){
@@ -2103,17 +1807,6 @@ function computeReportData(start,end){
  const recordsHit=records().filter(([g,bv,cnt,fd,ld])=>bv!=null&&ld>=start&&ld<=end).map(([g])=>g.n);
  RANGE=savedRange;
 
- const dctx=computeDopamineCtx();
- const periodPts=dctx.daySeries.filter(p=>p.date>=start&&p.date<=end);
- const dopGain=periodPts.reduce((a,p)=>a+p.delta,0);
- const dopHsCount=periodPts.filter(p=>p.hs).length;
- const bestDopDay=periodPts.length?periodPts.reduce((a,b)=>b.delta>a.delta?b:a):null;
- const beforePts=dctx.daySeries.filter(p=>p.date<start);
- const totalBefore=beforePts.length?beforePts[beforePts.length-1].total:0;
- const uptoPts=dctx.daySeries.filter(p=>p.date<=end);
- const totalAfter=uptoPts.length?uptoPts[uptoPts.length-1].total:totalBefore;
- const rankBefore=dopRankOf(totalBefore),rankAfter=dopRankOf(totalAfter);
-
  const rctx=computeRatingCtx();
  const seriesBefore=rctx.overallSeries.filter(p=>p.date<start);
  const seriesUpto=rctx.overallSeries.filter(p=>p.date<=end);
@@ -2127,10 +1820,6 @@ function computeReportData(start,end){
   avgForm,prevAvgForm,
   bestDay:bestDay?{d:bestDay.d,p:bestDay.p}:null,worstDay:worstDay?{d:worstDay.d,p:worstDay.p}:null,
   recordsHit,
-  dopGain:Math.round(dopGain),dopHsCount,
-  bestDopDay:bestDopDay?{date:bestDopDay.date,delta:Math.round(bestDopDay.delta)}:null,
-  dopTotalAfter:Math.round(totalAfter),
-  dopRankBefore:rankBefore.cur.n,dopRankAfter:rankAfter.cur.n,dopRankUp:rankAfter.idx>rankBefore.idx,
   ratingBefore:ratingBefore!=null?Math.round(ratingBefore):null,
   ratingAfter:ratingAfter!=null?Math.round(ratingAfter):null,
   ratingDelta:(ratingBefore!=null&&ratingAfter!=null)?Math.round(ratingAfter-ratingBefore):null,
@@ -2141,7 +1830,6 @@ function computeReportData(start,end){
 function reportFazit(d){
  let t=`Du hast an ${d.daysPlayed} von ${d.periodLenDays} Tagen gespielt`+(d.fullDays?`, davon ${d.fullDays} komplett`:'')+'. ';
  if(d.avgForm!=null)t+=`Tagesform im Schnitt ${f(d.avgForm)} %`+(d.prevAvgForm!=null?(d.avgForm>=d.prevAvgForm?' (▲ gegenüber der Vorperiode)':' (▼ gegenüber der Vorperiode)'):'')+'. ';
- t+=`Dopamin ${d.dopGain>=0?'+':''}${d.dopGain}`+(d.dopRankUp?` – Rang-Aufstieg zu ${d.dopRankAfter}! `:'. ');
  if(d.ratingDelta!=null)t+=`Rating ${d.ratingDelta>=0?'+':''}${d.ratingDelta}`+(d.leagueUp?` – Aufstieg in die ${d.leagueAfter}-Liga! `:'. ');
  if(d.recordsHit.length)t+=`Neue/bestätigte Rekorde bei: ${d.recordsHit.join(', ')}.`;
  return t;
@@ -2197,7 +1885,7 @@ function renderReports(){
    <div class="msicon" style="background:var(--ac2);color:var(--ac)">${r.type==='week'?'🗓️':'📆'}</div>
    <div class="msbody">
     <div class="msname">${r.label}</div>
-    <div class="msprog">Form Ø ${f(d.avgForm)} % · Dopamin ${d.dopGain>=0?'+':''}${d.dopGain} · Rating ${d.ratingDelta==null?'–':(d.ratingDelta>=0?'+':'')+d.ratingDelta}</div>
+    <div class="msprog">Form Ø ${f(d.avgForm)} % · Rating ${d.ratingDelta==null?'–':(d.ratingDelta>=0?'+':'')+d.ratingDelta}</div>
    </div>
    <button class="msreplay reportToggle" data-rid="${r.id}">▼</button>
   </div>
@@ -2208,9 +1896,6 @@ function renderReports(){
     ${chip(f(d.avgForm),'Formkurve Ø %')}
     ${d.bestDay?chip(d.bestDay.d.split('-').reverse().join('.')+' ('+f(d.bestDay.p)+'%)','Bester Tag'):''}
     ${d.worstDay?chip(d.worstDay.d.split('-').reverse().join('.')+' ('+f(d.worstDay.p)+'%)','Schwächster Tag'):''}
-    ${chip((d.dopGain>=0?'+':'')+d.dopGain,'Dopamin')}
-    ${chip(d.dopHsCount,'Highscore-Boni')}
-    ${chip(d.dopRankAfter,'Dopamin-Rang (Ende)')}
     ${chip(d.ratingAfter==null?'–':d.ratingAfter,'Rating (Ende)')}
     ${chip(d.ratingDelta==null?'–':(d.ratingDelta>=0?'+':'')+d.ratingDelta,'Rating-Änderung')}
     ${d.leagueAfter?chip(d.leagueAfter,'Liga (Ende)'):''}
@@ -2316,7 +2001,6 @@ function render(){
  $('hist').innerHTML='<tr><th>Datum</th>'+G.map(g=>`<th>${g.n.replace(' ','<br>')}</th>`).join('')+'<th>Form</th><th>Platz</th><th>Top</th></tr>'+
   (hd.length?hd.map(d=>`<tr class="click ${d===cur?'sel':''}" data-d="${d}"><td>${d.split('-').reverse().join('.')}${D[d].note?` <span title="${escA(D[d].note)}">📝</span>`:''}</td>`+G.map(g=>`<td>${cell(D[d][g.id])}</td>`).join('')+
    `<td>${rankMap[d]?f(pMap[d]):'–'}</td><td>${rankMap[d]?rankMap[d].rank+'/'+rankMap[d].total:'–'}</td><td>${rankMap[d]?rankMap[d].pct+' %':'–'}</td>`+'</tr>').join(''):`<tr><td colspan="${G.length+4}" class="hint">Noch keine Einträge.</td></tr>`);
- const dctx=computeDopamineCtx();window._dopCtx=dctx;renderDopamineHead(dctx);renderDopamine(dctx);
  renderHeatmap();
  renderInsights();
 }
@@ -2417,7 +2101,7 @@ document.getElementById('msTabs').addEventListener('click',e=>{
  const b=e.target.closest('button[data-t]');if(!b)return;
  document.querySelectorAll('#msTabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
  window._msTab=b.dataset.t;
- if(window._msRows)renderMilestones(window._msRows,window._msSpecials,window._msDopTotal||0);
+ if(window._msRows)renderMilestones(window._msRows,window._msSpecials);
 });
 document.querySelectorAll('#rtRangeBtns button[data-r]').forEach(b=>b.onclick=()=>{
  document.querySelectorAll('#rtRangeBtns button[data-r]').forEach(x=>x.classList.remove('on'));
@@ -2425,11 +2109,6 @@ document.querySelectorAll('#rtRangeBtns button[data-r]').forEach(b=>b.onclick=()
  if(window._ratingCtx)renderRating(window._ratingCtx);
 });
 $('rtSort').onchange=()=>{if(window._ratingCtx)renderRating(window._ratingCtx)};
-document.querySelectorAll('#dopRangeBtns button[data-r]').forEach(b=>b.onclick=()=>{
- document.querySelectorAll('#dopRangeBtns button[data-r]').forEach(x=>x.classList.remove('on'));
- b.classList.add('on');dopRangeMode=b.dataset.r;dopBarOffset=0;
- if(window._dopCtx)renderDopamine(window._dopCtx);
-});
 document.querySelectorAll('#reportsTabs button[data-rt]').forEach(b=>b.onclick=()=>{
  document.querySelectorAll('#reportsTabs button[data-rt]').forEach(x=>x.classList.remove('on'));
  b.classList.add('on');window._reportsTab=b.dataset.rt;renderReports();
@@ -2438,5 +2117,5 @@ form();render();status();initCloud();
 evaluateRating();evaluateMilestones();
 maybeGenerateReports();renderReports();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=14"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=4"></script><script src="theme.js?v=15"></script>
 </body></html>

@@ -94,7 +94,7 @@ const CSS=`
 #gf .gf-tip b{display:block;font-size:20px;color:var(--ac,#7cd4ff)}
 #gf .gf-tip .d{opacity:.75;font-size:12px}
 #gf .gf-tip .x{opacity:.85;font-size:12px;margin-top:3px}
-#gf .gf-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;align-content:start}
+#gf .gf-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));grid-auto-rows:max-content;gap:10px;align-content:start}   /* Zeilen nie kleiner als der Inhalt (Querformat: Spalte rechts mit fester Höhe) */
 #gf .gf-t{padding:11px 13px;border-radius:14px;border:1px solid rgb(var(--acc,120 200 255)/.28);background:rgba(10,22,38,.58);min-height:78px}
 #gf .gf-t .l{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;opacity:.7}
 #gf .gf-t .v{font-size:25px;font-weight:700;margin-top:3px;color:#fff;text-shadow:0 0 14px rgb(var(--acc,120 200 255)/.4)}

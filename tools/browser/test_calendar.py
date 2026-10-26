@@ -27,7 +27,8 @@ def seed():
     s[f'users/u1/calendar/ev_{y}']={'list':ev}
     s[f'users/u1/calendar/notes_{y}']={'n':{iso(today-dt.timedelta(days=1)):{'t':'Guter Tag','m':4}}}
     yd=iso(today-dt.timedelta(days=1))
-    s[f'users/u1/days/{yd}']={'date':yd,'net':14,'rank':'A','closed':True,'focus':'Statistik lernen und 5 km laufen'}
+    s[f'users/u1/days/{yd}']={'date':yd,'focus':'Statistik lernen und 5 km laufen'}
+    s[f'users/u1/journal/{yd}']={'m':{'mood':4,'energy':3,'feel':'ruhig'},'g':[{'t':'5 km laufen','at':'18:00','done':True}]}
     s[f'users/u1/puzzle/{yd}']={'g':{'fermi':{'s':3},'ner':{'s':4}},'t':1}
     s[f'users/u1/learn/{yd}']={'rounds':[{},{}]}
     s[f'users/u1/training/acts_{y}']={'list':[{'i':'a1','t':int(dt.datetime.combine(today-dt.timedelta(days=1),dt.time(18,0),ZoneInfo('Europe/Berlin')).timestamp()*1000),'r':'','n':'Intervalle','k':8.0,'s':2700}]}
@@ -71,7 +72,7 @@ def run(p,w,h,phone):
     pg.evaluate(f"CalendarPage.state.cur='{yd}';CalendarPage.state.sel='{yd}';CalendarPage.refresh()")
     pg.wait_for_timeout(400)
     side=pg.locator('#side').inner_text()
-    ck(t+'Rückblick: Heute-Rang',('Heute-Rang A' in side),side[:200].replace('\n',' | '))
+    ck(t+'Rückblick: Check-in',('Check-in: Stimmung 4/5' in side),side[:200].replace('\n',' | '))
     ck(t+'Rückblick: Recovery, Training, Puzzle, Lernen',all(x in side for x in ['Recovery','Intervalle','Puzzle: 2','Lernen: 2 Runden']))
     ck(t+'Notiz + Stimmung geladen',pg.input_value('#nt')=='Guter Tag' and pg.locator('#moods .on').count()==1)
     pg.screenshot(path=f'{shots}/cal_{tag}_day_side.png',full_page=True)
@@ -137,15 +138,9 @@ def run(p,w,h,phone):
     pg.fill('#q',''); pg.wait_for_timeout(200)
     t0=pg.inner_text('#ttl'); pg.click('#next'); t1=pg.inner_text('#ttl'); pg.click('#prev'); ck(t+'Vor/Zurück',t0!=t1 and pg.inner_text('#ttl')==t0,(t0,t1))
     pg.click('#next'); pg.click('#today'); ck(t+'Heute-Knopf',pg.inner_text('#ttl')==t0)
-    # Jarvis-Handler
-    r=pg.evaluate("JarvisHandlers.calendar_add({title:'Per Sprache',date:'morgen',time:'16 Uhr',reminder_minutes:30})"); pg.wait_for_timeout(300)
-    ck(t+'Jarvis trägt Termin ein',('Eingetragen' in (r.get('say') or '')) and any(e['title']=='Per Sprache' and e['time']=='16:00' and e['rem']==30 for e in pg.evaluate("window.__store")[evk]['list']),r)
-    r=pg.evaluate("JarvisHandlers.calendar_add({title:'Ohne Tag'})"); ck(t+'Jarvis fragt nach fehlendem Tag','ask' in r,r)
-    r=pg.evaluate("JarvisHandlers.calendar_add({title:'Quatsch',date:'irgendwann'})"); ck(t+'Jarvis: unverständliches Datum wird nachgefragt','ask' in r,r)
-    r=pg.evaluate("JarvisHandlers.calendar_note({text:'Per Sprache notiert'})"); ck(t+'Jarvis ergänzt Notiz','ergänzt' in (r.get('say') or ''),r)
     ag=pg.evaluate("(()=>{const C=CalCore,t=C.todayBerlin();return C.agendaText(C.occurrences(CalStore.state.events,C.addDays(t,1),C.addDays(t,1)),C.addDays(t,1),C.addDays(t,1),t)})()")
-    ck(t+'Tagesplan morgen enthält Zahnarzt und Per Sprache','Zahnarzt' in ag and 'Per Sprache' in ag,ag)
-    ctxs=pg.evaluate("window.LB_PAGE_CONTEXT()"); ck(t+'Seitenkontext für Jarvis','KALENDER-SEITE' in ctxs)
+    ck(t+'Tagesplan morgen enthält Zahnarzt','Zahnarzt' in ag,ag)
+    ctxs=pg.evaluate("window.LB_PAGE_CONTEXT()"); ck(t+'Seitenkontext','KALENDER-SEITE' in ctxs)
     # Erinnerungs-Speicher blockiert nicht, wenn Schreiben fehlschlägt
     pg.evaluate("window.__failWrites=true"); pg.click('#add'); pg.wait_for_selector('#eT'); pg.fill('#eT','Geht nicht'); pg.click('#eSave'); pg.wait_for_timeout(400)
     ck(t+'Schreibfehler: Meldung, Editor bleibt offen',('Nicht gespeichert' in pg.inner_text('#eErr')) and pg.locator('#ed').is_visible())

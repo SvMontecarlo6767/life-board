@@ -1,0 +1,145 @@
+{
+ "note": "Beschriftungen der früheren Heute-Knöpfe – nur noch, damit Muster ältere Einträge (users/{uid}/days) auswerten kann.",
+ "buttons": [
+  {
+   "id": "kraft",
+   "label": "Krafttraining",
+   "group": "sport"
+  },
+  {
+   "id": "kraftlog",
+   "label": "Kraft: im Vergleich zum letzten Mal",
+   "group": "sport"
+  },
+  {
+   "id": "pr",
+   "label": "Neuer Kraft-PR",
+   "group": "sport"
+  },
+  {
+   "id": "sprint",
+   "label": "Sprint-Einheit (≥ 6 Sprints)",
+   "group": "sport"
+  },
+  {
+   "id": "lauf",
+   "label": "Lauf",
+   "group": "sport"
+  },
+  {
+   "id": "spinning",
+   "label": "Spinning",
+   "group": "sport"
+  },
+  {
+   "id": "isometrie",
+   "label": "Isometrie",
+   "group": "sport"
+  },
+  {
+   "id": "waden",
+   "label": "Waden",
+   "group": "sport"
+  },
+  {
+   "id": "halten",
+   "label": "Halteübung ≥ 2 Min (Plank, Wandsitz)",
+   "group": "sport"
+  },
+  {
+   "id": "schulsport",
+   "label": "Schulsport aktiv",
+   "group": "sport"
+  },
+  {
+   "id": "fussball",
+   "label": "Fußball",
+   "group": "sport"
+  },
+  {
+   "id": "mobility",
+   "label": "Dehnen / Mobility",
+   "group": "sport"
+  },
+  {
+   "id": "lernblock",
+   "label": "Lernblock",
+   "group": "lernen"
+  },
+  {
+   "id": "thema",
+   "label": "Thema",
+   "group": "lernen"
+  },
+  {
+   "id": "wdh",
+   "label": "Wiederholungsrunde",
+   "group": "lernen"
+  },
+  {
+   "id": "recall",
+   "label": "Active Recall bestanden (≥ 80 %)",
+   "group": "lernen"
+  },
+  {
+   "id": "feynman",
+   "label": "Jemandem erklärt",
+   "group": "lernen"
+  },
+  {
+   "id": "klausur",
+   "label": "Klausurvorbereitung 45 Min",
+   "group": "lernen"
+  },
+  {
+   "id": "lesen",
+   "label": "Lesen",
+   "group": "lernen"
+  },
+  {
+   "id": "morgen",
+   "label": "Morgenroutine komplett",
+   "group": "alltag"
+  },
+  {
+   "id": "dusche",
+   "label": "Kalte Dusche",
+   "group": "alltag"
+  },
+  {
+   "id": "protein",
+   "label": "Protein-Tagesziel erreicht",
+   "group": "alltag"
+  },
+  {
+   "id": "zucker",
+   "label": "Kein-Zucker-Tag",
+   "group": "alltag"
+  },
+  {
+   "id": "suess",
+   "label": "Süßigkeiten (pro Portion)",
+   "group": "alltag"
+  },
+  {
+   "id": "fastfood",
+   "label": "Fast Food",
+   "group": "alltag"
+  },
+  {
+   "id": "alkohol",
+   "label": "Alkohol",
+   "group": "alltag"
+  },
+  {
+   "id": "spazieren",
+   "label": "Spaziergang",
+   "group": "alltag"
+  },
+  {
+   "id": "deepwork",
+   "label": "Deep-Work-Block 90 Min",
+   "group": "alltag"
+  }
+ ]
+}

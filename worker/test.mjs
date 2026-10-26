@@ -366,12 +366,22 @@ console.log('✓ Zeitraum-Schutz');
   const P = globalThis.__lbPush.parseFeed(globalThis.__feeds['heise.de/rss/heise-top-atom.xml']);
   assert.deepEqual([P[0].t, P[0].url, P[0].s], ['Neues Sprachmodell vorgestellt', 'https://www.heise.de/news/1.html', 'Es soll schneller sein.'], 'Atom wird gelesen');
   const r = await worker.fetch(new Request('https://w.example/news', { headers: { Authorization: 'Bearer ' + token() } }), nenv); const N = await r.json();
-  assert.equal(r.status, 200); assert.deepEqual(N.sections.map(x => x.id), ['welt', 'tech'], 'kein Sport');
-  const welt = N.sections[0].items.map(x => x.t);
-  assert.deepEqual(welt, ['Bundestag beschließt Haushalt', 'Waffenruhe vereinbart & bestätigt', 'Streik bei der Bahn'], 'Reihenfolge der Redaktion, doppelt und veraltet raus: ' + welt.join(' | '));
+  assert.equal(r.status, 200); assert.deepEqual(N.sections.map(x => x.id), ['top', 'de', 'welt', 'wirtschaft', 'tech'], 'Bereiche ohne Sport');
+  const ids = id => N.sections.find(x => x.id === id).items.map(x => x.t);
+  assert.deepEqual(ids('top'), ['Bundestag beschließt Haushalt', 'Waffenruhe vereinbart & bestätigt'], 'Top-Themen in Reihenfolge der Redaktion, veraltet raus');
+  assert.deepEqual(ids('de'), ['Streik bei der Bahn'], 'Meldung aus den Top-Themen nicht nochmal in Deutschland');
   assert.equal(N.sections[0].items[1].s, 'Beide Seiten stimmen zu.', 'HTML und Zeichen sauber');
-  assert.ok(N.sections[0].items[0].s.length <= 262 && N.sections[0].items[0].s.endsWith('.'), 'Kurztext am Satzende gekürzt');
+  assert.ok(N.sections[0].items[0].s.endsWith('.'), 'Kurztext vollständig');
+  const L = globalThis.__lbPush.parseFeed('<rss><item><title>Lang</title><description>Vorspann kurz.</description><content:encoded><![CDATA[<p>' + 'Ein langer Satz mit vielen Wörtern über das Thema. '.repeat(40) + '</p>]]></content:encoded></item></rss>')[0];
+  assert.ok(L.s.startsWith('Vorspann kurz. Ein langer Satz') && L.s.length > 1500, 'Artikelanfang wird mitgenommen');
   assert.ok(N.sources.some(x => !x.ok) && N.n === 4 && N.minutes >= 1, 'fehlende Quelle bricht nichts');
+  // lange Texte: Top-Themen bis 900 Zeichen, die ersten je Bereich bis 650, sonst bis 380
+  globalThis.__feeds['tagesschau.de/index~rss2.xml'] = rss([['Großes Thema', 'Satz Nummer eins ist hier. '.repeat(60)], ['Zweites Thema', 'b']]);
+  globalThis.__feeds['tagesschau.de/inland/index~rss2.xml'] = rss([['Inland lang', 'Noch ein Satz für Inland. '.repeat(60)]]);
+  const N2 = await (await worker.fetch(new Request('https://w.example/news?refresh=1', { headers: { Authorization: 'Bearer ' + token() } }), nenv)).json();
+  const big = N2.sections[0].items[0].s, inl = N2.sections[1].items[0].s;
+  assert.ok(big.length > 700 && big.length <= 900 && big.endsWith('.'), 'Top-Thema ausführlich: ' + big.length);
+  assert.ok(inl.length > 500 && inl.length <= 650 && inl.endsWith('.'), 'erste Meldungen je Bereich ausführlich: ' + inl.length);
   // Push: Überblick zusammen mit Morgen-Check als eine Nachricht
   const ua = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']), uaPub = new Uint8Array(await crypto.subtle.exportKey('raw', ua.publicKey));
   const api = async (path, body) => { const q = await worker.fetch(new Request('https://w.example' + path, { method: body ? 'POST' : 'GET', headers: { Authorization: 'Bearer ' + token(), 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined }), nenv); return q.json() };

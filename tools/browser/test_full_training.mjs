@@ -5,7 +5,7 @@ export default async function({page,openFull,closeFull,ck,shots}){
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'lbt-')),file=path.join(dir,'seed.json');
   execFileSync('node',[path.join(path.dirname(fileURLToPath(import.meta.url)),'gen_training_seed.mjs'),file,'2026-10-25']);
   const seed=JSON.parse(fs.readFileSync(file,'utf8'));seed['users/u1/training/settings'].view='allround';
-  const pg=await page('training.html',820,1180,seed);
+  const pg=await page('training.html',+(process.env.W||820),+(process.env.H||1180),seed);
   await pg.waitForSelector('#c-form svg',{timeout:20000}).catch(()=>{});await pg.waitForTimeout(1500);
   if(!(await pg.$('#c-form svg'))){c('Training geladen',false,await pg.textContent('body').then(t=>t.slice(0,300)));return f}
   await openFull(pg,'#c-form');

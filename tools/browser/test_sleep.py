@@ -65,23 +65,5 @@ with sync_playwright() as p:
     run(p,1280,900,40,'Alkohol')
     run(p,393,852,40,'Alkohol')
     run(p,1024,800,9,'Noch nicht prüfbar')
-    # Heute: Mahlzeit & Krank
-    days,seed=build(5)
-    b=p.chromium.launch(); ctx=b.new_context(viewport={'width':1024,'height':900})
-    ctx.add_init_script('window.__seed={};')
-    for nm,body in(('app',mock),('auth',''),('firestore','')):
-        ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%nm),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))
-    ctx.route(re.compile(r'fonts\.(googleapis|gstatic)\.com'),lambda r:r.abort())
-    ctx.route(re.compile(r'workers\.dev'),lambda r:r.fulfill(headers={'access-control-allow-origin':'*','content-type':'application/json'},body='{"days":{}}') if r.request.method!='OPTIONS' else r.fulfill(status=204,headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'}))
-    pg=ctx.new_page();errs=[];pg.on('pageerror',lambda e:errs.append(str(e)))
-    pg.clock.set_fixed_time('2026-10-15T19:00:00+02:00')
-    pg.goto(f'http://127.0.0.1:{port}/heute.html');pg.wait_for_selector('#meal',timeout=20000);pg.wait_for_timeout(800)
-    pg.fill('#meal','21:15');pg.dispatch_event('#meal','change');pg.wait_for_timeout(500)
-    st=pg.evaluate('window.__store');dk=[k for k in st if '/days/' in k]
-    ck('[Heute] Mahlzeit gespeichert',any(st[k].get('meal')=='21:15' for k in dk),dk)
-    pg.check('#sickBox');pg.wait_for_timeout(400);st=pg.evaluate('window.__store')
-    ck('[Heute] Krank gespeichert',any(st[k].get('sick') is True for k in dk if k in st))
-    ck('[Heute] keine Fehler',not errs,errs[:2])
-    b.close()
 srv.shutdown()
 print('FEHLER: '+str(fails) if fails else 'FEHLER: keine');sys.exit(1 if fails else 0)

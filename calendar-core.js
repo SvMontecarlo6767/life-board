@@ -176,9 +176,10 @@ function agendaText(occs,from,to,today){
 const MOODS=['','😖','😕','😐','🙂','😄'];
 function fmt1(v,d){return v==null||!isFinite(v)?'–':(Math.round(v*Math.pow(10,d||0))/Math.pow(10,d||0)).toLocaleString('de-DE',{maximumFractionDigits:d||0})}
 function dayFacts(date,src){
-  src=src||{};const f=[],D=(src.days||{})[date],W=(src.whoop||{})[date],T=(src.training||{})[date],P=(src.puzzle||{})[date],L=(src.learn||{})[date],N=(src.notes||{})[date];
-  if(D&&(D.closed||D.net!=null)&&D.rank)f.push({k:'heute',icon:'🎯',text:'Heute-Rang '+D.rank+(D.net!=null?' ('+(D.net>0?'+':'')+fmt1(D.net,0)+' Punkte)':'')+(D.closed?'':' · Tag nicht abgeschlossen'),v:D.rank});
-  if(D&&D.sick)f.push({k:'krank',icon:'🤒',text:'Als krank markiert'});
+  src=src||{};const f=[],D=(src.days||{})[date],J=(src.journal||{})[date],W=(src.whoop||{})[date],T=(src.training||{})[date],P=(src.puzzle||{})[date],L=(src.learn||{})[date],N=(src.notes||{})[date];
+  if(J&&J.mood)f.push({k:'checkin',icon:MOODS[J.mood+0]||'🙂',text:'Check-in: Stimmung '+J.mood+'/5'+(J.energy?' · Energie '+J.energy+'/5':'')+(J.feel?' · „'+J.feel+'“':''),v:J.mood});
+  if(J&&J.goals&&J.goals.length)f.push({k:'ziele',icon:'🎯',text:'Ziele: '+J.goals.filter(x=>x.done).length+' von '+J.goals.length+' erledigt',v:J.goals.filter(x=>x.done).length});
+  if((D&&D.sick)||(J&&J.sick))f.push({k:'krank',icon:'🤒',text:'Als krank markiert'});
   if(W&&W.rec!=null)f.push({k:'rec',icon:'💚',text:'Recovery '+fmt1(W.rec,0)+' %'+(W.hrv!=null?' · HRV '+fmt1(W.hrv,0)+' ms':''),v:W.rec});
   if(W&&W.asleep!=null)f.push({k:'sleep',icon:'😴',text:'Schlaf '+fmt1(W.asleep,1)+' Std'+(W.perf!=null?' · Performance '+fmt1(W.perf,0)+' %':''),v:W.asleep});
   if(W&&W.strain!=null)f.push({k:'strain',icon:'🔥',text:'Strain '+fmt1(W.strain,1),v:W.strain});
@@ -189,19 +190,19 @@ function dayFacts(date,src){
   if(N&&N.m)f.push({k:'mood',icon:MOODS[N.m]||'🙂',text:'Stimmung '+N.m+' von 5',v:N.m});
   return f;
 }
-/* Der „Fokus für morgen“ aus dem Tagesabschluss in Heute gilt für den Folgetag */
-function planFor(date,src){const D=((src||{}).days||{})[addDays(date,-1)];return D&&D.focus&&String(D.focus).trim()?String(D.focus).trim():''}
+/* Plan des Tages: Tagesziele aus dem Check-in (nach Uhrzeit), sonst der alte „Fokus für morgen“ vom Vortag */
+function planFor(date,src){src=src||{};const J=(src.journal||{})[date];if(J&&J.goals&&J.goals.length)return J.goals.slice().sort((a,b)=>(a.at||'99').localeCompare(b.at||'99')).map(x=>(x.done?'✓ ':'')+(x.at?x.at+' ':'')+x.t).join(' · ');
+  const D=(src.days||{})[addDays(date,-1)];return D&&D.focus&&String(D.focus).trim()?String(D.focus).trim():''}
 /* Heatmap-Stufe 1..4 (null = keine Daten). 1 schwach, 4 stark – „stark“ ist je Metrik gut oder viel, nie bewertend gemeint. */
-const METRICS=[{id:'rank',name:'Heute-Rang'},{id:'rec',name:'Recovery'},{id:'strain',name:'Strain'},{id:'training',name:'Training'},{id:'puzzle',name:'Puzzle'},{id:'mood',name:'Stimmung'},{id:'events',name:'Termine'}];
+const METRICS=[{id:'rec',name:'Recovery'},{id:'strain',name:'Strain'},{id:'training',name:'Training'},{id:'puzzle',name:'Puzzle'},{id:'mood',name:'Stimmung'},{id:'events',name:'Termine'}];
 function heatLevel(metric,date,src,occsByDate){
   src=src||{};
-  if(metric==='rank'){const D=(src.days||{})[date];if(!D||!D.rank)return null;return {C:1,B:2,A:3,S:4}[D.rank]||null}
   if(metric==='rec'){const W=(src.whoop||{})[date];if(!W||W.rec==null)return null;return W.rec<34?1:W.rec<67?2:W.rec<80?3:4}
   if(metric==='strain'){const W=(src.whoop||{})[date];if(!W||W.strain==null)return null;return W.strain<8?1:W.strain<12?2:W.strain<16?3:4}
   if(metric==='training'){const T=(src.training||{})[date],W=(src.whoop||{})[date];const tm=(T||[]).reduce((s,a)=>s+(a.min||0),0),wm=((W&&W.wlist)||[]).reduce((s,w)=>s+(w.min||0),0),min=Math.max(tm,wm);   // dieselbe Einheit kann in beiden stehen: nicht doppelt zählen
     if(!min)return null;return min<30?1:min<60?2:min<90?3:4}
   if(metric==='puzzle'){const P=(src.puzzle||{})[date];if(!P)return null;return P<2?1:P<4?2:P<7?3:4}
-  if(metric==='mood'){const N=(src.notes||{})[date];if(!N||!N.m)return null;return Math.max(1,Math.min(4,N.m-1||1))}
+  if(metric==='mood'){const N=(src.notes||{})[date],J=(src.journal||{})[date],m=(J&&J.mood)||(N&&N.m);if(!m)return null;return Math.max(1,Math.min(4,m-1||1))}
   if(metric==='events'){const n=((occsByDate||{})[date]||[]).length;if(!n)return null;return n<2?1:n<3?2:n<5?3:4}
   return null;
 }

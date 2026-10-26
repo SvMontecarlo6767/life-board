@@ -8,7 +8,6 @@ const ICON={
   hub:'<path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/>',
   checkin:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   muster:'<path d="M4 19l5-6 4 3 7-9"/><circle cx="4" cy="19" r="1.5"/><circle cx="9" cy="13" r="1.5"/><circle cx="13" cy="16" r="1.5"/><circle cx="20" cy="7" r="1.5"/>',
-  heute:'<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>',
   recovery:'<path d="M3 12h4l2-6 4 12 2-6h6"/>',
   lernen:'<path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4zM20 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>',
   puzzle:'<path d="M10 4a2 2 0 114 0v2h4v4h-2a2 2 0 100 4h2v4h-4v-2a2 2 0 10-4 0v2H6v-4h2a2 2 0 100-4H6V6h4z"/>',
@@ -18,14 +17,13 @@ const ICON={
 };
 const TABS=[
   {id:'hub',name:'Hub',file:'index.html',href:'index.html',rgb:[58,215,255],rgb2:[120,150,255]},
-  {id:'checkin',name:'Check-in',file:'checkin.html',href:'checkin.html?v=1',rgb:[255,190,90],rgb2:[255,120,160]},
-  {id:'heute',name:'Heute',file:'heute.html',href:'heute.html?v=7',rgb:[58,215,255],rgb2:[120,150,255]},
-  {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=1',rgb:[255,200,70],rgb2:[255,120,90]},
-  {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=5',rgb:[52,235,170],rgb2:[58,215,255]},
-  {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=2',rgb:[150,125,255],rgb2:[70,140,255]},
-  {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=3',rgb:[255,150,60],rgb2:[255,70,170]},
+  {id:'checkin',name:'Check-in',file:'checkin.html',href:'checkin.html?v=2',rgb:[255,190,90],rgb2:[255,120,160]},
+  {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=2',rgb:[255,200,70],rgb2:[255,120,90]},
+  {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=6',rgb:[52,235,170],rgb2:[58,215,255]},
+  {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=3',rgb:[150,125,255],rgb2:[70,140,255]},
+  {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=4',rgb:[255,150,60],rgb2:[255,70,170]},
   {id:'training',name:'Training',file:'training.html',href:'training.html?v=4',rgb:[255,84,96],rgb2:[255,154,92]},
-  {id:'muster',name:'Muster',file:'muster.html',href:'muster.html?v=1',rgb:[120,230,255],rgb2:[180,120,255]}
+  {id:'muster',name:'Muster',file:'muster.html',href:'muster.html?v=2',rgb:[120,230,255],rgb2:[180,120,255]}
 ];
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};
 const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];
@@ -34,7 +32,7 @@ const curTab=()=>TABS.find(t=>t.file===fileOf())||TABS[0];
 const THEMES={
   cockpit:{id:'cockpit',name:'Cockpit',sw:['#3ad7ff','#7896ff'],meta:'#04080f'},
   jungle:{id:'jungle',name:'Dschungel',sw:['#6fe39a','#d8e86a'],meta:'#050d08',
-    tabs:{hub:[[110,225,140],[205,235,105]],checkin:[[255,196,92],[255,140,80]],heute:[[110,228,150],[190,236,100]],kalender:[[240,205,90],[225,140,70]],
+    tabs:{hub:[[110,225,140],[205,235,105]],checkin:[[255,196,92],[255,140,80]],kalender:[[240,205,90],[225,140,70]],
       recovery:[[60,222,165],[130,232,120]],lernen:[[200,140,235],[140,110,235]],puzzle:[[255,150,60],[255,70,170]],training:[[255,112,80],[255,172,70]],muster:[[120,228,210],[190,232,120]]}}
 };
 const themeOf=()=>THEMES[S.theme]||THEMES.cockpit;

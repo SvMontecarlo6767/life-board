@@ -29,6 +29,12 @@ h1{margin:4px 0 0;font-size:22px}
 .it.read b{opacity:.65}
 .info{margin:12px 0;padding:12px 14px;border-radius:12px;background:var(--ac2);border:1px solid var(--bd);font-size:14px}
 .info.warn{background:var(--bad2);color:var(--bad)}
+.toc{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0}
+.toc a{font-size:13px;text-decoration:none;color:var(--tx);border:1px solid var(--bd);border-radius:99px;padding:6px 12px;min-height:34px;display:inline-flex;align-items:center;gap:6px}
+.toc a em{font-style:normal;color:var(--mu)}
+.card.top .it b{font-size:19px}
+.card.top .it p{font-size:15.5px;line-height:1.55}
+.it .more{display:inline-block;margin-top:4px;font-size:13px;color:var(--ac)}
 .src{font-size:12.5px;color:var(--mu);margin-top:8px;line-height:1.6}
 </style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
 </head><body><div class="wrap">
@@ -57,10 +63,12 @@ function show(N){
   if(!N||!N.sections){return}
   const r=read();
   $('sub').textContent=new Date(N.at).toLocaleDateString('de-DE',{weekday:'long',day:'numeric',month:'long'})+' · '+N.n+' Meldungen · ca. '+N.minutes+' Min'+(N.stale?' · älterer Stand':'');
-  $('main').innerHTML=N.sections.filter(s=>s.items.length).map(s=>'<section class="card"><h3>'+esc(s.title)+'</h3>'+s.items.map(x=>'<a class="it'+(r[x.url]?' read':'')+'" '+(x.url?'href="'+esc(x.url)+'" target="_blank" rel="noopener"':'')+' data-u="'+esc(x.url)+'"><b>'+esc(x.t)+'</b>'+(x.s?'<p>'+esc(x.s)+'</p>':'')+'<small>'+esc(x.src||'')+(x.time?' · '+when(x.time):'')+'</small></a>').join('')+'</section>').join('')||'<div class="info">Gerade keine Meldungen. Später nochmal versuchen.</div>';
+  const S=N.sections.filter(s=>s.items.length);
+  $('main').innerHTML=(S.length>1?'<nav class="toc" aria-label="Bereiche">'+S.map(s=>'<a href="#n-'+esc(s.id)+'">'+esc(s.title)+' <em>'+s.items.length+'</em></a>').join('')+'</nav>':'')
+    +S.map(s=>'<section class="card'+(s.id==='top'?' top':'')+'" id="n-'+esc(s.id)+'"><h3>'+esc(s.title)+'</h3>'+s.items.map(x=>'<a class="it'+(r[x.url]?' read':'')+'" '+(x.url?'href="'+esc(x.url)+'" target="_blank" rel="noopener"':'')+' data-u="'+esc(x.url)+'"><b>'+esc(x.t)+'</b>'+(x.s?'<p>'+esc(x.s)+'</p>':'')+'<small>'+esc(x.src||'')+(x.time?' · '+when(x.time):'')+(x.url?' · <span class="more">ganzer Artikel ›</span>':'')+'</small></a>').join('')+'</section>').join('')||'<div class="info">Gerade keine Meldungen. Später nochmal versuchen.</div>';
   $('main').querySelectorAll('[data-u]').forEach(a=>a.addEventListener('click',()=>{if(a.dataset.u){markRead(a.dataset.u);a.classList.add('read')}}));
   const bad=(N.sources||[]).filter(x=>!x.ok).map(x=>x.name);
-  $('src').innerHTML='Quellen: tagesschau.de, heise online. Kurztexte von den Redaktionen, ohne KI.'+(bad.length?'<br>Gerade nicht erreichbar: '+esc([...new Set(bad)].join(', '))+' (die anderen Quellen reichen aus).':'');
+  $('src').innerHTML='Quellen: tagesschau.de, ZDFheute, Deutsche Welle, heise online. Texte von den Redaktionen, ohne KI.'+(bad.length?'<br>Gerade nicht erreichbar: '+esc([...new Set(bad)].join(', '))+' (die anderen Quellen reichen aus).':'');
 }
 async function load(force){
   $('ref').disabled=true;
@@ -79,5 +87,5 @@ $('ref').onclick=()=>load(true);
 load(false);
 })();
 </script>
-<script src="theme.js?v=14"></script>
+<script src="theme.js?v=15"></script>
 </body></html>

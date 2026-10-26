@@ -286,7 +286,7 @@ async function notionQuestions(env, id) {
 // ---------- KI-Assistent (Gemini, kostenloses Kontingent) ----------
 const GEMINI_API = 'https://generativelanguage.googleapis.com/v1beta/models/';
 const AI_TIMEOUT = 15000;   // ms pro Modell, danach das nächste
-const AI_SYSTEM = 'Du bist J.A.R.V.I.S, der persönliche Assistent im "Life Board" einer einzelnen Person (Whoop-Daten, Dopamin-Punkte-System, Lernen mit Wiederholungen, Puzzle-Tracker). ' +
+const AI_SYSTEM = 'Du bist J.A.R.V.I.S, der persönliche Assistent im "Life Board" einer einzelnen Person (Whoop-Daten, Check-in, Lernen mit Wiederholungen, Puzzle-Tracker). ' +
   'Persönlichkeit: ruhig, souverän, knapp, leicht trocken, wie der Jarvis aus Iron Man. Du sprichst die Person mit "du" an und antwortest auf Deutsch, ohne Floskeln und ohne Begrüßungsformeln. ' +
   'Stütze dich auf die mitgelieferten Daten und die Seitenbeschreibung; erfinde keine Zahlen. Wenn Daten fehlen, sag das. Gib keine medizinischen Diagnosen. ' +
   'Bei Bewertungen von Lernantworten: nenne einen Vorschlag (richtig / fast / falsch) mit kurzer Begründung; die Person entscheidet selbst.';
@@ -500,44 +500,61 @@ async function stravaActivities(env, b) {
 // ---------- Routen ----------
 
 // ---------- Tagesüberblick (Nachrichten aus RSS/Atom, ohne KI) ----------
-// Nur das Wichtige (kein Sport): Top-Meldungen in der Reihenfolge der Redaktion, dazu Technik & Wissen.
+// Nur das Wichtige (kein Sport): Top-Themen ausführlich, dann Deutschland, Welt, Wirtschaft, Technik & Wissen –
+// in der Reihenfolge der Redaktionen, etwa 8–10 Minuten Lesezeit.
 // Pro Bereich mehrere Quellen; fällt eine aus, reichen die anderen. Kurztexte stammen von den Redaktionen.
 const NEWS_SECTIONS = [
-  { id: 'welt', title: 'Deutschland & Welt', max: 8, feeds: [['tagesschau', 'https://www.tagesschau.de/index~rss2.xml'], ['tagesschau Inland', 'https://www.tagesschau.de/inland/index~rss2.xml'], ['tagesschau Ausland', 'https://www.tagesschau.de/ausland/index~rss2.xml']] },
-  { id: 'tech', title: 'Technik & Wissen', max: 4, feeds: [['heise', 'https://www.heise.de/rss/heise-top-atom.xml'], ['heise', 'https://www.heise.de/newsticker/heise-top-atom.xml'], ['tagesschau Wissen', 'https://www.tagesschau.de/wissen/index~rss2.xml']] }
+  // long: so viele Meldungen bekommen den ausführlichen Text (bis longChars), die übrigen bis shortChars
+  { id: 'top', title: 'Die wichtigsten Themen', max: 3, long: 3, longChars: 900, feeds: [['tagesschau', 'https://www.tagesschau.de/index~rss2.xml'], ['ZDFheute', 'https://www.zdf.de/rss/zdf/nachrichten']] },
+  { id: 'de', title: 'Deutschland', max: 6, long: 2, feeds: [['tagesschau Inland', 'https://www.tagesschau.de/inland/index~rss2.xml'], ['tagesschau', 'https://www.tagesschau.de/index~rss2.xml']] },
+  { id: 'welt', title: 'Welt', max: 6, long: 2, feeds: [['tagesschau Ausland', 'https://www.tagesschau.de/ausland/index~rss2.xml'], ['DW', 'https://rss.dw.com/xml/rss-de-all']] },
+  { id: 'wirtschaft', title: 'Wirtschaft', max: 4, long: 1, feeds: [['tagesschau Wirtschaft', 'https://www.tagesschau.de/wirtschaft/index~rss2.xml']] },
+  { id: 'tech', title: 'Technik & Wissen', max: 6, long: 2, feeds: [['heise', 'https://www.heise.de/rss/heise-top-atom.xml'], ['heise', 'https://www.heise.de/newsticker/heise-top-atom.xml'], ['tagesschau Wissen', 'https://www.tagesschau.de/wissen/index~rss2.xml'], ['tagesschau Digitales', 'https://www.tagesschau.de/wirtschaft/digitales/index~rss2.xml']] }
 ];
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', shy: '' };
 const unent = t => String(t || '').replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e) => e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : +e.slice(1)) : (ENT[e.toLowerCase()] ?? m));
 const untag = t => unent(String(t || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 function tagOf(x, names) { for (const n of names) { const m = new RegExp('<' + n + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + n + '>', 'i').exec(x); if (m) return m[1] } return '' }
 /* RSS 2.0 und Atom -> [{t, s, url, time}] */
+/* Text bis max Zeichen, am Satzende gekürzt */
+function cutText(txt, max) {
+  if (txt.length <= max) return txt;
+  const cut = txt.slice(0, max), dot = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '), cut.lastIndexOf('." '));
+  return dot > max * 0.35 ? cut.slice(0, dot + 1) : cut.replace(/\s+\S*$/, '') + ' …';
+}
+/* RSS 2.0 und Atom -> [{t, s (längster verfügbarer Text), url, time}]; höchstens 20 Einträge pro Feed */
 function parseFeed(xml) {
-  const out = [], blocks = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || [];
+  const out = [], blocks = (xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || []).slice(0, 20);
   for (const b of blocks) {
     const t = untag(tagOf(b, ['title'])); if (!t) continue;
     let url = untag(tagOf(b, ['link'])); if (!/^https?:/.test(url)) { const m = /<link[^>]*?href="([^"]+)"[^>]*?(?:rel="alternate"[^>]*)?\/?>/i.exec(b); url = m ? unent(m[1]) : '' }
-    let txt = untag(tagOf(b, ['description', 'summary', 'content:encoded', 'content']));
-    if (txt.length > 260) { const cut = txt.slice(0, 260), dot = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? ')); txt = dot > 80 ? cut.slice(0, dot + 1) : cut.replace(/\s+\S*$/, '') + ' …' }
+    const short = untag(tagOf(b, ['description', 'summary'])), full = untag(tagOf(b, ['content:encoded', 'content']));
+    let txt = full.length > short.length + 40 ? full : short;
+    if (short && full && !full.startsWith(short.slice(0, 40)) && full.length > short.length + 40) txt = short + ' ' + full;   // Vorspann + Artikelanfang
     const d = Date.parse(untag(tagOf(b, ['pubDate', 'published', 'updated', 'dc:date'])));
-    out.push({ t, s: txt === t ? '' : txt, url: /^https:\/\//.test(url) ? url : '', time: isNaN(d) ? null : d });
+    out.push({ t, s: txt === t ? '' : txt.replace(/^\s*mehr\s*$/i, ''), url: /^https:\/\//.test(url) ? url : '', time: isNaN(d) ? null : d });
   }
   return out;
 }
 async function newsBuild(env, nowMs) {
-  const sources = [], sections = [];
-  await Promise.all(NEWS_SECTIONS.map(async sec => {
-    const got = await Promise.all(sec.feeds.map(async ([name, url]) => {
-      try { const r = await fetch(url, { headers: { 'User-Agent': 'LifeBoard/1.0 (privat)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' }, signal: AbortSignal.timeout(8000) });
-        if (!r.ok) throw new Error(String(r.status)); const items = parseFeed(await r.text()); sources.push({ name, sec: sec.id, ok: items.length > 0 }); return items.map(x => Object.assign(x, { src: name.split(' ')[0] })) }
-      catch (e) { sources.push({ name, sec: sec.id, ok: false }); return [] }
-    }));
-    const seen = new Set(), all = [];
-    got.forEach((list, fi) => list.forEach((x, i) => { const k = x.t.toLowerCase().replace(/[^a-zäöüß0-9]+/g, ' ').trim().slice(0, 60); if (seen.has(k)) return; seen.add(k); all.push(Object.assign(x, { rank: fi * 0.5 + i })) }));
-    const fresh = all.filter(x => !x.time || nowMs - x.time < 36 * 3600e3);
-    fresh.forEach(x => { if (sec.prefer && sec.prefer.test(x.t + ' ' + x.s)) x.rank -= 6 });   // Bundesliga, CL, Nationalteam zuerst
-    sections.push({ id: sec.id, title: sec.title, items: fresh.sort((a, b) => a.rank - b.rank).slice(0, sec.max).map(({ rank, ...x }) => x) });
-  }));
-  sections.sort((a, b) => NEWS_SECTIONS.findIndex(s => s.id === a.id) - NEWS_SECTIONS.findIndex(s => s.id === b.id));
+  const sources = [], sections = [], cache = new Map(), seen = new Set();
+  const load = (name, url) => { if (!cache.has(url)) cache.set(url, (async () => {
+    try { const r = await fetch(url, { headers: { 'User-Agent': 'LifeBoard/1.0 (privat)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' }, signal: AbortSignal.timeout(8000) });
+      if (!r.ok) throw new Error(String(r.status)); const items = parseFeed((await r.text()).slice(0, 600000)); sources.push({ name, ok: items.length > 0 }); return items.map(x => Object.assign(x, { src: name.split(' ')[0] })) }
+    catch (e) { sources.push({ name, ok: false }); return [] } })()); return cache.get(url) };
+  const all = await Promise.all(NEWS_SECTIONS.map(sec => Promise.all(sec.feeds.map(([n, u]) => load(n, u)))));   // alle Feeds gleichzeitig
+  NEWS_SECTIONS.forEach((sec, si) => {   // der Reihe nach, damit eine Meldung nur im ersten passenden Bereich steht
+    const list = [];
+    all[si].forEach((items, fi) => items.forEach((x, i) => { if (x.time && nowMs - x.time > 36 * 3600e3) return; list.push({ x, rank: fi * 0.5 + i }) }));
+    list.sort((a, b) => a.rank - b.rank);
+    const items = [];
+    for (const { x } of list) {
+      const k = x.t.toLowerCase().replace(/[^a-zäöüß0-9]+/g, ' ').trim().slice(0, 60); if (seen.has(k)) continue; seen.add(k);
+      items.push(Object.assign({}, x, { s: cutText(x.s, items.length < (sec.long || 0) ? (sec.longChars || 650) : 380) }));
+      if (items.length >= sec.max) break;
+    }
+    sections.push({ id: sec.id, title: sec.title, items });
+  });
   const words = sections.reduce((n, s) => n + s.items.reduce((m, x) => m + (x.t + ' ' + x.s).split(/\s+/).length, 0), 0);
   const n = sections.reduce((k, s) => k + s.items.length, 0);
   const res = { at: nowMs, day: berlinNow(nowMs).day, n, minutes: Math.max(1, Math.round(words / 200)), sections, sources };
@@ -617,7 +634,7 @@ function pushDue(cfg, nowMs) {
   const nw = cfg.news || {}, nt = n.dow === 0 || n.dow === 6 ? nw.we : nw.wd;
   if (nw.on && hmOk(nt) && !(cfg.sent[n.day] || []).includes('news') && n.wall >= wallMin(n.day, nt) && n.wall - wallMin(n.day, nt) <= 180) {
     const mi = out.findIndex(o => o.key === 'morning');
-    const nd = { day: n.day, key: 'news', news: true, msg: { title: '📰 Dein Tagesüberblick', body: 'Das Wichtigste aus Deutschland & Welt, Technik und Wissen.', url: 'news.html?v=1', tag: 'news' } };
+    const nd = { day: n.day, key: 'news', news: true, msg: { title: '📰 Dein Tagesüberblick', body: 'Top-Themen, Deutschland, Welt, Wirtschaft, Technik & Wissen.', url: 'news.html?v=1', tag: 'news' } };
     if (mi >= 0) { out[mi] = Object.assign(nd, { also: 'morning', msg: { title: '☀️ Guten Morgen', body: 'Kurz einchecken – danach wartet dein Tagesüberblick.', url: 'checkin.html?v=1&news=1', tag: 'morning' } }) }   // eine Nachricht statt zwei
     else out.push(nd);
   }

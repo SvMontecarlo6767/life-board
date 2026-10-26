@@ -1,8 +1,8 @@
-/* Lern-Logik ohne Oberfläche (Leitner-light, Runden, Punkte-Zähler). Getestet mit tools/test-learn.mjs. */
+/* Lern-Logik ohne Oberfläche (Leitner-light, Runden). Getestet mit tools/test-learn.mjs. */
 (function(root){
 const OK_DAYS={1:1,2:7,3:30,4:90}, FAST_DAYS={1:1,2:3,3:10,4:30};
 const DOWN={1:1,2:1,3:2,4:2};
-const MAX_PAID_ROUNDS=3, PASS=0.8, ROUND=5;
+const PASS=0.8, ROUND=5;
 function addDays(k,n){const d=new Date(k+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
 function hash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return (h>>>0).toString(36)}
 function qid(pageId,text){return pageId+'_'+hash(String(text).trim().toLowerCase())}
@@ -32,20 +32,6 @@ function mixPick(qs,today,n){
   return out;
 }
 const score=r=>r.reduce((s,x)=>s+(x==='ok'?1:x==='fast'?.5:0),0);
-/* rounds: [{type:'std'|'mix', n, ratings, topics}] eines Tages -> Zähler für die Punkte-Engine */
-function dayCounts(rounds){
-  const c={};let paid=0,pass=false;
-  for(const r of rounds||[]){
-    if(r.n<ROUND)continue;                 // unvollständige Runde zählt nicht
-    if(paid>=MAX_PAID_ROUNDS)break;
-    paid++;
-    const id=r.type==='mix'&&(r.topics|0)>=3?'WDH-13':'WDH-01';
-    c[id]=(c[id]|0)+1;
-    if(score(r.ratings)/r.n>=PASS)pass=true;
-  }
-  if(pass)c['LRN-07']=1;
-  return c;
-}
 function stats(qs,today){
   const st={total:qs.length,nw:0,due:0,overdue:0,stage:{1:0,2:0,3:0,4:0},learned:0};
   for(const q of qs){
@@ -56,6 +42,6 @@ function stats(qs,today){
   }
   return st;
 }
-const api={schedule,queue,mixPick,dayCounts,stats,qid,hash,addDays,isNew,isDue,score,MAX_PAID_ROUNDS,ROUND,PASS};
+const api={schedule,queue,mixPick,stats,qid,hash,addDays,isNew,isDue,score,ROUND,PASS};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LearnCore=api;
 })(typeof window!=='undefined'?window:globalThis);

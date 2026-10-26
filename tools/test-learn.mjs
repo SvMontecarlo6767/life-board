@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 const require = createRequire(import.meta.url);
-const L = require('../learn-core.js'), E = require('../engine.js'), rules = require('../rules/v2.json');
+const L = require('../learn-core.js');
 const T = '2026-10-15';
 // Abstände
 let q = { stage: 1, reps: 0 };
@@ -22,14 +22,4 @@ const st = L.stats(qs,T); assert.equal(st.due,2); assert.equal(st.overdue,2); as
 assert.equal(L.qid('p','Hallo?'), L.qid('p',' hallo? '));
 // Zähler
 const R = (type,ratings,topics=1) => ({ type, n: ratings.length, ratings, topics });
-assert.deepEqual(L.dayCounts([R('std',['ok','ok','ok','ok','bad'])]), { 'WDH-01':1, 'LRN-07':1 });
-assert.deepEqual(L.dayCounts([R('std',['ok','bad','bad','fast','ok'])]), { 'WDH-01':1 });
-assert.deepEqual(L.dayCounts([R('mix',['ok','ok','ok','ok','ok'],3)]), { 'WDH-13':1, 'LRN-07':1 });
-assert.deepEqual(L.dayCounts([R('mix',['ok','ok'],3)]), {}, 'unvollständig zählt nicht');
-const four = [1,2,3,4].map(()=>R('std',['bad','bad','bad','bad','bad']));
-assert.equal(L.dayCounts(four)['WDH-01'], 3, 'max. 3 Runden mit Punkten');
-// Engine: Punkte
-const one = E.computeDay(rules, { 'WDH-01':1 }), three = E.computeDay(rules, L.dayCounts(four));
-assert.equal(three.net, 3*one.net, 'drei Runden = dreifacher Wert');
-const many = E.computeDay(rules, { 'WDH-01':9 }); assert.equal(many.net, three.net, 'Obergrenze 3 greift in der Engine');
-console.log('Lern-Logik OK; 1 Runde =', one.net, 'Punkte');
+console.log('Lern-Logik OK');

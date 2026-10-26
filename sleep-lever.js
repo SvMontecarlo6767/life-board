@@ -280,8 +280,8 @@ function zettel(opt,keys,works,entries){
   const noMeal=recent.filter(e=>!(entries[e]&&entries[e].meal)).length;
   const noAlc=recent.filter(e=>!(entries[e]&&(entries[e].alcohol===true||entries[e].alcohol===false))).length;
   items.push('Ende der harten Einheit: kommt aus Whoop-Workouts'+(works.length?' (vorhanden)':' (bisher keine Workouts gefunden)')+'; Selbstbewertung in der Trainingsansicht ergänzen.');
-  items.push('Letzte große Mahlzeit: im Heute-Reiter eintragen'+(keys.length?' (bei '+noMeal+' der letzten '+recent.length+' Nächte fehlt sie)':'')+'.');
-  items.push('Alkohol ja/nein: im Heute-Reiter'+(keys.length?' (bei '+noAlc+' der letzten '+recent.length+' Nächte kein Eintrag)':'')+'.');
+  items.push('Letzte große Mahlzeit: im Check-in eintragen (Abend)'+(keys.length?' (bei '+noMeal+' der letzten '+recent.length+' Nächte fehlt sie)':'')+'.');
+  items.push('Alkohol ja/nein: im Check-in (Abend)'+(keys.length?' (bei '+noAlc+' der letzten '+recent.length+' Nächte kein Eintrag)':'')+'.');
   items.push('Bettzeit: kommt automatisch aus Whoop (Schlafbeginn), nichts zu tun.');
   return{title:'Zwei-Wochen-Zettel',items,note:'Nach zwei Wochen erneut prüfen, über den GANZEN Zeitraum.'};
 }
