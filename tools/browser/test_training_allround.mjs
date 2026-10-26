@@ -10,7 +10,7 @@ const srv=http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.
 await new Promise(ok=>srv.listen(0,'127.0.0.1',ok));const URL='http://127.0.0.1:'+srv.address().port;
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'lbt-')),file=path.join(dir,'seed.json');
 execFileSync('node',[path.join(here,'gen_training_seed.mjs'),file,'2026-10-25']);
-const seed=JSON.parse(fs.readFileSync(file,'utf8'));seed['users/u1/training/settings'].view='allround';
+const seed=JSON.parse(fs.readFileSync(file,'utf8'));seed['users/u1/training/settings'].view='allround';seed['users/u1/training/settings'].workouts=[{id:'wp',name:'Pull',ex:['Klimmzüge','Rudern']}];
 // zwei Whoop-Einheiten „functional-fitness“ (noch nicht ergänzt) und eine Gym-Einheit mit Klimmzügen
 const t1=Date.parse('2026-10-24T15:00:00Z'),t2=Date.parse('2026-10-23T15:00:00Z');
 seed['users/u1/training/acts_2026'].list.push({i:'w901',t:t1,r:'functional-fitness',n:'',k:null,s:3900,h:138,m:176,e:null,c:null,g:null,q:500,p:null,x:null,w:13.1},{i:'w902',t:t2,r:'functional-fitness',n:'',k:null,s:2700,h:150,m:182,e:null,c:null,g:null,q:400,p:null,x:null,w:11.2});
@@ -34,16 +34,21 @@ let a=(await st()).find(x=>x.i==='w901');ck('Ergänzung gespeichert',a.o==='Plyo
 ck('danach nur noch 1 offen',(await pg.$$eval('#m-todo .todo',x=>x.length))===1);
 // zweite: Kraft, Pull -> Übungen eintragen (verknüpft)
 await pg.click('.todo[data-id=w902] [data-tfo=Pull]');await pg.click('.todo[data-id=w902] [data-trp="7"]');await pg.click('.todo[data-id=w902] [data-tgym]');await pg.waitForTimeout(400);
-ck('Gym-Logbuch mit Pull-Vorlage und Verknüpfung',/Gehört zur Whoop-Einheit/.test(await pg.textContent('#gymBox'))&&/Klimmzüge/.test(await pg.textContent('#gymBox')));
+ck('Gym-Logbuch lädt dein Workout „Pull“ mit Verknüpfung',/Gehört zur Whoop-Einheit/.test(await pg.textContent('#gymBox'))&&/Klimmzüge/.test(await pg.textContent('#gymBox')));
 const before=(await st()).length;
 await pg.evaluate(()=>{const inp=[...document.querySelectorAll('#gymBox input')].filter(i=>/Wdh|wdh|r/i.test(i.placeholder||i.getAttribute('aria-label')||''));});
 // einen Satz eintragen und speichern
 const inputs=await pg.$$('#gymBox .gset input, #gymBox input[inputmode=decimal], #gymBox input[inputmode=numeric]');
 if(inputs.length>=2){await inputs[0].fill('0');await inputs[1].fill('12')}
+await pg.click('#gymBox .gx:has-text("Rudern") [data-a=skip]');await pg.waitForTimeout(200);
+if(shots){await pg.evaluate(()=>document.getElementById('gymBox').scrollIntoView());await pg.screenshot({path:shots+'/workout.png'})}
+ck('Übung auslassen zeigt „heute ausgelassen“',/heute ausgelassen/.test(await pg.textContent('#gymBox')));
 await pg.click('#gSave').catch(()=>{});await pg.waitForTimeout(500);
 const gym=await pg.evaluate(()=>window.__store['users/u1/training/gym_2026'].list);
 const lastG=gym[gym.length-1];
 ck('Gym-Einheit verknüpft gespeichert',lastG&&lastG.w==='w902',JSON.stringify(lastG&&{w:lastG.w,e:lastG.e}));
+ck('Ausgelassene Übung wird mitgespeichert',lastG&&JSON.stringify(lastG.k)==='["Rudern"]'&&lastG.e.length===1,JSON.stringify(lastG&&{k:lastG.k,e:lastG.e}));
+ck('Verlauf zeigt „Ausgelassen: Rudern“',/Ausgelassen: Rudern/.test(await pg.textContent('#gymBox')));
 ck('keine zweite Einheit angelegt (zählt einmal)',(await st()).length===before&&!(await st()).some(x=>x.i==='g'+(lastG&&lastG.i)));
 ck('Balance-Ampel da',(await pg.$$eval('#m-bal .bal .bc',x=>x.length))===4);
 const bal=await pg.textContent('#m-bal');ck('Plyometrie zählt als Explosiv',/Explosiv\s*1/.test(bal.replace(/\s+/g,' ')),bal.slice(0,200));
@@ -68,5 +73,18 @@ await pg.click('#gymBox .gmp [data-a=mreset]');await pg.waitForTimeout(300);
 cfg=await pg.evaluate(()=>window.__store['users/u1/training/settings'].muscles||{});
 ck('Standard wiederhergestellt',!cfg[mk]&&!/eigene/.test(await pg.textContent(mb)),JSON.stringify(cfg));
 await pg.click('#gymBox .gmus[data-at=p]');ck('Auswahl schließt wieder',!(await pg.$('#gymBox .gmp')));
+// keine fertigen Vorlagen mehr, eigene Workouts anlegen
+const stTxt=await pg.textContent('#gymBox .gstart');
+ck('Keine vorgefertigten Vorlagen, nur eigene Workouts',/Pull/.test(stTxt)&&!/Push|Beine|Ganzkörper|Plyometrie/.test(stTxt),stTxt.slice(0,160));
+await pg.click('#gymBox [data-a=empty]');await pg.waitForTimeout(200);
+ck('Leer starten: keine Übungen vorgegeben',(await pg.$$('#gymBox .gx')).length===0);
+ck('Eigene Übungen zum Antippen',/\+ Klimmzüge/.test(await pg.textContent('#gymBox'))&&!/Bankdrücken/.test(await pg.textContent('#gymBox')));
+await pg.click('#gymBox [data-a=qadd][data-n="Klimmzüge"]');await pg.waitForTimeout(200);
+await pg.fill('#gWName','Rücken-Tag');await pg.click('#gymBox [data-a=wnew]');await pg.waitForTimeout(300);
+const wos=await pg.evaluate(()=>window.__store['users/u1/training/settings'].workouts);
+ck('Workout gespeichert',wos.some(w=>w.name==='Rücken-Tag'&&JSON.stringify(w.ex)==='["Klimmzüge"]'),JSON.stringify(wos));
+await pg.click('#gDrop');await pg.waitForTimeout(300);
+if(shots){await pg.click('#gymBox [data-a=wedit]');await pg.waitForTimeout(200);await pg.evaluate(()=>document.querySelector('#gymBox .gstart').scrollIntoView());await pg.screenshot({path:shots+'/workouts.png'})}
+ck('Neues Workout oben antippbar',/Rücken-Tag/.test(await pg.textContent('#gymBox .gstart')));
 ck('keine Seitenfehler',!errs.length,errs.join(' | '));
 await b.close();srv.close();console.log(fails?fails+' FEHLER':'alles ok');process.exit(fails?1:0);

@@ -116,7 +116,7 @@ function bindTodo(host) {
     el.querySelector('[data-tsave]').addEventListener('click', async () => { try { await save(); S.ctx.say('Ergänzt.') } catch (e) { S.ctx.say(e.message, true) } });
     el.querySelector('[data-tskip]').addEventListener('click', async () => { try { await S.ctx.complete(id, { sport: a.sport, focus: a.focus, rpe: a.rpe, note: a.note }); delete S.todo[id] } catch (e) { S.ctx.say(e.message, true) } });
     const g = el.querySelector('[data-tgym]'); if (g) g.addEventListener('click', async () => {
-      const plan = d.sport === 'Kraft' ? (['Push', 'Pull', 'Beine', 'Oberkörper', 'Unterkörper', 'Ganzkörper'].includes(d.focus) ? d.focus : 'Ganzkörper') : d.sport;
+      const plan = d.focus || d.sport;   // passt der Fokus zu einem deiner Workouts, wird es geladen
       try { await save(); TrainingGym.start({ plan, date: a.loc.key, min: Math.round(a.sec / 60), link: id, rpe: d.rpe || null }); const gb = $('m-gym'); if (gb) gb.scrollIntoView({ block: 'start' }) } catch (e) { S.ctx.say(e.message, true) } });
   });
 }

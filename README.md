@@ -30,7 +30,7 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Test: `node tools/browser/test_training_allround.mjs`.
 
 ## Gym-Logbuch (im Training, Ansicht „Allround“)
-- Vorlagen Push / Pull / Beine / Oberkörper / Unterkörper / Ganzkörper, „Wie zuletzt“ oder leer. Übungen frei hinzufügbar (Vorschläge aus deinen bisherigen Übungen).
+- **Keine fertigen Vorlagen:** Du trägst deine Übungen selbst ein; sie erscheinen danach als antippbare Chips („Deine Übungen“). **Eigene Workouts:** Übungen zusammenstellen → „Als Workout speichern“; oben antippbar, unter „✎ Workouts“ umbenennen oder löschen, „Änderungen ins Workout übernehmen“ für neue Übungen. Gespeichert in `training/settings.workouts`. **Auslassen:** Übung heute nicht gemacht → „Auslassen“ (bleibt im Workout); Übungen eines Workouts ohne Sätze gelten beim Speichern ebenfalls als ausgelassen und stehen im Verlauf („Ausgelassen: …“).
 - Pro Übung Sätze mit Gewicht und Wiederholungen; die Werte vom letzten Mal sind vorbelegt, dazu ein Vorschlag (Doppelprogression: alle Sätze ≥ 10 Wdh → Gewicht erhöhen). Pausen-Timer, Entwurf bleibt bei Neuladen erhalten.
 - Auswertung: Rekorde (Gewicht, Wiederholungen, geschätztes 1RM nach Epley) mit Meldung beim Speichern, Verlaufskurve je Übung, Sätze pro Muskelgruppe (Haupt- und zweite Hauptmuskeln zählen voll, Hilfsmuskeln halb; Standard nach dem Namen, bei jeder Übung unter 💪 selbst festlegbar, gespeichert in `training/settings.muscles`), Einheitenverlauf. Jede Gym-Einheit zählt als Kraft-Einheit fürs Wochenziel und die Belastung.
 - Daten: `users/{uid}/training/gym_JJJJ` (Firestore, in der Sicherung enthalten). Tests: `node tools/test-gym.mjs`, `python3 tools/browser/test_gym.py <Ordner>`.
