@@ -7,28 +7,49 @@ const key = n => String(n || '').toLowerCase().replace(/[^a-zäöüß0-9 ]/g, ' 
 const e1rm = (w, r) => w > 0 && r > 0 ? (r === 1 ? w : w * (1 + Math.min(r, 12) / 30)) : 0;
 const diOf = k => Math.round(Date.parse(k + 'T12:00:00Z') / 864e5);
 const MUSCLES = ['Brust', 'Rücken', 'Schultern', 'Bizeps', 'Trizeps', 'Beine', 'Gesäß', 'Bauch', 'Waden', 'Andere'];
-const MAP = [
-  ['Waden', /wade|calf/], ['Gesäß', /hip ?thrust|glute|gesäß|hüftstreck/],
-  ['Beine', /rum[äa]n|rdl|romanian|stiff|leg (curl|press|extension)|bein(curl|beuger|strecker|presse)|kniebeuge|squat|ausfall|lunge|bulgar|hack|adduktor|abduktor/],
-  ['Bauch', /crunch|plank|bauch|sit ?up|beinheben|leg raise|ab ?wheel|russian/],
-  ['Trizeps', /trizeps|tricep|french|skull|pushdown|kickback|enge?s? bank|close ?grip/],
-  ['Bizeps', /bizeps|bicep|curl|hammer/],
-  ['Schultern', /schulter|shoulder|military|overhead|seitheben|lateral|frontheben|arnold|shrug|face ?pull|reverse fl|nacken|ohp/],
-  ['Rücken', /klimm|pull ?up|chin|rudern|row|latzug|lat |kreuzheb|deadlift|(^| )rücken|hyperext|pulldown|pullover/],
-  ['Brust', /bank|bench|brust|chest|fliegende|fly|butterfly|peck|dip|liegestütz|push ?up|cable cross/]
+/* Muskeln je Übung: h = Hauptmuskel, h2 = zweiter Hauptmuskel (beide zählen den Satz voll), s = Hilfsmuskel (halber Satz).
+   Standard nach dem Namen der Übung (erster Treffer zählt), eigene Zuordnung pro Übung in training/settings.muscles. */
+const ROLES = { h: { name: 'Haupt', w: 1 }, h2: { name: '2. Haupt', w: 1 }, s: { name: 'Hilfs', w: 0.5 } };
+const PROFILES = [
+  [/wade|calf/, { Waden: 'h' }],
+  [/hip ?thrust|glute|gesäß|hüftstreck/, { Gesäß: 'h', Beine: 's' }],
+  [/jump|sprung|spring|skipping|hops|bounds|plyo/, { Beine: 'h', Waden: 's', Gesäß: 's' }],
+  [/rum[äa]n|rdl|romanian|stiff|gestreckt/, { Beine: 'h', Gesäß: 'h2', Rücken: 's' }],
+  [/kreuzheb|deadlift/, { Rücken: 'h', Gesäß: 'h2', Beine: 's' }],
+  [/leg (curl|extension)|bein(curl|beuger|strecker)|adduktor|abduktor|wandsitz|wall ?sit/, { Beine: 'h' }],
+  [/leg press|beinpresse|kniebeuge|squat|ausfall|lunge|bulgar|hack|step ?up/, { Beine: 'h', Gesäß: 'h2' }],
+  [/crunch|plank|seitstütz|unterarmstütz|bauch|sit ?up|beinheben|leg raise|ab ?wheel|russian|hollow|dead ?bug/, { Bauch: 'h' }],
+  [/enge?s? bank|close ?grip/, { Trizeps: 'h', Brust: 'h2', Schultern: 's' }],
+  [/trizeps|tricep|french|skull|pushdown|kickback/, { Trizeps: 'h' }],
+  [/(^| )dips?( |$)/, { Brust: 'h', Trizeps: 'h2', Schultern: 's' }],
+  [/bizeps|bicep|curl|hammer/, { Bizeps: 'h' }],
+  [/face ?pull|reverse fl|butterfly reverse/, { Schultern: 'h', Rücken: 's' }],
+  [/schulterdr|shoulder press|military|overhead|arnold|ohp|(^| )schulter/, { Schultern: 'h', Trizeps: 's' }],
+  [/seitheben|lateral|frontheben/, { Schultern: 'h' }],
+  [/shrug|nacken/, { Rücken: 'h' }],
+  [/klimm|pull ?up|chin|latzug|lat |pulldown/, { Rücken: 'h', Bizeps: 's' }],
+  [/rudern|row/, { Rücken: 'h', Bizeps: 's', Schultern: 's' }],
+  [/hyperext|rückenstreck|(^| )rücken/, { Rücken: 'h', Gesäß: 's' }],
+  [/pullover/, { Rücken: 'h', Brust: 's' }],
+  [/fliegende|fly|butterfly|cable cross|peck/, { Brust: 'h' }],
+  [/bank|bench|brust|chest|liegestütz|push ?up/, { Brust: 'h', Trizeps: 's', Schultern: 's' }]
 ];
-const muscle = n => { const k = key(n) + ' '; for (const m of MAP) if (m[1].test(k)) return m[0]; return 'Andere' };
-const TEMPLATES = {
-  Push: ['Bankdrücken', 'Schulterdrücken', 'Schrägbankdrücken Kurzhantel', 'Seitheben', 'Trizepsdrücken'],
-  Pull: ['Klimmzüge', 'Rudern', 'Latzug', 'Face Pulls', 'Bizepscurls'],
-  Beine: ['Kniebeuge', 'Rumänisches Kreuzheben', 'Beinpresse', 'Beinbeuger', 'Wadenheben'],
-  Oberkörper: ['Bankdrücken', 'Rudern', 'Schulterdrücken', 'Latzug', 'Bizepscurls', 'Trizepsdrücken'],
-  Unterkörper: ['Kniebeuge', 'Rumänisches Kreuzheben', 'Ausfallschritte', 'Hip Thrust', 'Wadenheben'],
-  Ganzkörper: ['Kniebeuge', 'Bankdrücken', 'Rudern', 'Schulterdrücken', 'Plank'],
-  Isometrie: ['Wandsitz', 'Plank', 'Isometrische Kniebeuge', 'Klimmzug-Halt', 'Seitstütz'],
-  Plyometrie: ['Box Jumps', 'Counter Movement Jumps', 'Drop Jumps', 'Broad Jumps', 'Skippings']
-};
-const COMMON = ['Bankdrücken', 'Schrägbankdrücken', 'Kniebeuge', 'Kreuzheben', 'Rumänisches Kreuzheben', 'Schulterdrücken', 'Klimmzüge', 'Rudern', 'Latzug', 'Beinpresse', 'Ausfallschritte', 'Hip Thrust', 'Bizepscurls', 'Trizepsdrücken', 'Seitheben', 'Face Pulls', 'Beinbeuger', 'Beinstrecker', 'Wadenheben', 'Dips', 'Liegestütze', 'Plank', 'Crunches'];
+// eigene Zuordnungen säubern: {übungsschlüssel: {Muskel: 'h'|'h2'|'s'}}
+function cleanProfiles(o) {
+  const out = {}; if (!o || typeof o !== 'object') return out;
+  Object.keys(o).slice(0, 300).forEach(k => { const kk = key(k).slice(0, 60), p = {}; if (!kk || !o[k] || typeof o[k] !== 'object') return; MUSCLES.forEach(m => { if (m !== 'Andere' && ROLES[o[k][m]]) p[m] = o[k][m] }); if (Object.keys(p).length) out[kk] = p });
+  return out;
+}
+// eigene Workouts: [{id, name, ex:[Übungsnamen]}]
+function cleanWorkouts(list) {
+  return (Array.isArray(list) ? list : []).filter(w => w && String(w.name || '').trim()).slice(0, 30).map((w, i) => ({ id: String(w.id || 'w' + i).slice(0, 20), name: String(w.name).trim().slice(0, 40), ex: [...new Set((Array.isArray(w.ex) ? w.ex : []).map(n => String(n || '').trim().slice(0, 60)).filter(Boolean))].slice(0, 20) }));
+}
+const defaultProfile = n => { const k = key(n) + ' '; for (const m of PROFILES) if (m[0].test(k)) return Object.assign({}, m[1]); return { Andere: 'h' } };
+const profile = (n, custom) => { const c = custom && custom[key(n)]; return c && Object.keys(c).length ? Object.assign({}, c) : defaultProfile(n) };
+// Hauptmuskel (für Anzeige und alte Aufrufer)
+const muscle = (n, custom) => { const p = profile(n, custom); return Object.keys(p).find(m => p[m] === 'h') || Object.keys(p).find(m => p[m] === 'h2') || Object.keys(p)[0] || 'Andere' };
+// kurzer Text, z. B. „Brust (Haupt) · Trizeps, Schultern (Hilfs)“
+function profileText(p) { return ['h', 'h2', 's'].map(r => { const ms = MUSCLES.filter(m => p[m] === r); return ms.length ? ms.join(', ') + ' (' + ROLES[r].name + ')' : '' }).filter(Boolean).join(' · ') }
 
 const num = v => { const x = parseFloat(String(v == null ? '' : v).replace(',', '.')); return isFinite(x) ? x : NaN };
 function cleanSession(s) { // nur gültige Sätze behalten
@@ -37,14 +58,14 @@ function cleanSession(s) { // nur gültige Sätze behalten
 }
 function sessStats(s) { let vol = 0, sets = 0, reps = 0; s.ex.forEach(e => e.s.forEach(x => { if (x.r > 0) { sets++; reps += x.r; vol += x.w * x.r } })); return { vol: Math.round(vol), sets, reps } }
 
-function analyze(sessions, today) {
+function analyze(sessions, today, custom) {
   const S = sessions.slice().sort((a, b) => a.t - b.t), ex = new Map(), td = today ? diOf(today) : (S.length ? diOf(S[S.length - 1].date) : 0);
-  const mus = {}; MUSCLES.forEach(m => mus[m] = { w1: 0, w4: 0 });
+  const mus = {}; MUSCLES.forEach(m => mus[m] = { w1: 0, w4: 0, s1: 0 });
   S.forEach(s => {
     const d = diOf(s.date);
     s.ex.forEach(e => {
       const k = key(e.n); if (!k) return; const ok = e.s.filter(x => x.r > 0); if (!ok.length) return;
-      let o = ex.get(k); if (!o) ex.set(k, o = { key: k, name: e.n, muscle: muscle(e.n), n: 0, sets: 0, series: [], best: null, bestE: null, last: null, lastDate: null });
+      let o = ex.get(k); if (!o) ex.set(k, o = { key: k, name: e.n, muscle: muscle(e.n, custom), prof: profile(e.n, custom), n: 0, sets: 0, series: [], best: null, bestE: null, last: null, lastDate: null });
       o.name = e.n; o.n++; o.sets += ok.length; let top = null, e1 = 0, vol = 0;
       ok.forEach(x => {
         vol += x.w * x.r; const v = e1rm(x.w, x.r); if (v > e1) e1 = v;
@@ -54,12 +75,13 @@ function analyze(sessions, today) {
       });
       o.series.push({ date: s.date, e1: Math.round(e1 * 10) / 10, top: top.w, topR: top.r, vol: Math.round(vol) });
       o.last = ok.map(x => ({ w: x.w, r: x.r })); o.lastDate = s.date;
-      const m = mus[o.muscle]; if (td - d < 7 && td - d >= 0) m.w1 += ok.length; else if (td - d >= 7 && td - d < 35) m.w4 += ok.length;
+      const p7 = td - d < 7 && td - d >= 0, p4 = td - d >= 7 && td - d < 35;
+      if (p7 || p4) Object.keys(o.prof).forEach(mn => { const m = mus[mn], v = ok.length * ROLES[o.prof[mn]].w; if (!m) return; if (p7) { m.w1 += v; if (o.prof[mn] === 's') m.s1 += v } else m.w4 += v });
     });
   });
   const list = [...ex.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
   list.forEach(o => { const bd = o.best && diOf(o.best.date), ed = o.bestE && diOf(o.bestE.date); o.pr7 = o.n >= 2 && ((bd != null && td - bd < 7 && td - bd >= 0) || (ed != null && td - ed < 7 && td - ed >= 0)) });
-  const muscles = MUSCLES.map(m => ({ m, w1: mus[m].w1, avg4: Math.round(mus[m].w4 / 4 * 10) / 10 })).filter(x => x.w1 || x.avg4);
+  const muscles = MUSCLES.map(m => ({ m, w1: mus[m].w1, s1: mus[m].s1, avg4: Math.round(mus[m].w4 / 4 * 10) / 10 })).filter(x => x.w1 || x.avg4);
   const recent = S.filter(s => td - diOf(s.date) < 28 && td - diOf(s.date) >= 0);
   const vol28 = recent.reduce((a, s) => a + sessStats(s).vol, 0);
   return { ex: list, byKey: ex, muscles, sessions: S.slice().reverse(), n28: recent.length, vol28, td };
@@ -89,7 +111,7 @@ function hint(o) {
 const fmtW = w => (Math.round(w * 100) / 100).toString().replace('.', ',');
 const setStr = s => s.map(x => (x.w ? fmtW(x.w) + '×' : '') + x.r).join(', ');
 
-const Core = { key, e1rm, muscle, MUSCLES, TEMPLATES, COMMON, cleanSession, sessStats, analyze, prsOf, hint, fmtW, setStr, num };
+const Core = { key, e1rm, muscle, profile, defaultProfile, profileText, cleanProfiles, cleanWorkouts, ROLES, MUSCLES, cleanSession, sessStats, analyze, prsOf, hint, fmtW, setStr, num };
 root.TrainingGymCore = Core;
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
 if (typeof window === 'undefined') return;
@@ -98,12 +120,12 @@ if (typeof window === 'undefined') return;
 const V = window.TrainingViz, esc = V.esc, DRAFT_KEY = 'lb_gym_draft';
 const $ = id => document.getElementById(id);
 const nf = (v, d) => window.TrainingCore.fmt.num(v, d || 0);
-const G = { ctx: null, host: null, draft: null, A: null, sel: null, rest: null, msg: '', prs: null, openId: null };
+const G = { ctx: null, host: null, draft: null, A: null, sel: null, rest: null, msg: '', prs: null, openId: null, mEdit: null, wEdit: false };
 
 function loadDraft() { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (d && Array.isArray(d.ex)) return d } catch (e) {} return null }
 function saveDraft() { try { if (G.draft) localStorage.setItem(DRAFT_KEY, JSON.stringify(G.draft)); else localStorage.removeItem(DRAFT_KEY) } catch (e) {} }
-function newDraft(plan, names) {
-  const d = { plan: plan || '', start: Date.now(), date: G.ctx.today, ex: [], min: '', rpe: 7, note: '' };
+function newDraft(plan, names, wid) {
+  const d = { plan: plan || '', wid: wid || null, start: Date.now(), date: G.ctx.today, ex: [], min: '', rpe: 7, note: '' };
   (names || []).forEach(n => addEx(d, n)); return d;
 }
 function addEx(d, name) {
@@ -114,7 +136,7 @@ function addEx(d, name) {
 function liveStats() { const s = sessStats(cleanSession({ ex: G.draft.ex })); return s }
 
 function render(host, ctx) {
-  G.host = host; G.ctx = ctx; G.A = analyze(ctx.sessions, ctx.today);
+  G.host = host; G.ctx = ctx; ctx.muscles = cleanProfiles(ctx.muscles); ctx.workouts = cleanWorkouts(ctx.workouts); G.A = analyze(ctx.sessions, ctx.today, ctx.muscles);
   if (!G.draft) G.draft = loadDraft();
   if (!G.sel || !G.A.byKey.has(G.sel)) G.sel = G.A.ex[0] ? G.A.ex[0].key : null;
   draw();
@@ -129,23 +151,31 @@ function draw() {
   G.host.innerHTML = h; bind(); if (A.ex.length) chart();
 }
 function starter() {
-  const last = G.A.sessions[0];
-  return '<div class="gstart"><div class="chips">' + Object.keys(TEMPLATES).map(p => '<button type="button" class="chip" data-a="tpl" data-p="' + p + '">' + p + '</button>').join('') +
+  const last = G.A.sessions[0], W = G.ctx.workouts;
+  let h = '<div class="gstart"><div class="mu gsm">' + (W.length ? 'Deine Workouts – antippen zum Starten:' : 'Noch keine eigenen Workouts. Starte leer, trag deine Übungen ein und speichere sie unten als Workout.') + '</div><div class="chips">' +
+    W.map(w => '<button type="button" class="chip" data-a="wst" data-id="' + esc(w.id) + '" title="' + esc(w.ex.join(', ')) + '">' + esc(w.name) + '</button>').join('') +
     (last ? '<button type="button" class="chip a" data-a="again">↻ Wie zuletzt' + (last.plan ? ': ' + esc(last.plan) : '') + '</button>' : '') +
-    '<button type="button" class="chip" data-a="tpl" data-p="">+ Leer starten</button></div></div>';
+    '<button type="button" class="chip" data-a="empty">+ Leer starten</button>' + (W.length ? '<button type="button" class="chip" data-a="wedit" aria-pressed="' + G.wEdit + '">✎ Workouts</button>' : '') + '</div>';
+  if (G.wEdit) h += '<div class="gwl">' + W.map(w => '<div class="gwr"><input type="text" maxlength="40" value="' + esc(w.name) + '" data-wn="' + esc(w.id) + '" aria-label="Name des Workouts"><button type="button" data-a="wren" data-id="' + esc(w.id) + '">Umbenennen</button><button type="button" class="txt" data-a="wdel" data-id="' + esc(w.id) + '">Löschen</button><div class="mu gsm">' + esc(w.ex.join(' · ') || 'keine Übungen') + '</div></div>').join('') + '<div class="mu gsm">Übungen eines Workouts änderst du, indem du es startest, anpasst und „Änderungen ins Workout übernehmen“ tippst.</div></div>';
+  return h + '</div>';
 }
 function editor(d) {
-  const st = liveStats(), known = [...new Set(G.A.ex.map(o => o.name).concat(COMMON))];
+  const st = liveStats(), inDraft = new Set(d.ex.map(e => key(e.n))), known = G.A.ex.map(o => o.name), quick = G.A.ex.filter(o => !inDraft.has(o.key)).slice(0, 16);
   let h = '<div class="gedit"><div class="gtop"><b>' + (d.plan ? esc(d.plan) : 'Gym-Einheit') + '</b><span class="mu" id="gLive">' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg Volumen</span></div>' + (d.link ? '<div class="mu" style="margin:4px 0 8px">⌚ Gehört zur Whoop-Einheit vom ' + window.TrainingCore.fmt.date(d.date) + ' – zählt nur einmal.</div>' : '');
   h += '<div class="grest" id="gRest">' + [60, 90, 120, 180].map(s => '<button type="button" class="chip" data-a="rest" data-s="' + s + '">' + (s >= 120 ? s / 60 + ' min' : s + ' s') + '</button>').join('') + '<span id="gRestT" class="grt" aria-live="off"></span></div>';
   d.ex.forEach((e, i) => {
     const o = G.A.byKey.get(key(e.n));
-    h += '<div class="gx" data-i="' + i + '"><div class="gxh"><b>' + esc(e.n) + '</b><button type="button" class="txt" data-a="rmx" data-i="' + i + '" aria-label="Übung ' + esc(e.n) + ' entfernen">✕</button></div>' +
+    if (e.skip) { h += '<div class="gx skip" data-i="' + i + '"><div class="gxh"><b>' + esc(e.n) + '</b><span class="mu">heute ausgelassen</span><button type="button" class="txt" data-a="skip" data-i="' + i + '">Doch machen</button></div></div>'; return }
+    h += '<div class="gx" data-i="' + i + '"><div class="gxh"><b>' + esc(e.n) + '</b><span><button type="button" class="txt" data-a="skip" data-i="' + i + '" title="Heute nicht gemacht – bleibt im Workout">Auslassen</button> <button type="button" class="txt" data-a="rmx" data-i="' + i + '" aria-label="Übung ' + esc(e.n) + ' entfernen">✕</button></span></div>' + musLine(e.n, 'e' + i) +
       (o && o.last ? '<div class="mu gsm">Letztes Mal (' + window.TrainingCore.fmt.date(o.lastDate) + '): ' + esc(setStr(o.last)) + (hint(o) ? ' · Idee: ' + esc(hint(o)) : '') + '</div>' : '<div class="mu gsm">Neu – noch keine Vergleichswerte.</div>') +
       '<div class="gsets">' + e.s.map((x, j) => '<div class="gs"><span>' + (j + 1) + '</span><input type="text" inputmode="decimal" placeholder="kg" aria-label="Gewicht Satz ' + (j + 1) + '" data-i="' + i + '" data-j="' + j + '" data-f="w" value="' + esc(x.w) + '"><input type="text" inputmode="numeric" placeholder="Wdh" aria-label="Wiederholungen Satz ' + (j + 1) + '" data-i="' + i + '" data-j="' + j + '" data-f="r" value="' + esc(x.r) + '"><button type="button" class="txt" data-a="rms" data-i="' + i + '" data-j="' + j + '" aria-label="Satz ' + (j + 1) + ' entfernen">–</button></div>').join('') + '</div>' +
       '<button type="button" class="chip" data-a="adds" data-i="' + i + '">+ Satz</button></div>';
   });
-  h += '<div class="gadd"><input id="gNew" list="gList" type="text" placeholder="Übung hinzufügen …" aria-label="Übung hinzufügen" maxlength="60"><datalist id="gList">' + known.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist><button type="button" id="gAdd">Hinzufügen</button></div>';
+  if (!d.ex.length && G.ctx.workouts.length) h += '<div class="mu gsm">Workout laden:</div><div class="chips">' + G.ctx.workouts.map(w => '<button type="button" class="chip" data-a="wload" data-id="' + esc(w.id) + '">' + esc(w.name) + '</button>').join('') + '</div>';
+  if (quick.length) h += '<div class="mu gsm">Deine Übungen – antippen zum Hinzufügen:</div><div class="chips gq">' + quick.map(o => '<button type="button" class="chip" data-a="qadd" data-n="' + esc(o.name) + '">+ ' + esc(o.name) + '</button>').join('') + '</div>';
+  h += '<div class="gadd"><input id="gNew" list="gList" type="text" placeholder="' + (known.length ? 'Übung hinzufügen …' : 'Erste Übung eintragen, z. B. Klimmzüge') + '" aria-label="Übung hinzufügen" maxlength="60"><datalist id="gList">' + known.map(n => '<option value="' + esc(n) + '">').join('') + '</datalist><button type="button" id="gAdd">Hinzufügen</button></div>';
+  const wo = d.wid && G.ctx.workouts.find(w => w.id === d.wid);
+  h += '<div class="gwsave">' + (wo ? '<button type="button" data-a="wupd">Änderungen ins Workout „' + esc(wo.name) + '“ übernehmen</button>' : '<input id="gWName" type="text" maxlength="40" placeholder="Name, z. B. Push" aria-label="Name für das Workout" value="' + esc(d.plan || '') + '"><button type="button" data-a="wnew">Als Workout speichern</button>') + '</div>';
   h += '<div class="fm"><div class="row"><div><label for="gDate">Datum</label><input id="gDate" type="date" max="' + G.ctx.today + '" value="' + esc(d.date) + '"></div><div><label for="gMin">Dauer (Minuten)</label><input id="gMin" type="number" inputmode="numeric" min="5" max="400" placeholder="' + (d.start ? Math.max(5, Math.round((Date.now() - d.start) / 60000)) : 60) + '" value="' + esc(d.min) + '"></div></div>' +
     '<label>Wie anstrengend? <b id="gRpeT">' + d.rpe + '/10</b></label><div class="seg rpe" id="gRpe" role="group" aria-label="Anstrengung">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => '<button type="button" data-r="' + n + '" aria-pressed="' + (n === d.rpe) + '">' + n + '</button>').join('') + '</div>' +
     '<label for="gNote">Notiz (optional)</label><input id="gNote" type="text" maxlength="120" value="' + esc(d.note) + '" placeholder="z. B. Schulter zwickt"></div>' +
@@ -157,18 +187,45 @@ function progress() {
   return '<h3 class="gh">Fortschritt</h3><div class="chips" id="gSel">' + A.ex.slice(0, 14).map(e => '<button type="button" class="chip' + (e.key === G.sel ? ' on' : '') + '" data-a="sel" data-k="' + esc(e.key) + '">' + esc(e.name) + (e.pr7 ? ' 🏆' : '') + '</button>').join('') + '</div>' +
     (o ? '<div class="tiles4 gt"><div class="rec"><span>Bestes Gewicht</span><b>' + (o.best.w ? fmtW(o.best.w) + ' kg' : o.best.r + ' Wdh') + '</b><small>' + (o.best.w ? '× ' + o.best.r + ' · ' : '') + window.TrainingCore.fmt.date(o.best.date) + '</small></div>' +
       '<div class="rec"><span>Geschätztes 1RM</span><b>' + (o.bestE ? nf(o.bestE.v, 1) + ' kg' : '–') + '</b><small>' + (o.bestE ? window.TrainingCore.fmt.date(o.bestE.date) : 'nur mit Gewicht') + '</small></div>' +
-      '<div class="rec"><span>Einheiten · Sätze</span><b>' + o.n + ' · ' + o.sets + '</b><small>' + esc(o.muscle) + '</small></div>' +
-      '<div class="rec"><span>Letztes Mal</span><b style="font-size:16px">' + esc(setStr(o.last)) + '</b><small>' + (hint(o) ? esc(hint(o)) : window.TrainingCore.fmt.date(o.lastDate)) + '</small></div></div><div id="gChart"></div>' : '');
+      '<div class="rec"><span>Einheiten · Sätze</span><b>' + o.n + ' · ' + o.sets + '</b><small>Hauptmuskel ' + esc(o.muscle) + '</small></div>' +
+      '<div class="rec"><span>Letztes Mal</span><b style="font-size:16px">' + esc(setStr(o.last)) + '</b><small>' + (hint(o) ? esc(hint(o)) : window.TrainingCore.fmt.date(o.lastDate)) + '</small></div></div>' + musLine(o.name, 'p') + '<div id="gChart"></div>' : '');
 }
 function muscles() {
   const m = G.A.muscles; if (!m.length) return '';
   const mx = Math.max.apply(null, m.map(x => Math.max(x.w1, x.avg4)).concat([1]));
-  return '<h3 class="gh">Sätze pro Muskelgruppe</h3><div class="sub" style="margin-bottom:6px">Letzte 7 Tage gegen deinen Schnitt der 4 Wochen davor. Zuordnung nach dem Namen der Übung.</div>' +
-    m.map(x => '<div class="hb"><span style="width:84px">' + x.m + '</span><div class="bar"><i style="width:' + (x.w1 / mx * 100).toFixed(0) + '%"></i></div><b style="width:auto;min-width:96px">' + x.w1 + ' (Ø ' + nf(x.avg4, 1) + ')</b></div>').join('');
+  return '<h3 class="gh">Sätze pro Muskelgruppe</h3><div class="sub" style="margin-bottom:6px">Letzte 7 Tage gegen deinen Schnitt der 4 Wochen davor. Haupt- und zweite Hauptmuskeln zählen einen Satz voll, Hilfsmuskeln einen halben. Zuordnung bei jeder Übung unter 💪 änderbar.</div>' +
+    m.map(x => '<div class="hb"><span style="width:84px">' + x.m + '</span><div class="bar"><i style="width:' + (x.w1 / mx * 100).toFixed(0) + '%"></i></div><b style="width:auto;min-width:96px" title="' + (x.s1 ? 'davon ' + fmtW(x.s1) + ' als Hilfsmuskel' : '') + '">' + fmtW(x.w1) + ' (Ø ' + nf(x.avg4, 1) + ')</b></div>').join('');
+}
+/* Muskeln einer Übung: Zeile mit Zuordnung, auf Tippen die Auswahl Haupt / 2. Haupt / Hilfs je Muskelgruppe */
+function musLine(name, at) {
+  const k = key(name), p = profile(name, G.ctx.muscles), own = !!G.ctx.muscles[k], open = G.mEdit && G.mEdit.k === k && G.mEdit.at === at;
+  let h = '<button type="button" class="txt gmus" data-a="mus" data-n="' + esc(name) + '" data-at="' + at + '" aria-expanded="' + open + '">💪 ' + esc(profileText(p)) + (own ? ' · eigene' : '') + ' <span aria-hidden="true">✎</span></button>';
+  if (!open) return h;
+  h += '<div class="gmp" role="group" aria-label="Muskeln für ' + esc(name) + '"><div class="mu gsm">Haupt und 2. Haupt zählen einen Satz voll, Hilfs einen halben.</div>';
+  MUSCLES.filter(m => m !== 'Andere').forEach(m => {
+    h += '<div class="gmr"><span>' + m + '</span><div class="seg">' + [['', '–'], ['h', 'Haupt'], ['h2', '2. Haupt'], ['s', 'Hilfs']].map(([r, l]) => '<button type="button" data-a="mrole" data-m="' + m + '" data-r="' + r + '" aria-pressed="' + ((p[m] || '') === r) + '">' + l + '</button>').join('') + '</div></div>';
+  });
+  return h + '<div class="btns">' + (own ? '<button type="button" data-a="mreset">Standard wiederherstellen</button>' : '') + '<button type="button" class="primary" data-a="mus" data-n="' + esc(name) + '" data-at="' + at + '">Fertig</button></div></div>';
+}
+async function setRole(m, r) {
+  const e = G.mEdit; if (!e) return; const custom = Object.assign({}, G.ctx.muscles), p = profile(e.n, custom);
+  if (r) p[m] = r; else delete p[m];
+  delete p.Andere;
+  if (!Object.keys(p).length) return setMsg('Mindestens eine Muskelgruppe muss bleiben.', true);
+  if (JSON.stringify(p) === JSON.stringify(defaultProfile(e.n))) delete custom[e.k]; else custom[e.k] = p;
+  await saveMuscles(custom);
+}
+async function saveMuscles(custom) {
+  const prev = G.ctx.muscles; G.ctx.muscles = cleanProfiles(custom); G.A = analyze(G.ctx.sessions, G.ctx.today, G.ctx.muscles); draw();
+  try { await G.ctx.setMuscles(G.ctx.muscles); setMsg('Muskeln gespeichert.') } catch (er) { G.ctx.muscles = prev; G.A = analyze(G.ctx.sessions, G.ctx.today, prev); draw(); setMsg('Konnte nicht speichern: ' + er.message, true) }
+}
+async function saveWorkouts(list, ok) {
+  const prev = G.ctx.workouts; G.ctx.workouts = cleanWorkouts(list); draw();
+  try { await G.ctx.setWorkouts(G.ctx.workouts); setMsg(ok) } catch (er) { G.ctx.workouts = prev; draw(); setMsg('Konnte nicht speichern: ' + er.message, true) }
 }
 function history() {
   const list = G.A.sessions.slice(0, 8), F = window.TrainingCore.fmt;
-  return '<h3 class="gh">Letzte Einheiten</h3><div class="ghist">' + list.map(s => { const st = sessStats(s); return '<details data-id="' + esc(s.id) + '"' + (G.openId === s.id ? ' open' : '') + '><summary>' + F.date(s.date) + ' · ' + esc(s.plan || 'Gym') + ' · ' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg</summary><div class="gdet">' + s.ex.map(e => '<div><b>' + esc(e.n) + '</b> <span class="mu">' + esc(setStr(e.s)) + '</span></div>').join('') + (s.note ? '<div class="mu">„' + esc(s.note) + '“</div>' : '') + '<div class="btns"><button type="button" class="txt" data-a="delS" data-id="' + esc(s.id) + '">Einheit löschen</button></div></div></details>' }).join('') + '</div>';
+  return '<h3 class="gh">Letzte Einheiten</h3><div class="ghist">' + list.map(s => { const st = sessStats(s); return '<details data-id="' + esc(s.id) + '"' + (G.openId === s.id ? ' open' : '') + '><summary>' + F.date(s.date) + ' · ' + esc(s.plan || 'Gym') + ' · ' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg</summary><div class="gdet">' + s.ex.map(e => '<div><b>' + esc(e.n) + '</b> <span class="mu">' + esc(setStr(e.s)) + '</span></div>').join('') + (s.skip && s.skip.length ? '<div class="mu">Ausgelassen: ' + esc(s.skip.join(', ')) + '</div>' : '') + (s.note ? '<div class="mu">„' + esc(s.note) + '“</div>' : '') + '<div class="btns"><button type="button" class="txt" data-a="delS" data-id="' + esc(s.id) + '">Einheit löschen</button></div></div></details>' }).join('') + '</div>';
 }
 function chart() {
   const el = $('gChart'), o = G.A.byKey.get(G.sel); if (!el || !o) return;
@@ -197,13 +254,25 @@ function bind() {
   const host = G.host, d = G.draft;
   host.onclick = async e => {
     const b = e.target.closest('[data-a]'); if (!b) return; const a = b.dataset.a, i = +b.dataset.i, j = +b.dataset.j;
-    if (a === 'tpl') { G.prs = null; G.msg = ''; G.draft = newDraft(b.dataset.p, TEMPLATES[b.dataset.p]); if (!b.dataset.p) G.draft.plan = ''; saveDraft(); draw(); return }
-    if (a === 'again') { const l = G.A.sessions[0]; G.prs = null; G.msg = ''; G.draft = newDraft(l.plan, l.ex.map(x => x.n)); saveDraft(); draw(); return }
+    if (a === 'empty') { G.prs = null; G.msg = ''; G.draft = newDraft('', []); saveDraft(); draw(); return }
+    if (a === 'wst') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w) return; G.prs = null; G.msg = ''; G.draft = newDraft(w.name, w.ex, w.id); saveDraft(); draw(); return }
+    if (a === 'again') { const l = G.A.sessions[0]; const w = G.ctx.workouts.find(x => x.name === l.plan); G.prs = null; G.msg = ''; G.draft = newDraft(l.plan, l.ex.map(x => x.n).concat(l.skip || []), w ? w.id : null); saveDraft(); draw(); return }
+    if (a === 'wedit') { G.wEdit = !G.wEdit; draw(); return }
+    if (a === 'wren') { const inp = host.querySelector('[data-wn="' + b.dataset.id + '"]'), nm = inp && inp.value.trim(); if (!nm) return setMsg('Bitte einen Namen eingeben.', true); await saveWorkouts(G.ctx.workouts.map(w => w.id === b.dataset.id ? Object.assign({}, w, { name: nm }) : w), 'Umbenannt.'); return }
+    if (a === 'wdel') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w || !confirm('Workout „' + w.name + '“ löschen? Deine gespeicherten Einheiten bleiben.')) return; await saveWorkouts(G.ctx.workouts.filter(x => x.id !== w.id), 'Workout gelöscht.'); return }
     if (a === 'sel') { G.sel = b.dataset.k; draw(); return }
     if (a === 'rest') { startRest(+b.dataset.s); return }
     if (a === 'delS') { const s = G.A.sessions.find(x => x.id === b.dataset.id); if (!s || !confirm('Einheit vom ' + window.TrainingCore.fmt.date(s.date) + ' löschen?')) return; try { await G.ctx.remove(s.id); G.msg = 'Gelöscht.' } catch (er) { setMsg('Konnte nicht löschen: ' + er.message, true) } return }
+    if (a === 'mus') { const k = key(b.dataset.n); G.mEdit = G.mEdit && G.mEdit.k === k && G.mEdit.at === b.dataset.at ? null : { k, n: b.dataset.n, at: b.dataset.at }; draw(); return }
+    if (a === 'mrole') { await setRole(b.dataset.m, b.dataset.r); return }
+    if (a === 'mreset') { const c = Object.assign({}, G.ctx.muscles); delete c[G.mEdit.k]; await saveMuscles(c); return }
     if (!d) return;
-    if (a === 'rmx') { if (d.ex[i].s.some(x => x.w || x.r) && !confirm(d.ex[i].n + ' entfernen?')) return; d.ex.splice(i, 1) }
+    if (a === 'qadd') { addEx(d, b.dataset.n) }
+    else if (a === 'wload') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w) return; w.ex.forEach(n => addEx(d, n)); d.wid = w.id; d.plan = w.name }
+    else if (a === 'skip') { d.ex[i].skip = !d.ex[i].skip }
+    else if (a === 'wnew') { const nm = ($('gWName').value || '').trim(); if (!nm) return setMsg('Gib dem Workout einen Namen.', true); const names = d.ex.map(e => e.n); if (!names.length) return setMsg('Füg zuerst Übungen hinzu.', true); const id = 'w' + Date.now().toString(36); d.wid = id; d.plan = nm; saveDraft(); await saveWorkouts(G.ctx.workouts.filter(w => w.name.toLowerCase() !== nm.toLowerCase()).concat([{ id, name: nm, ex: names }]), 'Workout „' + nm + '“ gespeichert – ab jetzt oben antippbar.'); return }
+    else if (a === 'wupd') { const names = d.ex.map(e => e.n); if (!names.length) return setMsg('Ein Workout braucht mindestens eine Übung.', true); await saveWorkouts(G.ctx.workouts.map(w => w.id === d.wid ? Object.assign({}, w, { ex: names }) : w), 'Workout aktualisiert.'); return }
+    else if (a === 'rmx') { if (d.ex[i].s.some(x => x.w || x.r) && !confirm(d.ex[i].n + ' entfernen?')) return; d.ex.splice(i, 1) }
     else if (a === 'adds') { const p = d.ex[i].s[d.ex[i].s.length - 1]; d.ex[i].s.push({ w: p ? p.w : '', r: p ? p.r : '' }) }
     else if (a === 'rms') { d.ex[i].s.splice(j, 1); if (!d.ex[i].s.length) d.ex[i].s.push({ w: '', r: '' }) }
     saveDraft(); draw();
@@ -218,7 +287,7 @@ function bind() {
   $('gAdd').addEventListener('click', add); $('gNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add() } });
   $('gDrop').addEventListener('click', () => { if (d.ex.some(e => e.s.some(x => x.r)) && !confirm('Einheit verwerfen? Eingaben gehen verloren.')) return; stopRest(); G.draft = null; saveDraft(); draw() });
   $('gSave').addEventListener('click', async () => {
-    const c = cleanSession(d);
+    const c = cleanSession({ ex: d.ex.filter(e => !e.skip) });
     if (!c.ex.length) return setMsg('Trag mindestens einen Satz mit Wiederholungen ein.', true);
     if (!d.date || d.date > G.ctx.today) return setMsg('Bitte ein Datum bis heute wählen.', true);
     const typed = num(d.min), auto = d.start ? Math.round((Date.now() - d.start) / 60000) : 0;
@@ -226,12 +295,13 @@ function bind() {
     if (!(min >= 5 && min <= 400)) return setMsg('Dauer bitte zwischen 5 und 400 Minuten.', true);
     $('gSave').disabled = true;
     try {
-      const prs = await G.ctx.save({ plan: d.plan || '', date: d.date, min: Math.round(min), rpe: d.rpe, note: String(d.note || '').trim().slice(0, 120), ex: c.ex, link: d.link || null });
+      const done = new Set(c.ex.map(e => key(e.n))), skip = d.wid ? [...new Set(d.ex.filter(e => !done.has(key(e.n))).map(e => e.n))] : d.ex.filter(e => e.skip).map(e => e.n);   // im Workout, aber ohne Sätze: zählt als ausgelassen
+      const prs = await G.ctx.save({ plan: d.plan || '', date: d.date, min: Math.round(min), rpe: d.rpe, note: String(d.note || '').trim().slice(0, 120), ex: c.ex, skip, link: d.link || null });
       stopRest(); G.draft = null; saveDraft(); G.prs = prs; G.msg = 'Gespeichert: ' + c.ex.length + ' Übungen, ' + sessStats(c).sets + ' Sätze.'; draw();
     } catch (er) { $('gSave').disabled = false; setMsg('Konnte nicht speichern: ' + er.message, true) }
   });
 }
-/* Übungen zu einer Whoop-Einheit eintragen (aus „Noch ergänzen“): Vorlage nach Fokus, Datum und Dauer vorbelegt */
-function start(o) { G.prs = null; G.msg = ''; const p = TEMPLATES[o.plan] ? o.plan : ''; G.draft = newDraft(p || o.plan || '', TEMPLATES[p] || []); G.draft.date = o.date; G.draft.min = o.min ? String(o.min) : ''; G.draft.start = null; G.draft.link = o.link || null; if (o.rpe) G.draft.rpe = o.rpe; saveDraft(); if (G.host) draw() }
+/* Übungen zu einer Whoop-Einheit eintragen (aus „Noch ergänzen“): dein Workout mit passendem Namen (sonst leer), Datum und Dauer vorbelegt */
+function start(o) { G.prs = null; G.msg = ''; const w = (G.ctx && G.ctx.workouts || []).find(x => x.name.toLowerCase() === String(o.plan || '').toLowerCase()); G.draft = newDraft(w ? w.name : (o.plan || ''), w ? w.ex : [], w ? w.id : null); G.draft.date = o.date; G.draft.min = o.min ? String(o.min) : ''; G.draft.start = null; G.draft.link = o.link || null; if (o.rpe) G.draft.rpe = o.rpe; saveDraft(); if (G.host) draw() }
 window.TrainingGym = { render, start, draw: () => { if (G.host && G.A) chart() }, core: Core };
 })(typeof window !== 'undefined' ? window : globalThis);
