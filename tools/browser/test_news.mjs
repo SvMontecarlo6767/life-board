@@ -9,7 +9,7 @@ const srv=http.createServer((q,r)=>{const f=path.join(root,decodeURIComponent(q.
 await new Promise(ok=>srv.listen(0,'127.0.0.1',ok));const URL='http://127.0.0.1:'+srv.address().port;
 const at=Date.parse('2026-10-26T05:45:00Z');
 const NEWS={at,day:'2026-10-26',n:4,minutes:3,sources:[{name:'tagesschau',ok:true},{name:'tagesschau Wissen',ok:false}],sections:[
-  {id:'welt',title:'Deutschland & Welt',items:[{t:'Bundestag beschließt Haushalt',s:'Der Bundestag hat den Haushalt verabschiedet.',url:'https://www.tagesschau.de/a/1',src:'tagesschau',time:at-3600e3},{t:'Waffenruhe vereinbart',s:'Beide Seiten stimmen zu.',url:'https://www.tagesschau.de/a/2',src:'tagesschau',time:at-7200e3},{t:'<script>x</script>Streik',s:'',url:'',src:'tagesschau',time:null}]},
+  {id:'top',title:'Die wichtigsten Themen',items:[{t:'Bundestag beschließt Haushalt',s:'Der Bundestag hat den Haushalt verabschiedet.',url:'https://www.tagesschau.de/a/1',src:'tagesschau',time:at-3600e3},{t:'Waffenruhe vereinbart',s:'Beide Seiten stimmen zu.',url:'https://www.tagesschau.de/a/2',src:'tagesschau',time:at-7200e3},{t:'<script>x</script>Streik',s:'',url:'',src:'tagesschau',time:null}]},
   {id:'tech',title:'Technik & Wissen',items:[{t:'Neues Sprachmodell',s:'Es soll schneller sein.',url:'https://www.heise.de/news/1.html',src:'heise',time:at-3600e3}]}]};
 let fails=0;const ck=(n,c,x='')=>{console.log((c?'ok ':'FEHLER ')+n+(x!==''?' '+x:''));if(!c)fails++};
 const b=await chromium.launch();const ctx=await b.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
@@ -23,7 +23,8 @@ const pg=await ctx.newPage();const errs=[];pg.on('pageerror',e=>errs.push(String
 await pg.clock.setFixedTime(new Date(at+600000));
 await pg.goto(URL+'/news.html');await pg.waitForFunction(()=>window.__newsReady,null,{timeout:15000});
 ck('Kopfzeile mit Anzahl und Lesezeit',/4 Meldungen · ca\. 3 Min/.test(await pg.textContent('#sub')));
-ck('zwei Bereiche, kein Sport',(await pg.$$eval('#main section h3',x=>x.map(h=>h.textContent)).then(a=>a.join('|')))==='Deutschland & Welt|Technik & Wissen');
+ck('Bereiche mit Inhaltsverzeichnis, kein Sport',(await pg.$$eval('#main section h3',x=>x.map(h=>h.textContent)).then(a=>a.join('|')))==='Die wichtigsten Themen|Technik & Wissen'&&(await pg.$$eval('#main .toc a',x=>x.length))===2);
+ck('Top-Themen hervorgehoben',await pg.$eval('#n-top',x=>x.classList.contains('top')));
 ck('Schlagzeile mit Kurztext und Link',(await pg.$eval('#main .it',a=>a.href))==='https://www.tagesschau.de/a/1'&&/verabschiedet/.test(await pg.textContent('#main .it')));
 ck('Text wird nicht als HTML ausgeführt',!(await pg.$('#main script'))&&/<script>x<\/script>Streik/.test(await pg.textContent('#main')));
 ck('ausgefallene Quelle wird genannt',/Gerade nicht erreichbar: tagesschau Wissen/.test(await pg.textContent('#src')));

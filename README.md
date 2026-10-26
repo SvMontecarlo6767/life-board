@@ -36,7 +36,7 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Daten: `users/{uid}/training/gym_JJJJ` (Firestore, in der Sicherung enthalten). Tests: `node tools/test-gym.mjs`, `python3 tools/browser/test_gym.py <Ordner>`.
 
 ## Tagesüberblick (Reiter-Kachel „Überblick“, `news.html`)
-- Nur das Wichtige, kein Sport: Top-Meldungen „Deutschland & Welt“ (tagesschau, Reihenfolge der Redaktion) und „Technik & Wissen“ (heise, tagesschau Wissen). Schlagzeile + Kurztext der Redaktion, ohne KI; Antippen öffnet den Artikel.
+- Nur das Wichtige, kein Sport, etwa 8–10 Minuten: „Die wichtigsten Themen“ (3, ausführlich bis ~900 Zeichen), Deutschland (6), Welt (6), Wirtschaft (4), Technik & Wissen (6). Quellen: tagesschau, ZDFheute, Deutsche Welle, heise – in der Reihenfolge der Redaktionen, jede Meldung nur einmal. Text = Vorspann + Artikelanfang aus dem Feed (ohne KI), am Satzende gekürzt; Antippen öffnet den ganzen Artikel.
 - Der Worker liest RSS/Atom (`/news`, neu nach 3 Stunden, `?refresh=1` sofort), mehrere Quellen pro Bereich als Ersatz; die Seite nennt ausgefallene Quellen und zeigt offline den letzten Stand.
 - Push morgens (Standard 6:45, am Wochenende 9:30, im Check-in einstellbar); fällt sie mit der Morgen-Check-Erinnerung zusammen, kommt eine Nachricht. Nach dem Morgen-Check gibt es den Knopf „Tagesüberblick lesen“. Tests: `node worker/test.mjs`, `node tools/browser/test_news.mjs`.
 
