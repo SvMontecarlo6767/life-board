@@ -28,7 +28,8 @@ async function page(file,w,hh,seed){const ctx=await b.newContext({viewport:{widt
 const openFull=async(pg,host)=>{await pg.evaluate(h=>{const b=document.querySelector(h).closest('.card').querySelector('.gf-btn');b.click()},host);await pg.waitForSelector('#gf .gf-t',{timeout:5000})};
 const closeFull=async pg=>{await pg.click('#gfX');await pg.waitForTimeout(800)};
 // Recovery
-const pg=await page('recovery.html',820,1180);
+const LW=+(process.env.W||820),LH=+(process.env.H||1180);
+const pg=await page('recovery.html',LW,LH);
 await pg.waitForSelector('#c-stages svg',{timeout:15000});await pg.waitForTimeout(800);
 await openFull(pg,'#c-stages');
 let txt=await pg.textContent('#gfStats');ck('Schlafphasen: Fakten',/Ø Tiefschlaf/.test(txt)&&/Verteilung/.test(txt)&&/So wird das berechnet/.test(txt));

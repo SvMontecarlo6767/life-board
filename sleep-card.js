@@ -1,5 +1,5 @@
 /* Schlaf-Hebel-Karte im Recovery-Reiter (Phase 6). Rechnet NICHT selbst: alles kommt aus sleep-lever.js.
-   Lädt Tageseinträge (users/{uid}/days), Trainingsbewertungen (training/acts_*), Einstellungen (sleepcfg/main) und
+   Lädt Angaben aus dem Check-in (users/{uid}/journal: Alkohol, letzte Mahlzeit, krank; ältere aus users/{uid}/days), Trainingsbewertungen (training/acts_*), Einstellungen (sleepcfg/main) und
    die letzte Karte (sleepcards). Speichert die Karte als neue Collection users/{uid}/sleepcards/{Datum}. */
 (function(root){
 'use strict';
@@ -10,16 +10,19 @@ let host,base,raw,today;
 
 async function load(){
   const u=await requireUser();base='users/'+u.uid;
-  const [dsnap,tsnap,cfg,cards]=await Promise.all([
-    fs.collection(base+'/days').get(),
+  const [dsnap,tsnap,cfg,cards,jsnap]=await Promise.all([
+    fs.collection(base+'/days').get().catch(()=>({docs:[]})),
     fs.collection(base+'/training').get().catch(()=>({docs:[]})),
     fs.doc(base+'/sleepcfg/main').get().catch(()=>({exists:false})),
-    fs.collection(base+'/sleepcards').get().catch(()=>({docs:[]}))
+    fs.collection(base+'/sleepcards').get().catch(()=>({docs:[]})),
+    fs.collection(base+'/journal').get().catch(()=>({docs:[]}))
   ]);
   const entries={};
   dsnap.docs.forEach(d=>{const x=d.data()||{},inp=x.in||{};
     let alc=null;if(inp.alkohol!=null)alc=(inp.alkohol|0)>0;else if(x.closed)alc=false;
     entries[d.id]={alcohol:alc,meal:x.meal||null,sick:!!x.sick}});
+  jsnap.docs.forEach(d=>{const x=d.data()||{},o=entries[d.id]||(entries[d.id]={alcohol:null,meal:null,sick:false});   // Check-in geht vor
+    if(x.alc===true||x.alc===false)o.alcohol=x.alc;if(x.meal)o.meal=x.meal;if(x.sick)o.sick=true});
   const rated={};
   tsnap.docs.forEach(d=>{if(/^acts_\d{4}$/.test(d.id))((d.data()||{}).list||[]).forEach(o=>{if(o&&/^w/.test(o.i||'')&&o.x)rated[String(o.i).slice(1)]=+o.x})});
   const cs=cards.docs.map(d=>Object.assign({_id:d.id},d.data())).filter(c=>c.stand).sort((a,b)=>a.stand<b.stand?-1:1);

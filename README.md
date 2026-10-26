@@ -1,6 +1,6 @@
 # Life Board
 
-Persönliches Board (iPhone und iPad, Safari): Hub, Check-in (Stimmung, Gedanken, 3 gute Dinge), Muster (Zusammenhänge), Heute (Dopamin-Konto), Recovery (Whoop), Training, Lernen (Notion), Kalender, Puzzle-Tracker. Ohne KI – alles fest gerechnet.
+Persönliches Board (iPhone und iPad, Safari): Hub, Check-in (Stimmung, Gedanken, 3 gute Dinge), Muster (Zusammenhänge), Recovery (Whoop), Training, Lernen (Notion), Kalender, Puzzle-Tracker. Ohne KI – alles fest gerechnet.
 Statische Seiten auf GitHub Pages, Daten in Firebase (Auth + Firestore), Schnittstellen über einen Cloudflare-Worker (`worker/worker.js`).
 
 ## Cloudflare-Worker aktualisieren
@@ -58,23 +58,18 @@ Safari → Teilen → **Zum Home-Bildschirm**. `manifest.webmanifest`, Symbole i
 ## Sicherung wiederherstellen
 Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gleiche Dokumente werden überschrieben, nichts wird gelöscht; Whoop-Rohdaten (liegen im Worker) sind nicht enthalten. Test: `python3 tools/browser/test_backup.py`.
 
-## Dopamin-Konto
-- Rechnung in `dop-account.js`, gemeinsam für „Heute“ und den Hub. Das Konto zählt lückenlos vom ersten Tag bis heute: Tage, an denen das Board nicht geöffnet war, bekommen ihre Whoop-, Puzzle- und Lernpunkte trotzdem und werden beim nächsten Öffnen von „Heute“ als Eintrag gespeichert.
-- Beim Blättern zeigt „Konto“ den Stand bis einschließlich des gewählten Tags.
-- Der Hub zeigt erst den gespeicherten Stand und rechnet ihn dann live nach (auch beim Zurückkehren aus „Heute“). Test: `node tools/browser/test_konto.mjs`.
-
 ## Check-in (Reiter „Check-in“, fürs iPhone gebaut)
 - **Morgens, vor Whoop:** Stimmung, Energie, gefühlter Schlaf (je 1–5) und ein Gefühlswort. Erst nach dem Speichern lädt die Seite die Whoop-Recovery und zeigt beides nebeneinander („Dein Gefühl trifft die Whoop-Zone an X von Y Tagen“).
 - **Über den Tag:** Stimmung und Gedanken jederzeit festhalten. **Eigene Tracker** (Kaffee, Wasser, Handyzeit, Zeit mit Freunden … oder frei angelegt) – Definition in `settings/main.trackers`.
 - **Abends:** 3 gute Dinge (mit „weil …“), Stress 1–5, ein Satz zum Tag.
 - **Ziele:** Tagesziele mit Uhrzeit (abends „Ziele für morgen“ oder direkt), Wochen- und Monatsziele; erscheinen im Morgen-Check und im Hub. Daten: `journal/{Tag}.g` und `goals/W{Montag}` / `goals/M{JJJJ-MM}`.
-- Punkte im Dopamin-Konto (Regelwerk v2, Kategorie MEN, in `tools/build_v2.py`): Morgen-Check 400, Abend mit 3 guten Dingen 500, Notizen 3 × 100, Tracker 150, alle Tagesziele 300.
+- **Körper heute:** Alkohol (nein/ja), letzte große Mahlzeit (Uhrzeit) und „Krank“ – für den Schlaf-Hebel und die Muster (`journal/{Tag}.alc`, `.meal`, `.sick`).
 - Daten: Firestore `users/{uid}/journal/{Tag}` (in der Sicherung). Logik: `journal-core.js`.
 - **Morgens automatisch öffnen:** iOS hat keinen Auslöser fürs Einschalten. Stattdessen Kurzbefehle-Automation „Whoop wird geöffnet“, die einmal pro Tag den Check-in öffnet – Anleitung unten auf der Check-in-Seite. `checkin.html?whoop=1` springt zurück zu Whoop (Kurzbefehl „Whoop öffnen“), wenn heute schon eingetragen ist.
 - Hintergrund: Gefühle benennen (Affect Labeling, Lieberman 2007), „Three Good Things“ (Seligman 2005), Aktivität + Stimmung (Verhaltensaktivierung). Reines Stimmungs-Tracking bringt allein wenig – deshalb gibt das Board über die Muster etwas zurück.
 
 ## Muster (Reiter „Muster“)
-- **Was dir guttut / was dich bremst:** vergleicht Tage mit und ohne einen Faktor (Heute-Knöpfe, Sport, eigene Tracker) mit Stimmung, Energie, Stress, Recovery, HRV, Ruhepuls und Schlaf – am selben Tag und am Folgetag. Ein Muster erscheint nur bei mindestens 5 Tagen je Seite, Effektstärke ≥ 0,5 und t ≥ 2,2.
+- **Was dir guttut / was dich bremst:** vergleicht Tage mit und ohne einen Faktor (Alkohol, späte Mahlzeit, Sport, eigene Tracker; ältere Heute-Einträge zählen weiter, Namen aus `heute-labels.json`) mit Stimmung, Energie, Stress, Recovery, HRV, Ruhepuls und Schlaf – am selben Tag und am Folgetag. Ein Muster erscheint nur bei mindestens 5 Tagen je Seite, Effektstärke ≥ 0,5 und t ≥ 2,2.
 - **Vergleichen:** zwei beliebige Werte als Kurven (30/90/365 Tage) mit Gleichlauf (r).
 - **Rückblick:** Woche/Monat mit Durchschnitten zum vorigen Zeitraum, bester Tag, Serien, häufigste Gefühle, zufällige „gute Dinge“.
 - Logik: `insights-core.js` (Tests: `node tools/test-insights.mjs`).
@@ -84,8 +79,9 @@ Performance-Modus (schwächt 3D, Unschärfe, Animationen ab – nur per Schalter
 
 ## Tests
 - `node worker/test.mjs`, `node tools/test-learn.mjs`, `node tools/test-insights.mjs`
-- Browser (Node + Playwright): `node tools/browser/test_checkin.mjs`, `test_muster.mjs`, `test_konto.mjs`
-- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, `test_heute.py`, `test_learn.py`, Screenshots mit `shot_hud.py`.
+- `node tools/test-whoop.mjs`, `node tools/test-day.mjs`, `node tools/test-calendar.mjs`, `node tools/test-sleep.mjs`
+- Browser (Node + Playwright): `node tools/browser/test_checkin.mjs`, `test_muster.mjs`, `test_news.mjs`, `test_full.mjs`
+- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, `test_learn.py`, Screenshots mit `shot_hud.py`.
 - Notion ist nur mit Mocks getestet. Die KI-Routen im Worker (`/ask`, `/stt`, `/tts`) werden vom Board nicht mehr benutzt.
 
 ## Hinweis zu Versionsnummern
@@ -97,7 +93,7 @@ Die Karte „😴 Schlaf-Hebel“ im Recovery-Reiter beantwortet eine Frage: Was
 
 - **Rechnet fest nach Regeln** in `sleep-lever.js` (keine KI, gleiche Daten = gleiches Ergebnis, Tests: `node tools/test-sleep.mjs`).
 - **Sechs Verdächtige:** späte harte Einheit, unregelmäßige Bettzeit, kurze Nächte, Trainingssprung, Alkohol am Abend, späte große Mahlzeit. Verglichen wird der Median des Wirkungswerts (Standard HRV) mit/ohne Merkmal, je Gruppe mindestens 5 Nächte, Schwelle nach Gruppengröße, dazu die „strengste Probe“.
-- **Daten:** Whoop (Schlaf, HRV, Ruhepuls, Workouts) plus Heute-Einträge: Alkohol, neu **„Letzte große Mahlzeit“** und **„Krank“** (Heute → Schlaf-Daten). Fehlende Angaben sind „unbekannt“, nie „nein“. Unter 14 Nächten wird nicht geprüft, stattdessen gibt es den Zwei-Wochen-Zettel.
+- **Daten:** Whoop (Schlaf, HRV, Ruhepuls, Workouts) plus Check-in → „Körper heute“: Alkohol, **„Letzte große Mahlzeit“** und **„Krank“** (ältere Heute-Einträge werden weiter gelesen). Fehlende Angaben sind „unbekannt“, nie „nein“. Unter 14 Nächten wird nicht geprüft, stattdessen gibt es den Zwei-Wochen-Zettel.
 - **Sicherheitsfrage** (Schnarchen, Atemaussetzer, massive Tagesmüdigkeit): wird nie angenommen. „Ja“ stellt eine ärztliche Abklärung vor jeden Hebel. Keine Diagnose, keine Empfehlung für Melatonin, Schlafmittel oder Supplemente.
 - **Schlaf-Karte** wird in `users/{uid}/sleepcards/{Datum}` gespeichert (Verlauf), Einstellungen in `sleepcfg/main`. Beides ist in der Sicherung enthalten.
 
@@ -112,10 +108,10 @@ Jeder Graph hat oben rechts ein Vergrößern-Symbol (48 px). Es öffnet ein Voll
 - Im Performance-Modus oder bei „Bewegung reduzieren“ gibt es nur ein kurzes Einblenden statt der Animation.
 
 ## Kalender (Reiter „Kalender“)
-Eigener Kalender im Life Board (keine Verbindung zu Google/Apple). Ansichten: **Monat, Woche, Tag, Jahr**. Antippen eines Tages zeigt rechts (iPad) bzw. darunter (iPhone) den Tag: Termine, **Rückblick** (Heute-Rang, Recovery/HRV, Schlaf, Strain, Training, Puzzle, Lernen – nur was es wirklich gibt, nichts erfunden) und **Notiz/Tagebuch mit Stimmung**.
+Eigener Kalender im Life Board (keine Verbindung zu Google/Apple). Ansichten: **Monat, Woche, Tag, Jahr**. Antippen eines Tages zeigt rechts (iPad) bzw. darunter (iPhone) den Tag: Termine, **Rückblick** (Check-in, Ziele, Recovery/HRV, Schlaf, Strain, Training, Puzzle, Lernen – nur was es wirklich gibt, nichts erfunden) und **Notiz/Tagebuch mit Stimmung**.
 - **Termine:** Titel, Tag oder mehrere Tage, ganztägig oder mit Beginn/Ende, Kategorie, Notiz, Wiederholung (täglich, wöchentlich mit Wochentagen, monatlich, jährlich, alle n …, bis Datum), Erinnerung, „Zum Abhaken“ für Planung (Training, Lernen, Puzzle). Bei Serien lässt sich ein einzelner Tag löschen. Ein Tipp in die Zeitleiste (Woche/Tag) legt einen Termin zur angetippten Uhrzeit an.
-- **Einfärbung** (Auswahl oben): Heute-Rang, Recovery, Strain, Training, Puzzle, Stimmung oder Termine. Tage ohne Daten bleiben leer, nie „0“.
-- **Plan aus Heute:** Der „Fokus für morgen" aus dem Tagesabschluss erscheint am Folgetag im Kalender (Tagesfeld, 🎯 im Monat).
+- **Einfärbung** (Auswahl oben): Check-in, Recovery, Strain, Training, Puzzle, Stimmung oder Termine. Tage ohne Daten bleiben leer, nie „0“.
+- **Plan aus dem Check-in:** Die Tagesziele (mit Uhrzeit) erscheinen im Kalender beim jeweiligen Tag (Tagesfeld, 🎯 im Monat).
 - **Daten:** Firestore `users/{uid}/calendar` (`ev_JAHR` mit den Terminen, `notes_JAHR` mit den Tagesnotizen); gehört zur Datensicherung. Whoop-Werte werden monatsweise geladen.
 - **Erinnerungen:** erscheinen als Hinweis im Life Board (auf jeder Seite) und, wenn erlaubt, als Benachrichtigung – **nur solange die App geöffnet ist**. Eine Seite ohne Server kann keine Push-Nachrichten bei geschlossener App schicken. Dafür unter „⋯“ alle Termine als `.ics` laden und im Apple Kalender öffnen: Dort setzt das iPad die Alarme selbst.
 - Rechenkern: `calendar-core.js` (Tests: `node tools/test-calendar.mjs`), Speicher/Erinnerungen: `calendar-store.js`, Browsertest: `tools/browser/test_calendar.py <Ordner> [ipad|phone|all]`.

@@ -24,7 +24,7 @@ with sync_playwright() as p:
     ctx=ctxof(b); pg=ctx.new_page(); errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m:errs.append(m.text) if m.type=='error' else None)
     pg.goto(f'http://127.0.0.1:{port}/learn.html'); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(1200)
-    ck('Navigation mit 6 Reitern',pg.locator('#lb-nav a.tab').count()==6)
+    ck('Navigation mit 8 Reitern',pg.locator('#lb-nav a.tab').count()==8)
     ck('Aktiver Reiter = Lernen',pg.inner_text('#lb-nav a.tab.act').strip().lower()=='lernen')
     ck('Akzent Lernen = Violett',pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")=='150 125 255')
     ck('3D-Hintergrund da',pg.evaluate("!!document.getElementById('lb-bg')"))
@@ -55,11 +55,11 @@ with sync_playwright() as p:
     ck('Akzent Recovery = Grün',pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")=='52 235 170')
     # neuer Reiter per Config
     pg.evaluate("LBUI.registerTab({id:'test',name:'Test',file:'test.html',href:'test.html',rgb:[255,0,0],rgb2:[0,0,255]})")
-    ck('Neuer Reiter per registerTab',pg.locator('#lb-nav a.tab').count()==7)
+    ck('Neuer Reiter per registerTab',pg.locator('#lb-nav a.tab').count()==9)
     ck('Keine Konsolenfehler',not errs,errs[:3])
     ctx.close()
     # Reduced Motion
-    ctx=ctxof(b,reduced_motion='reduce'); pg=ctx.new_page(); pg.goto(f'http://127.0.0.1:{port}/heute.html'); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(800)
+    ctx=ctxof(b,reduced_motion='reduce'); pg=ctx.new_page(); pg.goto(f'http://127.0.0.1:{port}/recovery.html'); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(800)
     ck('Reduced Motion: keine Einblend-Verzögerung',pg.evaluate("document.querySelectorAll('.rv').length")==0)
     ctx.close()
     # Zurück-Taste / bfcache: Seite nicht ausgeblendet

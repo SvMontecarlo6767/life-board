@@ -181,9 +181,9 @@ const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const today=C.todayBerlin();
 const P=new URLSearchParams(location.search);
-const V={view:['month','week','day','year'].includes(P.get('view'))?P.get('view'):'month',cur:C.isDate(P.get('d'))?P.get('d'):today,sel:C.isDate(P.get('d'))?P.get('d'):today,metric:'rank',q:''};
+const V={view:['month','week','day','year'].includes(P.get('view'))?P.get('view'):'month',cur:C.isDate(P.get('d'))?P.get('d'):today,sel:C.isDate(P.get('d'))?P.get('d'):today,metric:'rec',q:''};
 try{const m=localStorage.getItem('lb_cal_metric');if(C.METRICS.some(x=>x.id===m))V.metric=m;if(!P.get('view')){const v=localStorage.getItem('lb_cal_view');if(['month','week','day','year'].includes(v))V.view=v}}catch(e){}
-const SRC={days:{},whoop:{},training:{},puzzle:{},learn:{},notes:ST.state.notes};
+const SRC={days:{},journal:{},whoop:{},training:{},puzzle:{},learn:{},notes:ST.state.notes};
 const WHM=new Set();                         // geladene Whoop-Monate
 let whoopMsg='',factsMsg='',phone=matchMedia('(max-width:700px)').matches;
 matchMedia('(max-width:700px)').addEventListener&&matchMedia('(max-width:700px)').addEventListener('change',e=>{phone=e.matches;render()});
@@ -194,7 +194,8 @@ async function loadFacts(){
   const u=await requireUser(),b='users/'+u.uid,fail=[];
   const g=async(path,fn)=>{try{const s=await fs.collection(b+'/'+path).get();s.docs.forEach(d=>fn(d.id,d.data()||{}))}catch(e){fail.push(path)}};
   await Promise.all([
-    g('days',(id,x)=>{if(C.isDate(id))SRC.days[id]={net:x.net,rank:x.rank,focus:x.focus||'',closed:!!x.closed,sick:!!x.sick}}),
+    g('days',(id,x)=>{if(C.isDate(id))SRC.days[id]={focus:x.focus||'',sick:!!x.sick}}),   // ältere Einträge aus „Heute“
+    g('journal',(id,x)=>{if(C.isDate(id))SRC.journal[id]={mood:x.m&&x.m.mood||null,energy:x.m&&x.m.energy||null,feel:x.m&&x.m.feel||'',goals:Array.isArray(x.g)?x.g:[],sick:!!x.sick}}),
     g('puzzle',(id,x)=>{if(C.isDate(id)&&x.g){const n=Object.keys(x.g).length;if(n)SRC.puzzle[id]=n}}),
     g('learn',(id,x)=>{if(C.isDate(id)&&Array.isArray(x.rounds)&&x.rounds.length)SRC.learn[id]=x.rounds.length}),
     g('training',(id,x)=>{
@@ -273,7 +274,7 @@ function timeGrid(dates,oc){
 function viewWeek(R){
   const dates=Array.from({length:7},(_,i)=>C.addDays(R.from,i)),oc=occsByDate(C.occurrences(ST.state.events,R.from,R.to));
   if(!phone)return timeGrid(dates,oc);
-  return'<div class="wl">'+dates.map(d=>{const l=C.dayList(oc[d]||[],d),f=C.dayFacts(d,SRC).filter(x=>['heute','rec','training'].includes(x.k));
+  return'<div class="wl">'+dates.map(d=>{const l=C.dayList(oc[d]||[],d),f=C.dayFacts(d,SRC).filter(x=>['checkin','rec','training'].includes(x.k));
     return'<button class="wd'+(d===today?' today':'')+(d===V.sel?' sel':'')+'" data-d="'+d+'" data-open="1"><h4>'+C.dateLong(d).replace(/ \d{4}$/,'')+'</h4>'+
       (l.length?l.map(o=>'<div class="row"><span class="t">'+(o.time||'ganztg.')+'</span><span>'+esc(o.title)+'</span></div>').join(''):'<div class="mu">Keine Termine</div>')+
       (f.length?'<div class="mu" style="margin-top:3px">'+f.map(x=>x.icon+' '+esc(x.text)).join(' · ')+'</div>':'')+'</button>'}).join('')+'</div>';
@@ -305,7 +306,7 @@ function renderSide(){
   let h='<h2>'+C.dateLong(d)+'</h2><div class="mu">KW '+k.week+(d===today?' · heute':d<today?' · vergangen':' · in '+(C.dayNum(d)-C.dayNum(today))+' Tagen')+'</div>';
   h+='<div class="row2" style="margin-top:8px">'+(V.view!=='day'?'<button data-act="openday">Tag öffnen</button>':'')+'<button class="primary" data-act="addday">＋ Termin</button></div>';
   const plan=C.planFor(d,SRC);
-  if(plan)h+='<h3>Mein Plan für diesen Tag</h3><div class="info" style="white-space:pre-wrap;border:1px solid var(--bd);border-radius:12px;padding:10px 12px;font-size:14px">🎯 '+esc(plan)+'<div class="mu" style="margin-top:4px">Im Tagesabschluss von '+C.dateShort(C.addDays(d,-1))+' notiert</div></div>';
+  if(plan)h+='<h3>Mein Plan für diesen Tag</h3><div class="info" style="white-space:pre-wrap;border:1px solid var(--bd);border-radius:12px;padding:10px 12px;font-size:14px">🎯 '+esc(plan)+'<div class="mu" style="margin-top:4px">'+(SRC.journal[d]&&SRC.journal[d].goals.length?'Deine Tagesziele aus dem Check-in':'Im Tagesabschluss von '+C.dateShort(C.addDays(d,-1))+' notiert')+'</div></div>';
   h+='<h3>Termine</h3>'+(oc.length?oc.map(itemHtml).join(''):'<div class="mu">Keine Termine.</div>');
   h+='<div class="quick"><input id="qt" placeholder="Neuer Termin …" maxlength="120"><input id="qh" type="time" style="width:110px"><button id="qa" aria-label="Eintragen">＋</button></div><div class="sv err" id="qerr"></div>';
   h+='<h3>Rückblick</h3>';
@@ -494,6 +495,6 @@ window.CalendarPage={
 })();
 })();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=14"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=4"></script><script src="theme.js?v=15"></script>
 <script src="hud-viz.js?v=1"></script>
 </body></html>

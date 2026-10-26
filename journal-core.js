@@ -1,6 +1,7 @@
-/* Life Board – Check-in (Tagebuch): Datenform, Punkte und Hilfen. Reine Funktionen, keine Abhängigkeit von Firebase oder DOM.
-   Wird von checkin.html, heute.html, dem Hub und muster.html benutzt; Tests: node tools/test-insights.mjs.
-   Firestore users/{uid}/journal/{Tag}: {m:{mood,energy,sleep,feel,at}, e:{good:[3],stress,line,at}, notes:[{at,mood,text}], t:{trackerId:Wert}, g:[{t,at,done,r}] Tagesziele (r = Erinnerung), updatedAt}
+/* Life Board – Check-in (Tagebuch): Datenform und Hilfen. Reine Funktionen, keine Abhängigkeit von Firebase oder DOM.
+   Wird von checkin.html, dem Hub und muster.html benutzt; Tests: node tools/test-insights.mjs.
+   Firestore users/{uid}/journal/{Tag}: {m:{mood,energy,sleep,feel,at}, e:{good:[3],stress,line,at}, notes:[{at,mood,text}], t:{trackerId:Wert}, g:[{t,at,done,r}] Tagesziele (r = Erinnerung),
+   alc:true|false (Alkohol), meal:'HH:MM' (letzte große Mahlzeit), sick:true, updatedAt}
    Wochen- und Monatsziele: users/{uid}/goals/W{Montag} bzw. M{JJJJ-MM}: {items:[{t,done}]} */
 (function(root){
 /* Gefühlswörter: ein Wort zu wählen hilft mehr als nur eine Zahl (Affect Labeling) */
@@ -26,21 +27,14 @@ function clean(doc){
   const t={};for(const k of Object.keys(doc.t||{})){const v=doc.t[k];if(/^[a-z0-9_]{1,24}$/.test(k)&&typeof v==='number'&&isFinite(v)&&v>=0&&v<=1e4)t[k]=v}
   o.t=t;
   o.g=cleanGoals(doc.g,true);
+  if(doc.alc===true||doc.alc===false)o.alc=doc.alc;
+  if(/^([01]\d|2[0-3]):[0-5]\d$/.test(doc.meal||''))o.meal=doc.meal;
+  if(doc.sick)o.sick=true;
   return o;
 }
 /* Ziele: höchstens 8, Text bis 140 Zeichen, optional Uhrzeit HH:MM */
 function cleanGoals(list,withTime){return(Array.isArray(list)?list:[]).filter(x=>x&&String(x.t||'').trim()).slice(0,8).map(x=>{const o={t:String(x.t).trim().slice(0,140),done:!!x.done};if(withTime){o.at=/^([01]\d|2[0-3]):[0-5]\d$/.test(x.at||'')?x.at:'';if(x.r&&o.at)o.r=true}return o})}
 const goodCount=d=>d&&d.e?d.e.good.filter(x=>x&&x.trim()).length:0;
-/* Punkte-Zähler fürs Dopamin-Konto (Aktionen MEN-01 … MEN-05 im Regelwerk v2) */
-function counts(d){
-  const c={};if(!d)return c;
-  if(d.m&&d.m.mood&&d.m.energy)c['MEN-01']=1;
-  if(goodCount(d)>=3)c['MEN-02']=1;
-  const n=(d.notes||[]).length;if(n)c['MEN-03']=Math.min(n,3);
-  if(Object.keys(d.t||{}).length)c['MEN-04']=1;
-  if((d.g||[]).length&&d.g.every(x=>x.done))c['MEN-05']=1;
-  return c;
-}
 /* Tageswerte für Muster und Rückblick: eine Zahl pro Kennzahl oder null */
 function dayValues(d){
   if(!d)return{};
@@ -64,6 +58,6 @@ const TRACKER_PRESETS=[
   {id:'meditation',name:'Meditation',unit:'',kind:'bool'}
 ];
 function trackerId(name){return String(name||'').toLowerCase().replace(/ä/g,'ae').replace(/ö/g,'oe').replace(/ü/g,'ue').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,24)||'tracker'}
-const api={FEELINGS,SCALE,EMO,clean,cleanGoals,counts,dayValues,goodCount,TRACKER_PRESETS,trackerId};
+const api={FEELINGS,SCALE,EMO,clean,cleanGoals,dayValues,goodCount,TRACKER_PRESETS,trackerId};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LBJournal=api;
 })(typeof window!=='undefined'?window:globalThis);

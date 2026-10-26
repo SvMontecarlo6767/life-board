@@ -548,7 +548,7 @@ function attachFull(){
         {l:'Ø Leichtschlaf',v:hm(mean(R.map(r=>r.light))),s:fmtN(pc('light'),0)+' % vom Schlaf'},
         {l:'Ø wach im Bett',v:hm(mean(R.map(r=>r.awake))),s:'Zeit im Bett ohne Schlaf'},
         {l:'Meister Tiefschlaf',v:hm(best.sws),s:longD(best.date)},{l:'Meister REM',v:hm(bestR.rem),s:longD(bestR.date)},
-        {l:'Nächte ≥ 1,5 h Tiefschlaf',v:R.filter(r=>r.sws>=1.5).length+' von '+R.length,s:'Zählt bei Heute als Punkte (SLP-20)'}]},
+        {l:'Nächte ≥ 1,5 h Tiefschlaf',v:R.filter(r=>r.sws>=1.5).length+' von '+R.length,s:'Nächte mit mindestens anderthalb Stunden Tiefschlaf'}]},
     note:'Tiefschlaf ist vor allem für körperliche Erholung wichtig (Wachstumshormon, Muskelreparatur), REM für Gedächtnis und Gefühle. Die Richtwerte sind typische Anteile bei Erwachsenen. Whoop misst die Phasen über Puls und Bewegung – einzelne Nächte schwanken, aussagekräftig ist der Durchschnitt.'});
   // Schlafbedarf und Schlaf
   def('need','c-need','Schlafbedarf und Schlaf','asleep',{mainName:'Geschlafen',color:'var(--series-1)',unit:'h',dir:1,digits:1,
@@ -569,7 +569,7 @@ function attachFull(){
         {l:'Ø Konsistenz',v:fmtN(mean(C.map(r=>r.cons)),0)+' %',s:C.filter(r=>r.cons>=80).length+' Nächte ≥ 80 %'},
         {l:'Recovery bei Konsistenz ≥ 80 %',v:hi.length?fmtN(mean(hi.map(r=>r.rec)),0)+' %':'–',s:hi.length+' Tage',cls:'good'},
         {l:'Recovery bei Konsistenz < 80 %',v:lo.length?fmtN(mean(lo.map(r=>r.rec)),0)+' %':'–',s:lo.length+' Tage'}]},
-    note:'Effizienz = geschlafene Zeit ÷ Zeit im Bett. Konsistenz vergleicht deine Einschlaf- und Aufwachzeiten mit den Vortagen – je regelmäßiger, desto höher. Beide Werte zählen bei Heute (SLP-19, SLP-15).'});
+    note:'Effizienz = geschlafene Zeit ÷ Zeit im Bett. Konsistenz vergleicht deine Einschlaf- und Aufwachzeiten mit den Vortagen – je regelmäßiger, desto höher.'});
   // Belastung gestern -> Erholung heute (Streudiagramm, vergrößert mit Auswertung)
   GraphFull.attach('#c-scatter',{id:'scatter',title:'Belastung gestern, Erholung heute',clone:true,cloneEl:()=>$('c-scatter').querySelector('svg'),sub:'Jeder Punkt ist ein Tag: Strain am Vortag (waagerecht) und Recovery am Morgen (senkrecht)',
     facts:()=>{const {dates}=slice(),pts=[];dates.forEach(d=>{const r=by.get(d),p=by.get(isoDay(Date.parse(d+'T12:00:00Z')-864e5));if(r&&p&&r.rec!=null&&p.strain!=null)pts.push({x:p.strain,y:r.rec})});
@@ -635,6 +635,6 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL
   }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
 })();
 </script>
-</main><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=3"></script><script src="theme.js?v=14"></script>
+</main><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=4"></script><script src="theme.js?v=15"></script>
 <script src="hud-viz.js?v=1"></script>
 </body></html>

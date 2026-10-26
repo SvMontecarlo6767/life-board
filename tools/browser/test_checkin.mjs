@@ -1,5 +1,5 @@
 // Browsertest Check-in (iPhone-Größe, Firebase-Mock, Worker-Mock): Morgen-Check vor Whoop, Notiz, Tracker, Abend,
-// Punkte im Dopamin-Konto. Aufruf: node tools/browser/test_checkin.mjs [screenshot-ordner]
+// Körper heute (Alkohol, Mahlzeit, krank). Aufruf: node tools/browser/test_checkin.mjs [screenshot-ordner]
 import {createRequire} from 'node:module';
 const {chromium}=createRequire(import.meta.url)('playwright');
 import http from 'node:http';import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
@@ -53,10 +53,10 @@ ck('Tagesziel im Morgen-Check sichtbar',/Dein Plan für heute/.test(await pg.tex
 await pg.fill('#gwT','5 Einheiten');await pg.click('#gwAdd');await pg.fill('#gmT','Halbmarathon unter 1:45');await pg.click('#gmAdd');await pg.waitForTimeout(200);
 ck('Wochen- und Monatsziel gespeichert',(await pg.evaluate(()=>window.__store['users/u1/goals/W2026-10-19'].items[0].t))==='5 Einheiten'&&(await pg.evaluate(()=>window.__store['users/u1/goals/M2026-10'].items[0].t))==='Halbmarathon unter 1:45');
 if(shots)await pg.screenshot({path:shots+'/3-ganz.png',fullPage:true});
-// Punkte in Heute
-await pg.goto(URL+'/heute.html');await pg.waitForFunction(()=>window.__heuteReady,null,{timeout:20000});await pg.waitForTimeout(300);
-const net=+(await pg.textContent('#hNet')).replace(/[^\d−-]/g,'').replace('−','-');
-ck('Check-in-Punkte in Heute (400+500+100+150+300 + Whoop)',net>=1450,net);
-ck('Konto enthält sie',(await pg.evaluate(()=>window.__store['users/u1/state/current'].account))===1000+net);
+// Körper heute
+await pg.click('[data-alc="0"]');await pg.fill('#bMeal','21:15');await pg.dispatchEvent('#bMeal','change');await pg.click('#bSick');await pg.waitForTimeout(300);
+j=await st();ck('Körper heute gespeichert',j.alc===false&&j.meal==='21:15'&&j.sick===true,JSON.stringify([j.alc,j.meal,j.sick]));
+ck('Alkohol nein markiert',(await pg.getAttribute('[data-alc="0"]','aria-pressed'))==='true');
+ck('keine Punkte oder Dopamin mehr',!/Dopamin|Punkte/.test(await pg.textContent('body')));
 ck('keine Seitenfehler',!errs.length,errs.join(' | '));
 await b.close();srv.close();console.log(fails?fails+' FEHLER':'alles ok');process.exit(fails?1:0);
