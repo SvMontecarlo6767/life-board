@@ -118,6 +118,7 @@ const CSS=`
 @keyframes gfUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 #gf .gf-dow{display:flex;align-items:flex-end;gap:6px;height:64px;margin-top:6px}
 #gf .gf-dow div{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;font-size:11px;opacity:.95}
+#gf .gf-dow u{flex:1;min-height:0;width:100%;display:flex;align-items:flex-end;text-decoration:none}   /* eigene Spur: Beschriftung staucht die Säulen nicht */
 #gf .gf-dow i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--ac,#7cd4ff);opacity:.75;min-height:2px}
 #gf .gf-dow div.b i{opacity:1;box-shadow:0 0 10px var(--ac,#7cd4ff)}
 #gf .gf-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:20px;opacity:.8}
@@ -548,7 +549,7 @@ function renderStats(S,animate){
   // Wochentage
   const dow=st.dow||[],vals=dow.map(d=>d.mean).filter(v=>v!=null);
   if(vals.length>=2){const mx=Math.max.apply(null,vals),mn=Math.min.apply(null,vals.concat([0]));
-    const bars=dow.map(d=>{const hgt=d.mean==null?0:Math.max(4,(d.mean-Math.min(0,mn))/((mx-Math.min(0,mn))||1)*100);return '<div class="'+(st.dowBest&&d.i===st.dowBest.i?'b':'')+'"><i style="height:'+hgt+'%" title="'+esc(d.name+': '+(d.mean==null?'keine Daten':fmtNum(d.mean,dg)))+'"></i><span>'+d.short+'</span></div>'}).join('');
+    const bars=dow.map(d=>{const hgt=d.mean==null?0:Math.max(4,(d.mean-Math.min(0,mn))/((mx-Math.min(0,mn))||1)*100);return '<div class="'+(st.dowBest&&d.i===st.dowBest.i?'b':'')+'"><u><i style="height:'+hgt+'%" title="'+esc(d.name+': '+(d.mean==null?'keine Daten':fmtNum(d.mean,dg)))+'"></i></u><span>'+d.short+'</span></div>'}).join('');
     T('wide','Wochentage (Durchschnitt)','<div class="gf-dow">'+bars+'</div>',st.dowBest?'Bester Wochentag: '+st.dowBest.name+' ('+fmtNum(st.dowBest.mean,dg)+'), schlechtester: '+st.dowWorst.name+' ('+fmtNum(st.dowWorst.mean,dg)+')':'Für beste und schlechteste Wochentage braucht es mindestens 14 Werte.')
     tiles[tiles.length-1].querySelector('.v').style.fontSize='14px'}
   if(cfg.stack){const parts={},tot={v:0};S.series.forEach(p=>{if(p.date<S.from||p.date>S.to)return;const q=cfg.stack.get(p.date)||{};cfg.stack.keys.forEach(k=>{const v=+q[k.id]||0;parts[k.id]=(parts[k.id]||0)+v;tot.v+=v})});
