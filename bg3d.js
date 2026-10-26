@@ -47,6 +47,12 @@ for(let i=-GS/2;i<=GS/2;i++){gl.push(i*GD,0,-GS*GD/2,i*GD,0,GS*GD/2);gl.push(-GS
 gridG.setAttribute('position',new T.Float32BufferAttribute(gl,3));
 const gm=new T.LineBasicMaterial({color:acc.clone(),transparent:true,opacity:.16,depthWrite:false});
 const grid=new T.LineSegments(gridG,gm);grid.position.y=-9;scene.add(grid);
+/* Design: Dschungel = Glühwürmchen (steigen sacht auf, schwanken), weiches Grün im Nebel, kein Tech-Gitter */
+let jungle=false,baseL=.22;
+function applyMode(){
+  const j=root.getAttribute('data-theme')==='jungle';if(j===jungle&&frame>0)return;jungle=j;
+  scene.fog.color.set(j?0x050d08:0x04080f);grid.visible=!j;pm.size=j?.46:.34;baseL=j?.13:.22;lm.opacity=baseL;
+}
 /* Zustand / Eingaben */
 let speed=1,targetSpeed=1,pulse=0,scrollY=0,tiltX=0,tiltY=0,visible=!document.hidden,raf=0,frame=0,last=performance.now();
 window.addEventListener('scroll',()=>{scrollY=window.scrollY||0},{passive:true});
@@ -57,9 +63,10 @@ function tick(now){
   raf=0;if(!visible)return;
   const dt=Math.min(.05,(now-last)/1000);last=now;frame++;
   speed+=(targetSpeed-speed)*Math.min(1,dt*3);pulse=Math.max(0,pulse-dt*1.6);
-  if(frame%30===0){readAcc();recolor();lm.color.copy(acc);gm.color.copy(acc)}
+  if(frame%30===0){readAcc();recolor();lm.color.copy(acc);gm.color.copy(acc);applyMode()}
   const k=dt*60*speed;
   for(let i=0;i<N;i++){const o=i*3;pos[o]+=vel[o]*k;pos[o+1]+=vel[o+1]*k;pos[o+2]+=vel[o+2]*k;
+    if(jungle){pos[o]+=Math.sin(now*.0006+i)*.004*k;pos[o+1]+=.005*k}
     if(pos[o]>23)pos[o]=-23;else if(pos[o]<-23)pos[o]=23;if(pos[o+1]>15)pos[o+1]=-11;else if(pos[o+1]<-11)pos[o+1]=15;if(pos[o+2]>17)pos[o+2]=-29;else if(pos[o+2]<-29)pos[o+2]=17}
   pg.attributes.position.needsUpdate=true;
   if(frame%4===0)rebuildLines();
@@ -67,7 +74,7 @@ function tick(now){
   cam.position.x+=((tiltX*3)-cam.position.x)*.05;cam.position.y+=((2-scrollY*.004+tiltY*2)-cam.position.y)*.06;
   cam.rotation.x=-.06-Math.min(scrollY*.00008,.1);cam.rotation.y=-cam.position.x*.01;
   grid.position.z=(now*.0012*speed)%GD;
-  pm.opacity=.9+pulse*.1;lm.opacity=.22+pulse*.4;
+  pm.opacity=(jungle?.8+.15*Math.sin(now*.0021):.9)+pulse*.1;lm.opacity=baseL+pulse*.4;
   renderer.render(scene,cam);
   if(!reduced)raf=requestAnimationFrame(tick);
 }
@@ -75,5 +82,6 @@ function kick(){if(!raf&&visible)raf=requestAnimationFrame(tick)}
 document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(visible){last=performance.now();kick()}else if(raf){cancelAnimationFrame(raf);raf=0}});
 window.addEventListener('lb-bg-stop',()=>{visible=false;if(raf){cancelAnimationFrame(raf);raf=0}});
 if(window.LBUI)LBUI.onSettings(s=>{const c=document.getElementById('lb-bg');if(!c)return;if(s.perf){visible=false;if(raf){cancelAnimationFrame(raf);raf=0}}else if(!visible&&!document.hidden){visible=true;last=performance.now();kick()}});
-rebuildLines();kick();
+window.addEventListener('lb-theme',()=>{readAcc();recolor();lm.color.copy(acc);gm.color.copy(acc);applyMode();if(reduced||!raf)renderer.render(scene,cam)});
+applyMode();rebuildLines();kick();
 })();

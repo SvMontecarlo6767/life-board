@@ -94,7 +94,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 .days{display:flex;gap:4px}.days button{min-height:36px;min-width:36px;padding:0 6px;font-size:13px}.days button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
 .gh{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}.gh small{color:var(--mu)}
 .presets button{min-height:36px;padding:4px 12px;font-size:14px;border-radius:99px}
-</style><link rel="stylesheet" href="theme.css?v=8">
+</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
 </head><body><div class="wrap">
 <div class="top">
   <div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>☀️ Check-in</h1></div>
@@ -420,5 +420,5 @@ async function boot(){
 boot().catch(e=>showMsg('Fehler: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=13"></script>
+<script src="theme.js?v=14"></script>
 </body></html>

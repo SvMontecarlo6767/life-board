@@ -225,3 +225,69 @@ html[data-tab="puzzle"] button.primary,html[data-tab="puzzle"] button.pri{backgr
  a.mu,summary{min-height:44px;display:inline-flex;align-items:center}
  #trNav a,#trNav button{min-height:44px}
 }
+
+/* ================= Design-Auswahl (Zahnrad) ================= */
+#lb-set .th{padding:2px 0 12px}
+#lb-set .thl{font:700 15px var(--font-ui);color:var(--tx);margin-bottom:8px}
+#lb-set .thl small{display:block;color:var(--mu);font:400 12.5px system-ui;margin-top:2px}
+#lb-set .thg{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.lb-th{display:flex;align-items:center;gap:10px;justify-content:flex-start;padding:0 12px;min-height:48px}
+.lb-th i{width:22px;height:22px;border-radius:50%;flex:none;box-shadow:0 0 10px rgb(var(--acc) / .35);border:1px solid rgba(255,255,255,.35)}
+.lb-th[aria-pressed=true]{border-color:rgb(var(--acc));background:rgb(var(--acc) / .2);box-shadow:inset 0 0 0 1px rgb(var(--acc) / .8)}
+/* weicher Wechsel */
+::view-transition-old(root),::view-transition-new(root){animation-duration:.75s;animation-timing-function:ease-in-out}
+html.lb-themeswap,html.lb-themeswap *{transition:background-color .7s ease,border-color .7s ease,color .7s ease,box-shadow .7s ease,fill .7s ease,stroke .7s ease!important}
+
+/* ================= Design „Dschungel“ (nur Farben, Hintergrund, Formen – keine Funktion) ================= */
+html[data-hud][data-theme="jungle"]{
+  --hud-bg:#050d08;--hud-bg2:#0a170e;
+  --glass:rgba(10,26,16,.6);--glass2:rgba(15,36,22,.76);--edge:rgba(170,235,170,.17);--edge2:rgba(170,235,170,.34);
+  --tx:#ebf6e6;--mu:#98b29b;--bd:rgba(170,235,170,.17);
+  --bad:#ff8a6a;--bad2:rgba(255,110,70,.15);--warn:#ffc65c;--gold:#ffd86e;
+  --rS:#ffd86e;--rA:#6fe39a;--rB:#6fcfc0;--rC:#8fa595;
+  --ink:#ebf6e6;--ink2:#bfd4c0;--muted:#98b29b;--grid:rgba(170,235,170,.12);--axis:rgba(170,235,170,.26);
+  --good:#4ee3a0;--ok:#4ee3a0;--mid:#ffc65c;--low:#ff7a5c;
+  --z1:#173a26;--z2:#1f5a37;--z3:#2f8a4e;--z4:#74c85a;--z5:#d2f08a;
+  --series-1:#a6e35c;--series-2:#ffb454;--series-3:#46d1c4;--series-7:#c58cf0;--neutral:#8aa393;
+  --font-hud:'Fraunces',Georgia,'Times New Roman',serif;
+  --blur:16px;
+}
+/* Hintergrund: Lichtfelder + feine Strahlen durchs Blätterdach statt Raster */
+html[data-hud][data-theme="jungle"] body::before{
+  background:radial-gradient(900px 620px at 12% -12%,rgb(var(--acc) / .17),transparent 60%),radial-gradient(820px 620px at 100% 105%,rgb(var(--acc2) / .13),transparent 60%),
+  repeating-linear-gradient(104deg,rgba(210,255,170,.032) 0 2px,transparent 2px 46px)}
+/* Überschriften: Serife statt Technik-Look */
+html[data-hud][data-theme="jungle"] h1,html[data-hud][data-theme="jungle"] h2{text-transform:none;letter-spacing:.01em}
+html[data-hud][data-theme="jungle"] h1{text-shadow:0 0 22px rgb(var(--acc) / .4)}
+html[data-hud][data-theme="jungle"] #lb-nav .brand{letter-spacing:.14em}
+/* weichere Formen, statt Eckklammern ein Lichtstreif oben */
+html[data-hud][data-theme="jungle"] .card,html[data-hud][data-theme="jungle"] .tile,html[data-hud][data-theme="jungle"] #bk,html[data-hud][data-theme="jungle"] #wh,html[data-hud][data-theme="jungle"] .ov .box,html[data-hud][data-theme="jungle"] details.hudbox{border-radius:22px}
+html[data-hud][data-theme="jungle"] .card::before,html[data-hud][data-theme="jungle"] .tile::before,html[data-hud][data-theme="jungle"] #bk::before,html[data-hud][data-theme="jungle"] #wh::before{
+  border-radius:22px;opacity:1;background:linear-gradient(90deg,transparent,rgb(var(--acc) / .6),transparent) top center/62% 1px no-repeat}
+html[data-hud][data-theme="jungle"] button,html[data-hud][data-theme="jungle"] .btn{border-radius:14px}
+html[data-hud][data-theme="jungle"] .chip{background:rgba(10,26,16,.62);border-radius:16px}
+html[data-hud][data-theme="jungle"] .grp{background:rgba(8,22,13,.38)}
+html[data-hud][data-theme="jungle"] select,html[data-hud][data-theme="jungle"] input,html[data-hud][data-theme="jungle"] textarea{background:rgba(4,14,8,.72)}
+html[data-hud][data-theme="jungle"] .ref{background:rgba(4,14,8,.6)}
+html[data-hud][data-theme="jungle"] .ov{background:rgba(2,9,5,.72)}
+html[data-hud][data-theme="jungle"] .bar{background:rgba(6,18,10,.74)}
+html[data-hud][data-theme="jungle"] #lb-nav{background:rgba(5,14,8,.8)}
+html[data-hud][data-theme="jungle"] #lb-set{background:linear-gradient(155deg,rgba(15,36,22,.94),rgba(10,26,16,.92))}
+html[data-hud][data-theme="jungle"] .lb-sw::before{background:rgba(4,14,8,.72)}
+html[data-hud][data-theme="jungle"] button.primary{color:#04140a}
+html[data-hud][data-theme="jungle"] .chip .cnt b{color:#04140a}
+html[data-hud][data-theme="jungle"] .hv-svg circle[stroke^="rgba(150"]{stroke:rgba(170,235,170,.13)}
+html[data-hud][data-theme="jungle"] .hv-cl{fill:#98b29b}
+html[data-hud][data-perf][data-theme="jungle"] .card,html[data-hud][data-perf][data-theme="jungle"] .tile,html[data-hud][data-perf][data-theme="jungle"] #bk,html[data-hud][data-perf][data-theme="jungle"] #wh{background:rgba(10,26,16,.9)}
+html[data-hud][data-theme="jungle"] .lb-th i{border-color:rgba(255,255,255,.3)}
+/* Dschungel: dunkelblaue Restflächen einzelner Seiten ins Grün ziehen (nur Farben) */
+html[data-hud][data-theme="jungle"] #trNav{background:linear-gradient(rgba(5,13,8,.92),rgba(5,13,8,.8) 70%,rgba(5,13,8,0))}
+html[data-hud][data-theme="jungle"] #trNav a,html[data-hud][data-theme="jungle"] #trNav button{background:rgba(10,26,16,.72)}
+html[data-hud][data-theme="jungle"] #trNav a.on{color:#04140a}
+html[data-hud][data-theme="jungle"] .year{background:linear-gradient(150deg,rgb(var(--acc)/.3),rgba(10,26,16,.7) 70%)!important}
+html[data-hud][data-theme="jungle"] .ttip{background:rgba(6,18,10,.95)}
+html[data-hud][data-theme="jungle"] .two>div{background:rgba(6,18,10,.5)}
+html[data-hud][data-theme="jungle"] .gs input,html[data-hud][data-theme="jungle"] .gadd input,html[data-hud][data-theme="jungle"] .ask input,html[data-hud][data-theme="jungle"] .fm input,html[data-hud][data-theme="jungle"] .fm textarea,html[data-hud][data-theme="jungle"] .fm select,html[data-hud][data-theme="jungle"] .todo .tnote,html[data-hud][data-theme="jungle"] .balset input{background:rgba(6,18,10,.6)}
+html[data-hud][data-theme="jungle"] .share,html[data-hud][data-theme="jungle"] .wov{background:rgba(2,9,5,.82)}
+html[data-hud][data-theme="jungle"] .wov .box{background:linear-gradient(160deg,rgba(15,36,22,.97),rgba(6,18,10,.98))}
+html[data-hud][data-theme="jungle"] .sc .l{background:#0e1e14}

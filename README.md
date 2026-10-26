@@ -119,3 +119,10 @@ Eigener Kalender im Life Board (keine Verbindung zu Google/Apple). Ansichten: **
 - **Daten:** Firestore `users/{uid}/calendar` (`ev_JAHR` mit den Terminen, `notes_JAHR` mit den Tagesnotizen); gehört zur Datensicherung. Whoop-Werte werden monatsweise geladen.
 - **Erinnerungen:** erscheinen als Hinweis im Life Board (auf jeder Seite) und, wenn erlaubt, als Benachrichtigung – **nur solange die App geöffnet ist**. Eine Seite ohne Server kann keine Push-Nachrichten bei geschlossener App schicken. Dafür unter „⋯“ alle Termine als `.ics` laden und im Apple Kalender öffnen: Dort setzt das iPad die Alarme selbst.
 - Rechenkern: `calendar-core.js` (Tests: `node tools/test-calendar.mjs`), Speicher/Erinnerungen: `calendar-store.js`, Browsertest: `tools/browser/test_calendar.py <Ordner> [ipad|phone|all]`.
+
+## Designs (Zahnrad → „Design“)
+- Zwei Designs: **Cockpit** (Standard) und **Dschungel**. Ein Design ändert **nur Farben, Hintergrund und Formen**; Seiten, Knöpfe, Graphen, Vollbild und Statistiken sind identisch.
+- Wechsel mit weichem Überblenden (View Transitions, Safari/iOS ab 18; sonst kurzes Farbüberblenden; im Performance-Modus oder bei „Bewegung reduzieren“ sofort). Die Wahl steht in `lb_ui.theme` (localStorage + Firestore `settings/main.ui`) und wird vor dem ersten Zeichnen gesetzt (kleines Skript vor `theme.css`), damit nichts flackert.
+- Technik: `theme.js` (`THEMES`: Name, Farbmuster, Akzent je Reiter), `theme.css` (Block `html[data-hud][data-theme="id"]` überschreibt nur Variablen und einige Restflächen), `bg3d.js` (Dschungel: Glühwürmchen statt Gitter, grüner Nebel).
+- **Neues Design:** in `THEMES` eintragen, in `theme.css` einen Block für `data-theme="id"` ergänzen, fertig. Ein Knopf im Zahnrad entsteht automatisch.
+- Test: `python3 tools/browser/test_theme.py <Ordner>` (Umschalten, Speichern, alle Seiten, Graph-Vollbild).
