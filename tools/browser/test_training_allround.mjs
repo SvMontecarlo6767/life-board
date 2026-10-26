@@ -73,6 +73,10 @@ await pg.click('#gymBox .gmp [data-a=mreset]');await pg.waitForTimeout(300);
 cfg=await pg.evaluate(()=>window.__store['users/u1/training/settings'].muscles||{});
 ck('Standard wiederhergestellt',!cfg[mk]&&!/eigene/.test(await pg.textContent(mb)),JSON.stringify(cfg));
 await pg.click('#gymBox .gmus[data-at=p]');ck('Auswahl schließt wieder',!(await pg.$('#gymBox .gmp')));
+// Erkenntnisse: mit wenig Daten ehrlich „sammelt noch“
+const insT=(await pg.textContent('#gymBox .gins')).replace(/\s+/g,' ');
+ck('Erkenntnisse: Kraft-Trend, Recovery, Erholungskosten',/Kraft-Trend/.test(insT)&&/Stärke nach Recovery/.test(insT)&&/Was dich Erholung kostet/.test(insT),insT.slice(0,120));
+ck('Erkenntnisse: bei wenig Daten keine Aussage, sondern „Sammelt noch“',/Sammelt noch/.test(insT)&&!/deutlich/.test(insT.replace('nur bei deutlichem Unterschied','')),insT.slice(0,300));
 // keine fertigen Vorlagen mehr, eigene Workouts anlegen
 const stTxt=await pg.textContent('#gymBox .gstart');
 ck('Keine vorgefertigten Vorlagen, nur eigene Workouts',/Pull/.test(stTxt)&&!/Push|Beine|Ganzkörper|Plyometrie/.test(stTxt),stTxt.slice(0,160));

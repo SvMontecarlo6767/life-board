@@ -94,7 +94,7 @@ function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidde
 function homeOnboard() { const o = $('onboard'), g = $('setup').querySelector('.g'); if (o && g && o.parentNode !== g) g.prepend(o) }
 let stvInit = false;
 function multiCtx() {
-  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym, muscles: ST.muscles || {}, setMuscles: async m => { ST.muscles = m; await saveSettings() }, workouts: ST.workouts || [], setWorkouts: async w => { ST.workouts = w; await saveSettings() } }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
+  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym, muscles: ST.muscles || {}, setMuscles: async m => { ST.muscles = m; await saveSettings() }, rec: WREC, workouts: ST.workouts || [], setWorkouts: async w => { ST.workouts = w; await saveSettings() } }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
 }
 function renderMulti() {
   show('multi'); say(''); window.TrainingMulti.render($('mcontent'), R, multiCtx());
@@ -447,7 +447,7 @@ async function stravaUI(box) {
   q('.stvSync').addEventListener('click', () => syncStrava());
   q('.stvOff').addEventListener('click', async () => { try { await wfetch('/strava/disconnect', {}); stvNote = ''; stravaUI(box) } catch (e) { q('.stvMsg').textContent = e.message } });
 }
-let whoopNote = '';
+let whoopNote = '', WREC = {};   // Whoop-Recovery je Tag (für die Gym-Erkenntnisse)
 async function syncWhoop(mode) {
   const out = t => { whoopNote = t; document.querySelectorAll('.whMsg').forEach(x => { x.textContent = t }) };
   document.querySelectorAll('.whGo').forEach(b => b.disabled = true);
@@ -455,6 +455,8 @@ async function syncWhoop(mode) {
     if (mode === 'sync' || mode === 'year') { out('Hole Workouts von Whoop …'); await wfetch('/sync', { days: mode === 'year' ? 365 : 14 }) }
     const to = todayKey(), from = C.keyOfIdx(C.dayIdxOfKey(to) - 365);
     const u = auth.currentUser, days = u && window.LBWhoop ? await LBWhoop.load({ uid: u.uid, from, to, fetch: (f, t) => wfetch('/data?from=' + f + '&to=' + t), full: mode === 'year' }) : (await wfetch('/data?from=' + from + '&to=' + to)).days;
+    const rec = {}; Object.keys(days || {}).forEach(k => { const r = days[k] && days[k].recovery && days[k].recovery.score; if (r && typeof r.recovery_score === 'number') rec[k] = r.recovery_score });
+    const recNew = Object.keys(rec).length !== Object.keys(WREC).length; WREC = rec;
     const list = C.fromWhoop(days), before = ACTS.length;
     const have = new Set(ACTS.map(a => a.id));
     const hide = new Set(ST.hide || []);
@@ -462,7 +464,7 @@ async function syncWhoop(mode) {
     if (fresh.length) { ACTS = dedupe(ACTS.concat(fresh)); await saveActs() }
     const n = ACTS.length - before;
     out(list.length ? list.length + ' Whoop-Workouts gefunden, ' + (n > 0 ? n + ' neu übernommen.' : 'nichts Neues.') : 'Keine Workouts in den gespeicherten Whoop-Daten. Tipp: „12 Monate nachholen“.');
-    if (n > 0) renderAll();
+    if (n > 0 || recNew) renderAll();
   } catch (e) { out(mode ? 'Whoop: ' + e.message : '') }
   finally { document.querySelectorAll('.whGo').forEach(b => b.disabled = false) }
 }

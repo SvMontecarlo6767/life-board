@@ -108,10 +108,64 @@ function hint(o) {
   if (at.every(x => x.r >= 8)) return 'Gewicht halten, +1 Wiederholung pro Satz';
   return 'Gewicht halten und sauber auf 8 Wiederholungen kommen';
 }
+/* Erkenntnisse aus Logbuch + Whoop-Recovery (rec = {datum: Recovery %}). Bewusst vorsichtig: Aussagen erst ab genug Einheiten
+   und deutlichem Unterschied (t-Wert ≥ 2), sonst „sammelt noch“. */
+const addD = (k, n) => new Date(Date.parse(k + 'T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const sdv = a => { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(a.reduce((s, x) => s + (x - m) * (x - m), 0) / (a.length - 1)) };
+const med = a => { const b = a.slice().sort((x, y) => x - y), n = b.length; return n ? (n % 2 ? b[(n - 1) / 2] : (b[n / 2 - 1] + b[n / 2]) / 2) : null };
+const tval = (a, b) => { if (a.length < 2 || b.length < 2) return 0; const s = Math.sqrt(sdv(a) ** 2 / a.length + sdv(b) ** 2 / b.length); return s ? (avg(a) - avg(b)) / s : (avg(a) === avg(b) ? 0 : 9) };
+const zoneOf = r => r >= 67 ? 'g' : r >= 34 ? 'y' : 'r';
+const valOf = o => { const e = o.series.some(p => p.e1 > 0); return { e, v: p => e ? p.e1 : p.topR } };
+function insights(A, rec, today) {
+  rec = rec || {}; const td = diOf(today), out = { trend: [], plateau: [], zone: null, cost: null };
+  A.ex.forEach(o => {
+    const { e, v } = valOf(o), S = o.series.filter(p => v(p) > 0);
+    // Trend: Ausgleichsgerade über die letzten 8 Wochen (mind. 3 Einheiten über mind. 14 Tage)
+    const P = S.filter(p => td - diOf(p.date) <= 56 && td - diOf(p.date) >= 0);
+    if (P.length >= 3 && diOf(P[P.length - 1].date) - diOf(P[0].date) >= 14) {
+      const xs = P.map(p => diOf(p.date)), ys = P.map(v), mx = avg(xs), my = avg(ys);
+      const b = xs.reduce((s, x, i) => s + (x - mx) * (ys[i] - my), 0) / (xs.reduce((s, x) => s + (x - mx) ** 2, 0) || 1);
+      const a0 = my + b * (xs[0] - mx), a1 = my + b * (xs[xs.length - 1] - mx), weeks = Math.max(1, Math.round((xs[xs.length - 1] - xs[0]) / 7));
+      const ch = e ? (a0 > 0 ? (a1 - a0) / a0 * 100 : 0) : a1 - a0;
+      out.trend.push({ name: o.name, e, from: a0, to: a1, ch, weeks, n: P.length, dir: e ? (ch >= 2 ? 1 : ch <= -2 ? -1 : 0) : (ch >= 1 ? 1 : ch <= -1 ? -1 : 0) });
+    }
+    // Plateau: in den letzten 5 Einheiten (über mind. 3 Wochen) kein neuer Bestwert
+    if (S.length >= 6) {
+      const last = S.slice(-5), prev = S.slice(0, -5), bp = Math.max.apply(null, prev.map(v)), bl = Math.max.apply(null, last.map(v));
+      if (diOf(last[4].date) - diOf(last[0].date) >= 21 && bl <= bp * (e ? 1.005 : 1)) {
+        const best = prev.reduce((x, p) => v(p) >= v(x) ? p : x), reps = med((o.last || []).map(x => x.r)) || 8;
+        out.plateau.push({ name: o.name, since: best.date, best: v(best), e, idea: !e ? 'Schwerere Variante oder Zusatzgewicht mit weniger Wiederholungen' : reps <= 6 ? 'Mal 8–12 Wiederholungen mit etwas weniger Gewicht' : reps >= 10 ? 'Schwerer mit 5–8 Wiederholungen' : 'Eine leichtere Woche (etwa −10 %) und danach neu angreifen' });
+      }
+    }
+  });
+  out.trend.sort((x, y) => Math.abs(y.e ? y.ch : y.ch * 5) - Math.abs(x.e ? x.ch : x.ch * 5));
+  // Stärke nach Recovery-Zone: Leistung je Übung gegen den Median der 5 Einheiten davor, gemittelt pro Tag
+  const byDay = {};
+  A.ex.forEach(o => { const { v } = valOf(o), S = o.series.filter(p => v(p) > 0); S.forEach((p, i) => { if (i < 2) return; const ref = med(S.slice(Math.max(0, i - 5), i).map(v)); if (ref > 0) (byDay[p.date] = byDay[p.date] || []).push(v(p) / ref - 1) }) });
+  const Z = { g: [], y: [], r: [] }; let nd = 0;
+  Object.keys(byDay).forEach(d => { if (rec[d] == null) return; nd++; Z[zoneOf(rec[d])].push(avg(byDay[d]) * 100) });
+  const zones = Object.keys(Z).filter(k => Z[k].length >= 3), need = 8;
+  out.zone = { n: nd, need, ready: nd >= need && zones.length >= 2, z: Object.fromEntries(Object.keys(Z).map(k => [k, { n: Z[k].length, m: avg(Z[k]) }])) };
+  if (out.zone.ready && Z.g.length >= 3) { const rest = Z.y.concat(Z.r); out.zone.t = tval(Z.g, rest); out.zone.diff = avg(Z.g) - avg(rest) }
+  // Erholungskosten: Recovery am Folgetag gegen deinen Schnitt der 7 Tage davor, je Workout (Name der Einheit)
+  const G = {}, MIN = 5;
+  A.sessions.forEach(s => {
+    const nm = String(s.plan || '').trim(), nx = rec[addD(s.date, 1)]; if (!nm || nx == null) return;
+    const base = []; for (let i = 1; i <= 7; i++) { const r = rec[addD(s.date, -i)]; if (r != null) base.push(r) }
+    if (base.length < 4) return; (G[nm] = G[nm] || []).push(nx - avg(base));
+  });
+  const groups = Object.keys(G).map(k => ({ name: k, n: G[k].length, m: avg(G[k]), se: G[k].length > 1 ? sdv(G[k]) / Math.sqrt(G[k].length) : null, vals: G[k] })).sort((a, b) => a.m - b.m);
+  const ok = groups.filter(g => g.n >= MIN); let verdict = null;
+  if (ok.length >= 2) { const a = ok[0], b = ok[ok.length - 1], t = tval(b.vals, a.vals); verdict = t >= 2 ? { a: a.name, b: b.name, d: b.m - a.m } : { none: true } }
+  else if (ok.length === 1) { const g = ok[0], t = g.se ? Math.abs(g.m) / g.se : 0; verdict = t >= 2 ? { one: g.name, m: g.m } : { none: true } }
+  out.cost = { min: MIN, groups: groups.map(g => ({ name: g.name, n: g.n, m: g.m, se: g.se })), verdict };
+  return out;
+}
 const fmtW = w => (Math.round(w * 100) / 100).toString().replace('.', ',');
 const setStr = s => s.map(x => (x.w ? fmtW(x.w) + '×' : '') + x.r).join(', ');
 
-const Core = { key, e1rm, muscle, profile, defaultProfile, profileText, cleanProfiles, cleanWorkouts, ROLES, MUSCLES, cleanSession, sessStats, analyze, prsOf, hint, fmtW, setStr, num };
+const Core = { key, e1rm, muscle, profile, defaultProfile, profileText, cleanProfiles, cleanWorkouts, insights, ROLES, MUSCLES, cleanSession, sessStats, analyze, prsOf, hint, fmtW, setStr, num };
 root.TrainingGymCore = Core;
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
 if (typeof window === 'undefined') return;
@@ -147,7 +201,7 @@ function draw() {
   if (G.prs && G.prs.length) h += '<div class="gprs" role="status">🏆 <b>Neue Rekorde:</b> ' + G.prs.map(p => esc(p.n) + ' (' + p.kind + ': ' + (p.w ? fmtW(p.w) + ' kg × ' : '') + p.r + ')').join(' · ') + '</div>';
   h += d ? editor(d) : starter();
   h += '<div class="msg" id="gMsg" aria-live="polite">' + esc(G.msg) + '</div>';
-  if (A.ex.length) h += progress() + muscles() + history();
+  if (A.ex.length) h += progress() + insightsCard() + muscles() + history();
   G.host.innerHTML = h; bind(); if (A.ex.length) chart();
 }
 function starter() {
@@ -222,6 +276,34 @@ async function saveMuscles(custom) {
 async function saveWorkouts(list, ok) {
   const prev = G.ctx.workouts; G.ctx.workouts = cleanWorkouts(list); draw();
   try { await G.ctx.setWorkouts(G.ctx.workouts); setMsg(ok) } catch (er) { G.ctx.workouts = prev; draw(); setMsg('Konnte nicht speichern: ' + er.message, true) }
+}
+/* ---------- Erkenntnisse ---------- */
+function insightsCard() {
+  const I = insights(G.A, G.ctx.rec, G.ctx.today), F = window.TrainingCore.fmt, sg = (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '±') + nf(Math.abs(v), d || 0);
+  let h = '<h3 class="gh">Erkenntnisse</h3><div class="gins">';
+  // 1. Kraft-Trend + Plateau
+  h += '<div class="gib"><b>Kraft-Trend (letzte 8 Wochen)</b>';
+  if (!I.trend.length) h += '<div class="mu gsm">Sammelt noch: pro Übung mindestens 3 Einheiten über 2 Wochen.</div>';
+  else h += I.trend.slice(0, 8).map(t => '<div class="gir"><span>' + esc(t.name) + '</span><b class="' + (t.dir > 0 ? 'up' : t.dir < 0 ? 'dn' : '') + '">' + (t.dir > 0 ? '▲ ' : t.dir < 0 ? '▼ ' : '● ') + (t.e ? sg(t.ch, 1) + ' %' : sg(t.ch, 1) + ' Wdh') + '</b><small>' + (t.e ? 'geschätztes 1RM ' + nf(t.from, 1) + ' → ' + nf(t.to, 1) + ' kg' : nf(t.from, 1) + ' → ' + nf(t.to, 1) + ' Wdh') + ' · ' + t.weeks + ' Wo. · ' + t.n + '×</small></div>').join('');
+  h += I.plateau.map(p => '<div class="gpl">⏸ <b>' + esc(p.name) + '</b>: seit 5 Einheiten kein neuer Bestwert (zuletzt am ' + F.date(p.since) + '). <span class="mu">Idee: ' + esc(p.idea) + '.</span></div>').join('');
+  h += '</div>';
+  // 2. Stärke nach Recovery-Zone
+  const Z = I.zone, zn = { g: ['grün', '#34ebaa'], y: ['gelb', '#ffc85a'], r: ['rot', '#ff5460'] };
+  h += '<div class="gib"><b>Stärke nach Recovery</b><div class="mu gsm">Deine Leistung je Übung gegen deine letzten Einheiten, nach der Recovery am Morgen.</div>';
+  if (!Z.ready) h += '<div class="mu gsm">Sammelt noch: ' + Z.n + ' von ' + Z.need + ' Trainingstagen mit Recovery-Wert, davon je mindestens 3 in zwei Zonen.</div>';
+  else {
+    h += ['g', 'y', 'r'].map(k => { const z = Z.z[k]; return '<div class="gir"><span><i class="gdot" style="background:' + zn[k][1] + '"></i>' + zn[k][0] + '</span><b>' + (z.n ? sg(z.m, 1) + ' %' : '–') + '</b><small>' + z.n + ' Tag' + (z.n === 1 ? '' : 'e') + (z.n && z.n < 3 ? ' · zu wenig' : '') + '</small></div>' }).join('');
+    h += '<div class="gv">' + (Z.t == null ? 'Noch zu wenige grüne Tage für einen Vergleich.' : Math.abs(Z.t) >= 2 ? (Z.diff > 0 ? 'An grünen Tagen bist du deutlich stärker' : 'An grünen Tagen bist du sogar schwächer') + ' (' + sg(Z.diff, 1) + ' Prozentpunkte gegenüber gelb/rot).' : 'Bisher kein verlässlicher Unterschied – die Recovery sagt deine Kraft (noch) nicht voraus.') + '</div>';
+  }
+  h += '</div>';
+  // 3. Erholungskosten je Workout
+  const C = I.cost;
+  h += '<div class="gib"><b>Was dich Erholung kostet</b><div class="mu gsm">Recovery am Folgetag gegen deinen Schnitt der 7 Tage davor, je Workout. Schlaf, Stress und Alkohol spielen mit hinein – deshalb erst ab ' + C.min + ' Einheiten pro Workout und nur bei deutlichem Unterschied eine Aussage.</div>';
+  if (!C.groups.length) h += '<div class="mu gsm">Sammelt noch: Einheiten mit Namen (dein Workout) und Recovery am Folgetag.</div>';
+  else h += C.groups.map(g => '<div class="gir"><span>' + esc(g.name) + '</span>' + (g.n >= C.min ? '<b class="' + (g.m <= -5 ? 'dn' : '') + '">' + sg(g.m, 0) + ' Punkte</b><small>' + (g.se >= 0.5 ? '± ' + nf(g.se, 0) + ' · ' : '') + g.n + ' Einheiten</small>' : '<b class="mu">sammelt</b><small>' + g.n + ' von ' + C.min + '</small>') + '</div>').join('');
+  const v = C.verdict;
+  if (v) h += '<div class="gv">' + (v.none ? 'Bisher kein verlässlicher Unterschied zwischen deinen Workouts.' : v.a ? '„' + esc(v.a) + '“ kostet dich deutlich mehr Erholung als „' + esc(v.b) + '“ (' + nf(v.d, 0) + ' Punkte Unterschied am Folgetag).' : '„' + esc(v.one) + '“ verändert deine Recovery am Folgetag deutlich (' + sg(v.m, 0) + ' Punkte).') + '</div>';
+  return h + '</div></div>';
 }
 function history() {
   const list = G.A.sessions.slice(0, 8), F = window.TrainingCore.fmt;
