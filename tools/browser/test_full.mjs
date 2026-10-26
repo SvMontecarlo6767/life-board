@@ -33,6 +33,7 @@ const pg=await page('recovery.html',LW,LH);
 await pg.waitForSelector('#c-stages svg',{timeout:15000});await pg.waitForTimeout(800);
 await openFull(pg,'#c-stages');
 let txt=await pg.textContent('#gfStats');ck('Schlafphasen: Fakten',/Ø Tiefschlaf/.test(txt)&&/Verteilung/.test(txt)&&/So wird das berechnet/.test(txt));
+{const b=await pg.$$eval('#gf .gf-dow i',r=>r.map(i=>({h:i.getBoundingClientRect().height,v:parseFloat((i.title.split(': ')[1]||'').replace(',','.'))})).filter(x=>x.v>0));const r=b.map(x=>x.h/x.v),hs=b.map(x=>x.h),vs=b.map(x=>x.v),ok=b.length>=2&&Math.max(...r)/Math.min(...r)<1.03&&(Math.max(...vs)===Math.min(...vs)||Math.max(...hs)>Math.min(...hs)+1);ck('Wochentage: Säulen proportional zum Wert',ok,JSON.stringify(b))}
 ck('Schlafphasen: gestapelte Säulen',(await pg.$$eval('#gfStage rect',r=>new Set(r.map(x=>getComputedStyle(x).fill)).size))>=4);
 if(shots)await pg.screenshot({path:shots+'/full-stages.png'});await closeFull(pg);
 await openFull(pg,'#c-need');txt=await pg.textContent('#gfStats');
