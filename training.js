@@ -94,7 +94,7 @@ function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidde
 function homeOnboard() { const o = $('onboard'), g = $('setup').querySelector('.g'); if (o && g && o.parentNode !== g) g.prepend(o) }
 let stvInit = false;
 function multiCtx() {
-  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
+  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym, muscles: ST.muscles || {}, setMuscles: async m => { ST.muscles = m; await saveSettings() } }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
 }
 function renderMulti() {
   show('multi'); say(''); window.TrainingMulti.render($('mcontent'), R, multiCtx());

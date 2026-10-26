@@ -50,5 +50,23 @@ const bal=await pg.textContent('#m-bal');ck('Plyometrie zählt als Explosiv',/Ex
 const best=await pg.textContent('#m-best');ck('Bestwerte: Klimmzüge 12 (neu), +10 kg',/Klimmzüge am Stück\s*12/.test(best)&&/\+10 kg/.test(best),best.slice(0,200));
 ck('Bestwerte: 5 km und 10 km',/5 km/.test(best)&&/10 km/.test(best));
 if(shots){await pg.evaluate(()=>document.getElementById('m-bal').scrollIntoView());await pg.screenshot({path:shots+'/balance.png'});await pg.evaluate(()=>document.getElementById('m-best').scrollIntoView());await pg.screenshot({path:shots+'/best.png'})}
+// Muskeln: Hilfsmuskeln und eigene Zuordnung
+await pg.evaluate(()=>document.getElementById('gymBox').scrollIntoView());
+const mb='#gymBox .gmus[data-at=p]',mName=await pg.getAttribute(mb,'data-n');
+ck('Muskel-Zeile mit Haupt und Hilfs',/\(Haupt\)/.test(await pg.textContent(mb)),await pg.textContent(mb));
+const musTxt=()=>pg.textContent('#gymBox').then(t=>t.replace(/\s+/g,' '));
+ck('Sätze pro Muskelgruppe mit Hilfsmuskel-Hinweis',/Hilfsmuskeln einen halben/.test(await musTxt()));
+await pg.click(mb);await pg.waitForSelector('#gymBox .gmp');
+if(shots)await pg.screenshot({path:shots+'/muskeln.png'});
+await pg.click('#gymBox .gmp [data-m=Bauch][data-r=h2]');await pg.waitForTimeout(300);
+let cfg=await pg.evaluate(()=>window.__store['users/u1/training/settings'].muscles||{});
+const mk=mName.toLowerCase().replace(/[^a-zäöüß0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+ck('Eigene Zuordnung gespeichert (Bauch als 2. Haupt)',cfg[mk]&&cfg[mk].Bauch==='h2',JSON.stringify(cfg));
+ck('Anzeige zeigt eigene Zuordnung',/Bauch \(2\. Haupt\)/.test(await pg.textContent(mb))&&/eigene/.test(await pg.textContent(mb)));
+ck('Bauch erscheint bei den Muskelgruppen',/Bauch/.test(await pg.textContent('#gymBox')));
+await pg.click('#gymBox .gmp [data-a=mreset]');await pg.waitForTimeout(300);
+cfg=await pg.evaluate(()=>window.__store['users/u1/training/settings'].muscles||{});
+ck('Standard wiederhergestellt',!cfg[mk]&&!/eigene/.test(await pg.textContent(mb)),JSON.stringify(cfg));
+await pg.click('#gymBox .gmus[data-at=p]');ck('Auswahl schließt wieder',!(await pg.$('#gymBox .gmp')));
 ck('keine Seitenfehler',!errs.length,errs.join(' | '));
 await b.close();srv.close();console.log(fails?fails+' FEHLER':'alles ok');process.exit(fails?1:0);

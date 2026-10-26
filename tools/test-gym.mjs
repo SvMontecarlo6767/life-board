@@ -19,7 +19,14 @@ ok(bank.n === 3 && bank.best.w === 80 && bank.best.date === '2026-10-12' && bank
 ok(bank.pr7 === true && A.byKey.get('kniebeuge').pr7 === false, 'Rekord der letzten 7 Tage wird markiert');
 ok(A.sessions[0].id === '3' && A.n28 === 2, 'Einheiten neueste zuerst, 28-Tage-Zähler');
 const mu = Object.fromEntries(A.muscles.map(m => [m.m, m]));
-ok(mu['Brust'].w1 === 1 && mu['Brust'].avg4 === 0.5 && mu['Schultern'].w1 === 1, 'Sätze je Muskelgruppe (7 Tage / Schnitt davor)');
+ok(mu['Brust'].w1 === 1 && mu['Brust'].avg4 === 0.5 && mu['Schultern'].w1 === 1.5 && mu['Schultern'].s1 === 0.5 && mu['Trizeps'].w1 === 0.5, 'Sätze je Muskelgruppe: Haupt voll, Hilfs halb (' + JSON.stringify(mu['Schultern']) + ')');
+const mk = Object.fromEntries(G.analyze([S('k', '2026-10-14', 'Beine', [['Kniebeuge', [[100, 5], [100, 5]]]])], '2026-10-15').muscles.map(m => [m.m, m.w1]));
+ok(mk['Beine'] === 2 && mk['Gesäß'] === 2, 'Zweiter Hauptmuskel zählt voll (Kniebeuge: Beine + Gesäß)');
+ok(G.profileText(G.profile('Bankdrücken')) === 'Brust (Haupt) · Schultern, Trizeps (Hilfs)' && G.muscle('Liegestütze') === 'Brust' && G.muscle('Seitstütz') === 'Bauch' && G.muscle('Box Jumps') === 'Beine' && G.muscle('Wandsitz') === 'Beine', 'Standard-Zuordnung inkl. Hilfsmuskeln, Isometrie und Sprünge');
+const own = G.cleanProfiles({ 'Bank-Drücken': { Brust: 'h', Schultern: 'h2', Quatsch: 'h', Trizeps: 'x' }, leer: {}, 'x': 5 });
+ok(JSON.stringify(own) === JSON.stringify({ 'bank drücken': { Brust: 'h', Schultern: 'h2' } }), 'Eigene Zuordnung wird gesäubert (' + JSON.stringify(own) + ')');
+const A2 = G.analyze(hist, '2026-10-15', { 'bankdrücken': { Brust: 'h', Schultern: 'h2' } }), mu2 = Object.fromEntries(A2.muscles.map(m => [m.m, m]));
+ok(mu2['Schultern'].w1 === 2 && !mu2['Trizeps'] && A2.byKey.get('bankdrücken').muscle === 'Brust', 'Eigene Zuordnung geht vor (2. Haupt zählt voll, Trizeps entfällt)');
 const next = S('4', '2026-10-15', 'Push', [['Bankdrücken', [[82.5, 3]]], ['Seitheben', [[10, 12]]], ['Neu', [[20, 10]]], ['Kniebeuge', [[90, 5]]]]);
 const prs = G.prsOf(hist, next, '2026-10-15');
 ok(prs.length === 1 && prs[0].n === 'Bankdrücken' && prs[0].kind === 'Gewicht', 'Neuer Rekord wird erkannt, Neues und Gleiches nicht (' + prs.map(p => p.n + ':' + p.kind) + ')');

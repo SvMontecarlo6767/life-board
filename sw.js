@@ -1,7 +1,7 @@
 /* Life Board – Service Worker. Zweck: App-Start auch bei schlechtem Netz.
    Strategie: Netz zuerst (damit Änderungen sofort ankommen), nur bei Fehler/Offline der zuletzt gespeicherte Stand.
    Gecacht wird nur die eigene Seite (HTML, Skripte, Styles, Icons) – nie Firebase, den Worker oder andere Anbieter. */
-const CACHE = 'lb-shell-v12';
+const CACHE = 'lb-shell-v13';
 const SHELL = ['index.html', 'recovery.html', 'learn.html', 'puzzle.html', 'training.html', 'calendar.html', 'checkin.html', 'muster.html', 'news.html', 'journal-core.js', 'insights-core.js', 'theme.css', 'theme.js', 'fb.js', 'day.js', 'heute-labels.json', 'bg3d.js', 'hud-viz.js', 'learn-core.js', 'whoop-row.js', 'whoop-cache.js', 'push-client.js', 'sleep-lever.js', 'graph-stats.js', 'graph-full.js', 'sleep-card.js', 'calendar-core.js', 'calendar-store.js', 'training-core.js', 'training-text.js', 'training-viz.js', 'training-gym.js', 'training-multi.js', 'training.js', 'vendor/three.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 const SDK = /^https:\/\/www\.gstatic\.com\/firebasejs\//; // Firebase-Bibliothek: nötig, damit die Seiten offline überhaupt starten
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(SHELL.map(u => c.add(new Request(u, { cache: 'reload' }))))).then(() => self.skipWaiting())) });

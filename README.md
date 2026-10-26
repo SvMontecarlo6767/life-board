@@ -32,7 +32,7 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 ## Gym-Logbuch (im Training, Ansicht „Allround“)
 - Vorlagen Push / Pull / Beine / Oberkörper / Unterkörper / Ganzkörper, „Wie zuletzt“ oder leer. Übungen frei hinzufügbar (Vorschläge aus deinen bisherigen Übungen).
 - Pro Übung Sätze mit Gewicht und Wiederholungen; die Werte vom letzten Mal sind vorbelegt, dazu ein Vorschlag (Doppelprogression: alle Sätze ≥ 10 Wdh → Gewicht erhöhen). Pausen-Timer, Entwurf bleibt bei Neuladen erhalten.
-- Auswertung: Rekorde (Gewicht, Wiederholungen, geschätztes 1RM nach Epley) mit Meldung beim Speichern, Verlaufskurve je Übung, Sätze pro Muskelgruppe (Zuordnung nach dem Namen), Einheitenverlauf. Jede Gym-Einheit zählt als Kraft-Einheit fürs Wochenziel und die Belastung.
+- Auswertung: Rekorde (Gewicht, Wiederholungen, geschätztes 1RM nach Epley) mit Meldung beim Speichern, Verlaufskurve je Übung, Sätze pro Muskelgruppe (Haupt- und zweite Hauptmuskeln zählen voll, Hilfsmuskeln halb; Standard nach dem Namen, bei jeder Übung unter 💪 selbst festlegbar, gespeichert in `training/settings.muscles`), Einheitenverlauf. Jede Gym-Einheit zählt als Kraft-Einheit fürs Wochenziel und die Belastung.
 - Daten: `users/{uid}/training/gym_JJJJ` (Firestore, in der Sicherung enthalten). Tests: `node tools/test-gym.mjs`, `python3 tools/browser/test_gym.py <Ordner>`.
 
 ## Tagesüberblick (Reiter-Kachel „Überblick“, `news.html`)
