@@ -18,7 +18,7 @@ const ICON={
 const TABS=[
   {id:'hub',name:'Hub',file:'index.html',href:'index.html',rgb:[58,215,255],rgb2:[120,150,255]},
   {id:'checkin',name:'Check-in',file:'checkin.html',href:'checkin.html?v=2',rgb:[255,190,90],rgb2:[255,120,160]},
-  {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=2',rgb:[255,200,70],rgb2:[255,120,90]},
+  {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=3',rgb:[255,200,70],rgb2:[255,120,90]},
   {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=6',rgb:[52,235,170],rgb2:[58,215,255]},
   {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=3',rgb:[150,125,255],rgb2:[70,140,255]},
   {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=4',rgb:[255,150,60],rgb2:[255,70,170]},

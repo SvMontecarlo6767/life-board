@@ -37,6 +37,21 @@ async function remove(id){
   await mutateEvents(yearOf(old.date),l=>l.filter(x=>x.id!==id));
   S.events=S.events.filter(x=>x.id!==id);emit();
 }
+/* Einmalige Einträge (z. B. Wochenplan): nur, wenn sie noch nie eingetragen wurden – Merker in calendar/meta.seeded.
+   Danach gehören die Termine dir: Löschen oder Ändern bringt sie nicht zurück. */
+async function seedOnce(id,list){
+  const ref=fs.doc((await base())+'/meta'),m=await ref.get(),seeded=(m.exists&&(m.data()||{}).seeded)||{};
+  if(seeded[id]||S.events.some(e=>e.src===id))return 0;
+  let n=0;for(const o of list){await upsert(Object.assign({},o,{src:id}));n++}
+  seeded[id]=Date.now();await ref.set({seeded},{merge:true});return n;
+}
+/* Ein Vorkommen einer Wiederholung einzeln ändern: in der Serie auslassen, als eigener Termin speichern */
+async function editOccurrence(id,startDate,single){
+  const e=S.events.find(x=>x.id===id);if(!e)throw new Error('Termin nicht gefunden.');
+  const r=C.normalize(Object.assign({},single,{id:undefined,rep:'none',exc:null,doneOn:null}));if(r.err)throw new Error(r.err);
+  await upsert(Object.assign({},e,{exc:[...(e.exc||[]),startDate]}));
+  return upsert(r.e);
+}
 /* Einzelnes Vorkommen einer Wiederholung entfernen / abhaken */
 async function skipOccurrence(id,startDate){
   const e=S.events.find(x=>x.id===id);if(!e)return;
@@ -77,5 +92,5 @@ function startReminders(onDue){
   tick();timer=setInterval(tick,30000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()});
 }
-root.CalStore={state:S,loadAll,upsert,remove,skipOccurrence,setDone,setNote,due,ack,acked,startReminders,notifyOS};
+root.CalStore={state:S,loadAll,upsert,remove,skipOccurrence,seedOnce,editOccurrence,setDone,setNote,due,ack,acked,startReminders,notifyOS};
 })(typeof self!=='undefined'?self:this);

@@ -141,6 +141,7 @@ html:not([data-hud]) .ov .box{background:var(--card)}
   .grid2{grid-template-columns:1fr}
   .ov{align-items:flex-end;padding:0}.ov .box{border-radius:18px 18px 0 0;max-height:94vh}
 }
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));z-index:90;max-width:min(92vw,520px);padding:12px 16px;border-radius:14px;background:rgba(8,18,32,.95);border:1px solid var(--ac,#7cd4ff);color:#fff;font-size:14px;box-shadow:0 0 24px rgba(0,0,0,.5)}
 </style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
 </head><body>
 <main class="wrap">
@@ -171,12 +172,22 @@ html:not([data-hud]) .ov .box{background:var(--card)}
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="fb.js"></script>
-<script src="calendar-core.js?v=2"></script>
-<script src="calendar-store.js?v=1"></script>
+<script src="calendar-core.js?v=3"></script>
+<script src="calendar-store.js?v=2"></script>
 <script>
 (function(){
 'use strict';
 const C=CalCore,ST=CalStore,$=id=>document.getElementById(id);
+function toast(t){const d=document.createElement('div');d.className='toast';d.setAttribute('role','status');d.textContent=t;document.body.appendChild(d);setTimeout(()=>d.remove(),6000)}
+/* Dein Wochenplan, einmalig eingetragen (danach frei änderbar: Termin antippen → nur dieser Tag oder alle Wiederholungen) */
+const WOCHENPLAN=[
+  {title:'Schule',date:'2026-10-26',time:'08:00',end:'15:30',cat:'schule',rep:'weekly',wd:[0]},
+  {title:'Schule',date:'2026-10-28',time:'08:00',end:'13:20',cat:'schule',rep:'weekly',wd:[2,3,4]},
+  {title:'Schule',date:'2026-10-27',time:'08:00',end:'15:30',cat:'schule',rep:'weekly',every:2},
+  {title:'Schule',date:'2026-11-03',time:'08:00',end:'13:20',cat:'schule',rep:'weekly',every:2},
+  {title:'Fußball',date:'2026-10-27',time:'17:30',end:'19:00',cat:'training',rep:'weekly',wd:[1,2]},
+  {title:'Trainer (Fußball)',date:'2026-10-29',time:'17:00',end:'18:00',cat:'training',rep:'weekly',wd:[3]}
+];
 const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const today=C.todayBerlin();
@@ -366,6 +377,7 @@ function openEditor(o){
   EDIT={e,isNew,startDate:o.startDate||e.date};
   const hasT=!!e.time;
   $('ed').innerHTML='<div class="box" role="dialog" aria-label="Termin"><h2>'+(isNew?'Neuer Termin':'Termin bearbeiten')+'</h2>'+
+   (!isNew&&e.rep&&e.rep!=='none'?'<div class="mu gap">🔁 Wiederholter Termin. Beim Speichern wählst du: nur '+C.dateShort(EDIT.startDate)+' oder alle Wiederholungen.</div>':'')+
    '<label class="f">Titel<input id="eT" maxlength="120" value="'+esc(e.title)+'" placeholder="Wofür ist der Termin?"></label>'+
    '<div class="grid2 gap"><label class="f">Datum<input type="date" id="eD" value="'+e.date+'"></label><label class="f">Bis Datum (optional)<input type="date" id="eDE" value="'+(e.endDate||'')+'"></label></div>'+
    '<label class="f gap" style="flex-direction:row;align-items:center;gap:8px;color:var(--tx)"><input type="checkbox" id="eAll" style="min-height:0;width:22px;height:22px" '+(hasT?'':'checked')+'> Ganztägig</label>'+
@@ -389,10 +401,22 @@ function readEditor(){
   ['exc','doneOn'].forEach(k=>{if(EDIT.e[k])o[k]=EDIT.e[k]});
   return o;
 }
-async function saveEditor(){
-  const o=readEditor(),btn=$('eSave');btn.disabled=true;$('eErr').textContent='';
+async function saveEditor(choice){
+  const o=readEditor(),btn=$('eSave');
+  if(!EDIT.isNew&&EDIT.e.rep&&EDIT.e.rep!=='none'&&!choice){   // Serie: nur dieser Tag oder alle?
+    $('eBtns').innerHTML='<div class="mu" style="flex-basis:100%">Änderung gilt für …</div><button class="primary" id="sOne">Nur '+C.dateShort(EDIT.startDate)+'</button><button id="sAll">Alle Wiederholungen</button><button class="ghost" id="sNo">Zurück</button>';
+    const keep=o;$('sOne').onclick=()=>saveEditor({one:true,o:keep});$('sAll').onclick=()=>saveEditor({all:true,o:keep});$('sNo').onclick=()=>{$('eBtns').innerHTML='<button class="primary" id="eSave">Speichern</button><button class="ghost" id="eCancel">Abbrechen</button><span class="sp"></span><button class="danger" id="eDel">Löschen</button>'};return;
+  }
+  if(choice&&choice.one){
+    const x=choice.o,shift=C.dayNum(EDIT.startDate)-C.dayNum(EDIT.e.date),moved=x.date!==EDIT.e.date;
+    const single=Object.assign({},x,{date:moved?x.date:EDIT.startDate,endDate:x.endDate?(moved?x.endDate:C.addDays(x.endDate,shift)):null,track:x.track});
+    try{const e=await ST.editOccurrence(EDIT.e.id,EDIT.startDate,single);closeEditor();V.sel=e.date;render()}catch(er){$('eErr').textContent='Nicht gespeichert: '+(er.message||er)}
+    return;
+  }
+  if(choice&&choice.all)Object.assign(o,choice.o);
+  btn&&(btn.disabled=true);$('eErr').textContent='';
   try{const e=await ST.upsert(o);closeEditor();V.sel=e.date;if(V.view==='day'||V.view==='week')V.cur=V.view==='day'?e.date:V.cur;render()}
-  catch(x){$('eErr').textContent='Nicht gespeichert: '+(x.message||x.code||x);btn.disabled=false}
+  catch(x){$('eErr').textContent='Nicht gespeichert: '+(x.message||x.code||x);if(btn)btn.disabled=false}
 }
 async function delEditor(){
   const e=EDIT.e;
@@ -487,7 +511,7 @@ window.CalendarPage={
 /* ---------- Start ---------- */
 (async function init(){
   $('side').innerHTML='<div class="mu">Lädt …</div>';
-  try{await requireUser();await ST.loadAll()}catch(e){$('main').innerHTML='<div class="card" style="color:var(--bad)">Kalender konnte nicht geladen werden: '+esc(e.message||e.code||e)+'</div>';return}
+  try{await requireUser();await ST.loadAll();try{if(await ST.seedOnce('wochenplan-2026-10',WOCHENPLAN))toast('Wochenplan (Schule, Fußball, Trainer) eingetragen – antippen zum Ändern.')}catch(x){}}catch(e){$('main').innerHTML='<div class="card" style="color:var(--bad)">Kalender konnte nicht geladen werden: '+esc(e.message||e.code||e)+'</div>';return}
   Object.assign(SRC.notes,ST.state.notes);SRC.notes=ST.state.notes;
   render();
   ST.startReminders((o,txt)=>{REM.push({txt});paintRem()});
@@ -495,6 +519,6 @@ window.CalendarPage={
 })();
 })();
 </script>
-<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=5"></script><script src="theme.js?v=15"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=5"></script><script src="theme.js?v=16"></script>
 <script src="hud-viz.js?v=1"></script>
 </body></html>

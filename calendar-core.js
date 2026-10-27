@@ -36,7 +36,8 @@ const CATS=[
   {id:'training',name:'Training',icon:'🏃',rgb:[255,154,92]},
   {id:'lernen',name:'Lernen',icon:'📚',rgb:[150,125,255]},
   {id:'puzzle',name:'Puzzle',icon:'🧩',rgb:[255,150,60]},
-  {id:'privat',name:'Privat',icon:'🏠',rgb:[52,235,170]}
+  {id:'privat',name:'Privat',icon:'🏠',rgb:[52,235,170]},
+  {id:'schule',name:'Schule',icon:'🏫',rgb:[120,170,255]}
 ];
 const catOf=id=>CATS.find(c=>c.id===id)||CATS[0];
 const REPS=[{id:'none',name:'Einmalig'},{id:'daily',name:'Täglich'},{id:'weekly',name:'Wöchentlich'},{id:'monthly',name:'Monatlich'},{id:'yearly',name:'Jährlich'}];
@@ -68,6 +69,7 @@ function normalize(o){
   if(Array.isArray(o.exc)&&o.exc.length)e.exc=[...new Set(o.exc.filter(isDate))].sort();
   if(Array.isArray(o.doneOn)&&o.doneOn.length)e.doneOn=[...new Set(o.doneOn.filter(isDate))].sort();
   if(o.track)e.track=true;                       // Planung: mit Abhak-Kästchen
+  if(o.src)e.src=String(o.src).slice(0,40);      // Herkunft (z. B. einmalig eingetragener Wochenplan)
   return{e};
 }
 
