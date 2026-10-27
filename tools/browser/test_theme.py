@@ -22,7 +22,7 @@ def worker(r):
     if '/notion' in r.request.url: return r.fulfill(headers=hd,body='{"pages":[]}')
     return r.fulfill(headers=hd,body=json.dumps({'days':days}))
 PAGES=[('index.html','#hub:not([hidden])'),('checkin.html','#morning'),('recovery.html','#content:not([hidden])'),('learn.html','#stats'),
-       ('training.html','#lb-nav'),('puzzle.html','#lb-nav'),('muster.html','#lb-nav'),('calendar.html','#lb-nav'),('checkin.html','#lb-nav'),('news.html','#lb-nav')]
+       ('training.html','#lb-nav'),('muster.html','#lb-nav'),('calendar.html','#lb-nav'),('checkin.html','#lb-nav'),('news.html','#lb-nav')]
 fails=[]
 def check(c,msg):
     print(('  ok   ' if c else '  FAIL ')+msg)

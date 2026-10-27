@@ -10,7 +10,6 @@ const ICON={
   muster:'<path d="M4 19l5-6 4 3 7-9"/><circle cx="4" cy="19" r="1.5"/><circle cx="9" cy="13" r="1.5"/><circle cx="13" cy="16" r="1.5"/><circle cx="20" cy="7" r="1.5"/>',
   recovery:'<path d="M3 12h4l2-6 4 12 2-6h6"/>',
   lernen:'<path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4zM20 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>',
-  puzzle:'<path d="M10 4a2 2 0 114 0v2h4v4h-2a2 2 0 100 4h2v4h-4v-2a2 2 0 10-4 0v2H6v-4h2a2 2 0 100-4H6V6h4z"/>',
   training:'<circle cx="15" cy="5" r="2"/><path d="M13 21l-1-6 3-3-2-4-4 2-2 4M12 9l5 3 3-1M9 21l3-6"/>',
   kalender:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M12 14h2M16 14h2M8 18h2M12 18h2"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2l.4 2.6h4l.4-2.6c.7-.3 1.4-.7 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/>'
@@ -21,7 +20,6 @@ const TABS=[
   {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=3',rgb:[255,200,70],rgb2:[255,120,90]},
   {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=6',rgb:[52,235,170],rgb2:[58,215,255]},
   {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=3',rgb:[150,125,255],rgb2:[70,140,255]},
-  {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=4',rgb:[255,150,60],rgb2:[255,70,170]},
   {id:'training',name:'Training',file:'training.html',href:'training.html?v=4',rgb:[255,84,96],rgb2:[255,154,92]},
   {id:'muster',name:'Muster',file:'muster.html',href:'muster.html?v=2',rgb:[120,230,255],rgb2:[180,120,255]}
 ];
@@ -33,7 +31,7 @@ const THEMES={
   cockpit:{id:'cockpit',name:'Cockpit',sw:['#3ad7ff','#7896ff'],meta:'#04080f'},
   jungle:{id:'jungle',name:'Dschungel',sw:['#6fe39a','#d8e86a'],meta:'#050d08',
     tabs:{hub:[[110,225,140],[205,235,105]],checkin:[[255,196,92],[255,140,80]],kalender:[[240,205,90],[225,140,70]],
-      recovery:[[60,222,165],[130,232,120]],lernen:[[200,140,235],[140,110,235]],puzzle:[[255,150,60],[255,70,170]],training:[[255,112,80],[255,172,70]],muster:[[120,228,210],[190,232,120]]}}
+      recovery:[[60,222,165],[130,232,120]],lernen:[[200,140,235],[140,110,235]],training:[[255,112,80],[255,172,70]],muster:[[120,228,210],[190,232,120]]}}
 };
 const themeOf=()=>THEMES[S.theme]||THEMES.cockpit;
 const trgb=t=>{const x=themeOf().tabs&&themeOf().tabs[t.id];return x?x[0]:t.rgb};

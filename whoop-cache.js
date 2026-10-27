@@ -28,6 +28,8 @@ async function load(o){
   return pick(days,o.from,o.to);
 }
 async function clear(uid){await put('w_'+uid,null)}
-const api={load,clear};
+/* Nur lesen, ohne Netz: gespeicherte Tage (für Mini-Verläufe im Hub) oder null */
+async function peek(uid){const c=await get('w_'+uid);return c&&c.days||null}
+const api={load,clear,peek};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.LBWhoop=api;
 })(typeof window!=='undefined'?window:globalThis);

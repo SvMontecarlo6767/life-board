@@ -1,6 +1,6 @@
 # Life Board
 
-Persönliches Board (iPhone und iPad, Safari): Hub, Check-in (Stimmung, Gedanken, 3 gute Dinge), Muster (Zusammenhänge), Recovery (Whoop), Training, Lernen (Notion), Kalender, Puzzle-Tracker. Ohne KI – alles fest gerechnet.
+Persönliches Board (iPhone und iPad, Safari): Hub, Check-in (Stimmung, Gedanken, 3 gute Dinge), Muster (Zusammenhänge), Recovery (Whoop), Training, Lernen (Notion), Kalender. Ohne KI – alles fest gerechnet.
 Statische Seiten auf GitHub Pages, Daten in Firebase (Auth + Firestore), Schnittstellen über einen Cloudflare-Worker (`worker/worker.js`).
 
 ## Cloudflare-Worker aktualisieren
@@ -102,11 +102,19 @@ Die Karte „😴 Schlaf-Hebel“ im Recovery-Reiter beantwortet eine Frage: Was
 
 Jeder Graph hat oben rechts ein Vergrößern-Symbol (48 px). Es öffnet ein Vollbild im Akzent des Reiters, der Graph wächst dabei aus seinem Platz im Panel; Schließen mit ✕ oder Wischen nach unten am oberen Griff (nie auf der Graphfläche). Das Vollbild liest nur und verändert keine Daten.
 
-- **Zeitreihen** (Recovery: Recovery, HRV, Ruhepuls, Schlafdauer, Schlaf-Performance, Strain, Atemfrequenz, Blutsauerstoff, Hauttemperatur, Kalorien, Schritte; Training: Form, Trainingslast pro Tag, Stunden pro Woche): Tippen zeigt Datum mit Wochentag, Wert und Einheit; Wischen bewegt eine Markierung; Zeitraum 7 Tage / 30 Tage / 3 Monate / 1 Jahr / Alles (nur wo Daten existieren); Zwei-Finger-Zoom und Verschieben; Kalender mit nur wählbaren Tagen mit Daten; Knöpfe Heute, Bestwert, Tiefstwert, Zurücksetzen. Lücken bleiben Lücken (schraffiert, „keine Daten“).
+- **Zeitreihen** (Recovery: Recovery, HRV, Ruhepuls, Schlafdauer, Schlaf-Performance, Strain, Atemfrequenz, Blutsauerstoff, Hauttemperatur, Kalorien, Schritte; Training: Form, Trainingslast pro Tag, Stunden pro Woche; Muster: Vergleichen – Statistik für die erste Kurve, die zweite lässt sich dazuschalten): Tippen zeigt Datum mit Wochentag, Wert und Einheit; Wischen bewegt eine Markierung; Zeitraum 7 Tage / 30 Tage / 3 Monate / 1 Jahr / Alles (nur wo Daten existieren); Zwei-Finger-Zoom und Verschieben; Kalender mit nur wählbaren Tagen mit Daten; Knöpfe Heute, Bestwert, Tiefstwert, Zurücksetzen. Lücken bleiben Lücken (schraffiert, „keine Daten“).
 - **Statistiken** (`graph-stats.js`, deterministisch, immer aus den Originaldaten, Tests: `node tools/test-graphstats.mjs`): Durchschnitt, Median, Bestwert/Tiefstwert (Richtung beachtet), Trend gegen den gleich langen Zeitraum davor, Datenpunkte gegen Tage, Summe, gute Tage und Serie, Wochentage.
-- **Alle übrigen Diagramme** (Radar, Zonen, Gym, Puzzle …) erkennt `GraphFull.auto()` selbst und zeigt sie vergrößert, ohne Zeitachsen-Bedienung und ohne neue Statistik.
+- **Alle übrigen Diagramme** (Radar, Zonen, Gym …) erkennt `GraphFull.auto()` selbst und zeigt sie vergrößert, ohne Zeitachsen-Bedienung und ohne neue Statistik.
 - **Neuer Graph = eine Zeile:** `GraphFull.attach('#id',{id:'x',title:'…',unit:'kg',dir:1,series:()=>[{date:'2026-10-01',value:70}]})`.
 - Im Performance-Modus oder bei „Bewegung reduzieren“ gibt es nur ein kurzes Einblenden statt der Animation.
+
+## Diagramme mit Chart.js (`lb-chart.js`)
+- Die Tagesgraphen in Recovery und der Vergleich in Muster werden mit Chart.js gezeichnet (weiche Kurven, Verlauf, Endwert, Einwachsen). Antippen zeigt Datum und Wert; auf Handy/iPad bleibt das Info-Fenster stehen, bis woanders getippt wird.
+- Chart.js liegt lokal (`vendor/chart.umd.min.js`, Version 4.4.4) und wird erst geladen, wenn das erste Diagramm gezeichnet ist. Die Werte kommen 1:1 aus denselben Arrays wie vorher.
+- **Rückfall:** Das alte SVG wird immer zuerst gezeichnet und bleibt versteckt im DOM. Lädt Chart.js nicht oder tritt ein Fehler auf, ist sofort das SVG zu sehen; das Vollbild funktioniert in beiden Fällen.
+- Performance-Modus/„Bewegung reduzieren“: keine Animation und kein Leuchten. Design-Wechsel färbt die Graphen sofort um.
+- Hub: Die Recovery-Kachel zeigt einen Mini-Verlauf der letzten 14 Tage (`lb-spark.js`), nur aus dem Whoop-Speicher auf dem Gerät – ohne zusätzliche Abfrage.
+- Test: `python3 tools/browser/test_charts.py <Ordner>` (gleiche Werte, Antippen, Vollbild, Rückfall ohne Chart.js, Performance-Modus, Handy und iPad).
 
 ## Kalender (Reiter „Kalender“)
 Eigener Kalender im Life Board (keine Verbindung zu Google/Apple). Ansichten: **Monat, Woche, Tag, Jahr**. Antippen eines Tages zeigt rechts (iPad) bzw. darunter (iPhone) den Tag: Termine, **Rückblick** (Check-in, Ziele, Recovery/HRV, Schlaf, Strain, Training, Puzzle, Lernen – nur was es wirklich gibt, nichts erfunden) und **Notiz/Tagebuch mit Stimmung**.

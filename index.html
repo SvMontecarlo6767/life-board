@@ -55,8 +55,6 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
     <a class="tile" href="muster.html?v=1"><div style="font-size:28px">📈</div><b>Muster</b><span>Was dir guttut, was dich bremst, Verläufe und Rückblick</span></a>
     <a class="tile" href="calendar.html?v=1"><div style="font-size:28px">📅</div><b>Kalender</b><span>Termine, Erinnerungen, Tagesnotiz und Rückblick auf deine Daten</span></a>
     <a class="tile" href="training.html?v=3"><div style="font-size:28px">💪</div><b>Training</b><span>Alle Sportarten, Einheiten eintragen, Form und Wochenziel</span></a>
-    <a class="tile" href="puzzle.html?v=3"><div style="font-size:28px">🧩</div><b>Puzzle-Tracker</b><span>Tägliche Puzzles, Rating, Meilensteine, Berichte</span></a>
-    <a class="tile" href="import.html?v=2"><div style="font-size:28px">📥</div><b>Daten importieren</b><span>Einmalig: alte Puzzle-Daten einspielen</span></a>
     <a class="tile" href="recovery.html?v=5"><div style="font-size:28px">💚</div><b>Recovery</b><span>Erholung, HRV, Schlaf und Strain von Whoop</span></a>
     <div class="tile off"><div style="font-size:28px">✅</div><b>Gewohnheiten</b><span>Streaks und Tagesroutine</span><br><span class="tag">kommt später</span></div>
     <a class="tile" href="learn.html?v=2"><div style="font-size:28px">📚</div><b>Lernen</b><span>Wiederholungsrunden aus deinen Notion-Seiten</span></a>
@@ -282,5 +280,5 @@ let ckAt=0;function ckAgain(){const u=auth.currentUser;if(u&&Date.now()-ckAt>300
 window.addEventListener('pageshow',e=>{if(e.persisted)ckAgain()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)ckAgain()});
 </script>
-</main><script src="theme.js?v=16"></script>
+</main><script src="theme.js?v=16"></script><script src="whoop-cache.js"></script><script src="lb-spark.js?v=1"></script>
 </body></html>

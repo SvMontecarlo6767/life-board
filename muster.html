@@ -33,6 +33,7 @@ select{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--
 .seg{display:flex;gap:6px}
 .seg button{flex:1}
 svg.ch{width:100%;height:220px;display:block;margin-top:10px}
+#cmpC h3{min-height:44px;display:flex;align-items:center;padding-right:56px;margin-top:0}
 .lg{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;margin-top:6px}
 .lg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
 table{width:100%;border-collapse:collapse;font-size:14.5px}td,th{padding:7px 4px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mu);font-weight:600;font-size:12.5px}
@@ -57,7 +58,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
     <section class="card" id="badC"><h3>Was dich bremst</h3><div id="badL"></div></section>
   </div>
   <div class="mu">Zusammenhang heißt nicht Ursache – aber ein guter Hinweis, was du ausprobieren kannst. Ein Muster erscheint erst, wenn es auf mindestens 5 Tagen je Seite beruht und der Unterschied deutlich größer ist als der Zufall.</div>
-  <section class="card"><h3>Vergleichen</h3>
+  <section class="card" id="cmpC"><h3>Vergleichen</h3>
     <div class="row"><select id="sA" aria-label="Erste Kurve"></select><select id="sB" aria-label="Zweite Kurve"></select></div>
     <div class="seg" style="margin-top:8px" id="rng"><button data-r="30" aria-pressed="true">30 Tage</button><button data-r="90">90 Tage</button><button data-r="365">1 Jahr</button></div>
     <svg class="ch" id="ch" role="img" aria-label="Verlauf"></svg>
@@ -80,6 +81,7 @@ td.n{text-align:right;font-variant-numeric:tabular-nums}
 <script src="journal-core.js"></script>
 <script src="insights-core.js"></script>
 <script src="whoop-cache.js"></script>
+<script src="lb-chart.js?v=1"></script>
 <script>
 (async function(){
 const E=window.LBDay,J=window.LBJournal,I=window.LBInsights;
@@ -126,6 +128,17 @@ function renderChart(){
   $('ch').innerHTML=grid+line(A,'var(--s1)')+line(B,'var(--s2)');
   const nm=id=>(metricList().find(m=>m.id===id)||{}).name||id;
   const rng=S=>{const v=S.map(x=>x.v).filter(x=>x!=null);return v.length?I.fmtNum(Math.min(...v),1)+'–'+I.fmtNum(Math.max(...v),1):'keine Daten'};
+  // Chart.js-Darstellung derselben Werte (Antippen zeigt Datum und beide Werte; SVG bleibt als Rückfall) + Vollbild mit Statistik
+  try{const um=id=>I.OUTCOMES[id]||{},fv=(v,id)=>I.fmtNum(v,um(id).dec!=null?um(id).dec:1)+(um(id).unit||'');
+    const wd=['So','Mo','Di','Mi','Do','Fr','Sa'],fd=k=>wd[new Date(k+'T12:00:00Z').getUTCDay()]+', '+k.slice(8,10)+'.'+k.slice(5,7)+'.'+k.slice(0,4);
+    if(window.LBChart)LBChart.upgrade($('ch'),{labels:A.map(x=>x.k),sets:[{data:A.map(x=>x.v),label:nm(a),color:'var(--s1)'},{data:B.map(x=>x.v),label:nm(b),color:'var(--s2)'}],
+      kind:'line',dual:true,height:220,fmtDate:fd,fmtVal:(v,j)=>fv(v,j?b:a)});
+    if(window.GraphFull){$('ch').classList.add('nogf');const first=Object.keys(DATA.byDay).sort()[0]||today,ser=id=>()=>I.series(DATA,id,first,today).map(x=>({date:x.k,value:x.v}));
+      GraphFull.attach(()=>{const w=$('ch').nextElementSibling;return w&&w.classList.contains('lbc')?w:$('ch')},{id:'m-cmp',title:nm(a),mainName:nm(a),color:'var(--s1)',
+        unit:(um(a).unit||'').trim(),digits:um(a).dec!=null?um(a).dec:1,dir:um(a).better||0,series:ser(a),
+        layers:a!==b?[{id:'b',name:nm(b),color:'var(--s2)',series:ser(b)}]:undefined,layersOn:['main'],
+        note:a!==b?'Statistik gilt für „'+nm(a)+'“. „'+nm(b)+'“ lässt sich oben als zweite Kurve dazuschalten (gleiche Achse).':undefined})}
+  }catch(e){}
   $('lg').innerHTML='<span><i style="background:var(--s1)"></i>'+esc(nm(a))+' <span class="mu">('+rng(A)+')</span></span><span><i style="background:var(--s2)"></i>'+esc(nm(b))+' <span class="mu">('+rng(B)+')</span></span>';
   // Korrelation (gleicher Tag)
   const pr=A.map((x,i)=>[x.v,B[i].v]).filter(p=>p[0]!=null&&p[1]!=null);
@@ -183,5 +196,5 @@ async function boot(){
 boot().catch(e=>{$('msg').innerHTML='<div class="info warn">Fehler: '+esc(errText(e))+'</div>'});
 })();
 </script>
-<script src="theme.js?v=16"></script>
+<script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=5"></script><script src="theme.js?v=16"></script>
 </body></html>

@@ -12,7 +12,7 @@ class Q(http.server.SimpleHTTPRequestHandler):
 srv=socketserver.TCPServer(('127.0.0.1',0),functools.partial(Q,directory=root)); port=srv.server_address[1]
 threading.Thread(target=srv.serve_forever,daemon=True).start()
 UA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
-PAGES=[('index.html','#hub:not([hidden])'),('checkin.html','#morning'),('recovery.html','#content:not([hidden])'),('learn.html','#stats'),('puzzle.html','#form'),('training.html','#mcontent:not([hidden])'),('calendar.html','.cell')]
+PAGES=[('index.html','#hub:not([hidden])'),('checkin.html','#morning'),('recovery.html','#content:not([hidden])'),('learn.html','#stats'),('training.html','#mcontent:not([hidden])'),('calendar.html','.cell')]
 def worker(r):
     hd={'access-control-allow-origin':'*','content-type':'application/json'}
     if r.request.method=='OPTIONS': return r.fulfill(status=204,headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'})
