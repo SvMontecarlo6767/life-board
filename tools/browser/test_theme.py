@@ -44,7 +44,7 @@ with sync_playwright() as p:
         acc0=pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")
         pg.screenshot(path=f'{out}/recovery-cockpit-{w}.png')
         pg.click('#lb-gear'); pg.wait_for_selector('#lb-set .lb-th[data-th=jungle]')
-        check(pg.evaluate("document.querySelectorAll('#lb-set .lb-th').length")==2,'Zahnrad zeigt zwei Designs')
+        check(pg.evaluate("document.querySelectorAll('#lb-set .lb-th[data-th]').length")==2,'Zahnrad zeigt zwei Designs')
         pg.click('#lb-set .lb-th[data-th=jungle]'); pg.wait_for_timeout(1200)
         check(pg.evaluate("document.documentElement.getAttribute('data-theme')")=='jungle','Klick setzt data-theme=jungle')
         acc1=pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")
@@ -72,8 +72,10 @@ with sync_playwright() as p:
             pg.wait_for_function("document.documentElement.getAttribute('data-theme')==='jungle'",timeout=3000)
             pg.wait_for_selector(sel,timeout=15000); pg.wait_for_timeout(1300)
             ok_scroll=pg.evaluate('document.documentElement.scrollWidth<=window.innerWidth')
-            bg=pg.evaluate("!!document.getElementById('lb-bg')")
-            check(not errs and ok_scroll and bg,f'{page}: Dschungel, Fehler={errs[:1]}, kein Seitwärtsscroll={ok_scroll}, 3D={bg}')
+            try: pg.wait_for_selector('.lb-bgl.on',state='attached',timeout=12000)
+            except Exception: pass
+            bg=pg.evaluate("!!document.querySelector('.lb-bgl.on')")
+            check(not errs and ok_scroll and bg,f'{page}: Dschungel, Fehler={errs[:1]}, kein Seitwärtsscroll={ok_scroll}, Hintergrund={bg}')
             pg.screenshot(path=f'{out}/jungle-{page[:-5]}-{w}.png'); pg.close()
         # 3) zurück auf Cockpit
         pg=ctx.new_page(); pg.goto(f'http://127.0.0.1:{port}/index.html'); pg.wait_for_selector('#hub:not([hidden])'); pg.wait_for_timeout(600)

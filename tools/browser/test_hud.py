@@ -27,10 +27,11 @@ with sync_playwright() as p:
     ck('Navigation mit 7 Reitern',pg.locator('#lb-nav a.tab').count()==7)
     ck('Aktiver Reiter = Lernen',pg.inner_text('#lb-nav a.tab.act').strip().lower()=='lernen')
     ck('Akzent Lernen = Violett',pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")=='150 125 255')
-    ck('3D-Hintergrund da',pg.evaluate("!!document.getElementById('lb-bg')"))
+    pg.wait_for_selector('.lb-bgl.on',state='attached',timeout=15000); pg.wait_for_timeout(1200)
+    ck('Animierter Hintergrund da',pg.evaluate("!!document.querySelector('.lb-bgl.on')"))
     from PIL import Image
-    im=Image.open(io.BytesIO(pg.locator('#lb-bg').screenshot())).convert('L'); px=list(im.getdata())
-    ck('3D-Hintergrund zeichnet etwas (nicht leer)',max(px)>25 and len(set(px))>8,(min(px),max(px)))
+    im=Image.open(io.BytesIO(pg.locator('.lb-bgl.on').screenshot())).convert('L'); px=list(im.getdata())
+    ck('Hintergrund zeichnet etwas (nicht leer)',max(px)>25 and len(set(px))>8,(min(px),max(px)))
     ck('Tab-Leiste: alle Touchflächen ≥ 44 px',pg.evaluate("Math.min(...[...document.querySelectorAll('#lb-nav a.tab,#lb-gear')].map(e=>e.offsetHeight))")>=44)
     # Einstellungen
     pg.tap('#lb-gear'); ck('Einstellungs-Panel öffnet',pg.is_visible('#lb-set'))
@@ -38,15 +39,16 @@ with sync_playwright() as p:
     ck('Standard: Sounds an, Performance aus',pg.get_attribute('[data-k=sounds]','aria-checked')=='true' and pg.get_attribute('[data-k=perf]','aria-checked')=='false')
     pg.tap('[data-k=perf]'); pg.wait_for_timeout(300)
     ck('Performance-Modus aktiv (html[data-perf])',pg.evaluate("document.documentElement.hasAttribute('data-perf')"))
-    ck('Performance: Blur aus, Hintergrund-Canvas ausgeblendet',pg.evaluate("getComputedStyle(document.querySelector('.card')).backdropFilter")=='none' and pg.evaluate("getComputedStyle(document.getElementById('lb-bg')).display")=='none')
+    ck('Performance: Blur aus, Hintergrund-Canvas ausgeblendet',pg.evaluate("getComputedStyle(document.querySelector('.card')).backdropFilter")=='none' and pg.evaluate("[...document.querySelectorAll('.lb-bgl')].every(e=>getComputedStyle(e).display==='none'||!e.classList.contains('on'))"))
     ck('Einstellung gespeichert (lokal)',json.loads(pg.evaluate("localStorage.getItem('lb_ui')"))['perf']==True)
     ck('Einstellung gespeichert (Firestore)',pg.evaluate("Object.values(window.__store).some(v=>v&&v.ui&&v.ui.perf===true)"))
     pg.tap('[data-k=sounds]'); ck('Sounds aus gespeichert',json.loads(pg.evaluate("localStorage.getItem('lb_ui')"))['sounds']==False)
     pg.reload(); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(600)
-    ck('Nach Neuladen: Performance bleibt an, kein 3D geladen',pg.evaluate("document.documentElement.hasAttribute('data-perf')") and not pg.evaluate("!!document.getElementById('lb-bg')"))
+    ck('Nach Neuladen: Performance bleibt an, kein 3D geladen',pg.evaluate("document.documentElement.hasAttribute('data-perf')") and not pg.evaluate("!!document.querySelector('.lb-bgl.on')"))
     pg.tap('#lb-gear'); ck('Nach Neuladen: Schalter stimmen',pg.get_attribute('[data-k=perf]','aria-checked')=='true' and pg.get_attribute('[data-k=sounds]','aria-checked')=='false')
     pg.tap('[data-k=perf]'); pg.wait_for_timeout(800)
-    ck('Performance wieder aus: 3D startet',pg.evaluate("!!document.getElementById('lb-bg')") and pg.evaluate("getComputedStyle(document.getElementById('lb-bg')).display")!='none')
+    pg.wait_for_selector('.lb-bgl.on',state='attached',timeout=15000)
+    ck('Performance wieder aus: Hintergrund startet',pg.evaluate("getComputedStyle(document.querySelector('.lb-bgl.on')).display")!='none')
     pg.keyboard.press('Escape'); pg.tap('.bar,h1') if False else None
     # Reiterwechsel + Akzent
     pg.tap('#lb-gear') if pg.is_visible('#lb-set') else None
