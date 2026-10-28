@@ -79,9 +79,11 @@ function tick(now){
   if(!reduced)raf=requestAnimationFrame(tick);
 }
 function kick(){if(!raf&&visible)raf=requestAnimationFrame(tick)}
-document.addEventListener('visibilitychange',()=>{visible=!document.hidden;if(visible){last=performance.now();kick()}else if(raf){cancelAnimationFrame(raf);raf=0}});
-window.addEventListener('lb-bg-stop',()=>{visible=false;if(raf){cancelAnimationFrame(raf);raf=0}});
-if(window.LBUI)LBUI.onSettings(s=>{const c=document.getElementById('lb-bg');if(!c)return;if(s.perf){visible=false;if(raf){cancelAnimationFrame(raf);raf=0}}else if(!visible&&!document.hidden){visible=true;last=performance.now();kick()}});
+document.addEventListener('visibilitychange',()=>{if(off)return;visible=!document.hidden;if(visible){last=performance.now();kick()}else if(raf){cancelAnimationFrame(raf);raf=0}});
+let off=false;   // von lb-bg.js angehalten (anderer Hintergrund gewählt)
+window.addEventListener('lb-bg-stop',()=>{off=true;visible=false;if(raf){cancelAnimationFrame(raf);raf=0}});
+window.addEventListener('lb-bg-start',()=>{off=false;if(!document.hidden){visible=true;last=performance.now();kick()}});
+if(window.LBUI)LBUI.onSettings(s=>{const c=document.getElementById('lb-bg');if(!c)return;if(s.perf){visible=false;if(raf){cancelAnimationFrame(raf);raf=0}}else if(!off&&!visible&&!document.hidden){visible=true;last=performance.now();kick()}});
 window.addEventListener('lb-theme',()=>{readAcc();recolor();lm.color.copy(acc);gm.color.copy(acc);applyMode();if(reduced||!raf)renderer.render(scene,cam)});
 applyMode();rebuildLines();kick();
 })();

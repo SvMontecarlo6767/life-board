@@ -11,7 +11,7 @@ html[data-hud]{
   --tx:#e6f1fb;--mu:#8fa6bd;--bd:rgba(150,200,255,.16);--card:var(--glass);--bg:transparent;
   --bad:#ff7a6e;--bad2:rgba(255,90,70,.14);--warn:#ffc15a;--gold:#ffd36b;
   --rS:#ffd36b;--rA:#4ee3a0;--rB:#5cb2ff;--rC:#8a9bb0;
-  /* recovery.html / puzzle: eigene Variablennamen */
+  /* recovery.html: eigene Variablennamen */
   --page:transparent;--surface:var(--glass);--ink:#e6f1fb;--ink2:#b4c7da;--muted:#8fa6bd;--grid:rgba(150,200,255,.12);--axis:rgba(150,200,255,.25);--border:var(--bd);
   --good:#4ee3a0;--ok:#4ee3a0;--mid:#ffc15a;--low:#ff6a5c;--z1:#16324f;--z2:#1d4d7a;--z3:#2a78c6;--z4:#4cc9ff;--z5:#a8e6ff;
   --series-1:#4cc9ff;--series-2:#ff9a52;--series-3:#3de8b0;--series-7:#9d8cff;--neutral:#7d93aa;
@@ -189,15 +189,6 @@ html[data-perf] .hero .card::after{animation:none}
 html[data-perf] .en .b i{animation:none}
 html[data-tab="lernen"] .grid.st b{font-family:var(--font-hud);font-size:30px;text-shadow:0 0 16px rgb(var(--acc) / .6)}
 
-/* Puzzle: verspielt – Orange, Magenta, Gelb, weiche Rundungen */
-html[data-tab="puzzle"]{--pz1:255 150 60;--pz2:255 70 170;--pz3:255 214 64}
-html[data-tab="puzzle"] .card{border-radius:22px;border-color:rgb(var(--pz1) / .4);background:linear-gradient(150deg,rgba(60,24,40,.62),rgba(14,18,34,.7))}
-html[data-tab="puzzle"] .card:nth-of-type(3n+2){border-color:rgb(var(--pz2) / .45)}
-html[data-tab="puzzle"] .card:nth-of-type(3n){border-color:rgb(var(--pz3) / .45)}
-html[data-tab="puzzle"] h1,html[data-tab="puzzle"] h2{background:linear-gradient(90deg,rgb(var(--pz3)),rgb(var(--pz1)),rgb(var(--pz2)));-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:none}
-html[data-tab="puzzle"] button{border-radius:14px}
-html[data-tab="puzzle"] button:active{transform:scale(.93) rotate(-1deg)}
-html[data-tab="puzzle"] button.primary,html[data-tab="puzzle"] button.pri{background:linear-gradient(135deg,rgb(var(--pz1)),rgb(var(--pz2)));color:#190a10;border-color:transparent}
 
 #lb-fps{position:fixed;left:8px;bottom:6px;z-index:200;padding:3px 8px;border-radius:8px;background:rgba(0,0,0,.65);color:#7dffb0;font:600 12px ui-monospace,Menlo,monospace;pointer-events:none}
 

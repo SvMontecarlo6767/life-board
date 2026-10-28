@@ -1,4 +1,4 @@
-"""Browsertest Graph-Vollbild (Recovery, Training, Puzzle-Clone). Aufruf: python3 tools/browser/test_graphfull.py <screenshot-ordner>"""
+"""Browsertest Graph-Vollbild (Recovery, Training). Aufruf: python3 tools/browser/test_graphfull.py <screenshot-ordner>"""
 import re, json, sys, os, threading, http.server, socketserver, functools, datetime as dt
 from playwright.sync_api import sync_playwright
 root=os.path.abspath(os.path.join(os.path.dirname(__file__),'..','..')); shots=sys.argv[1]; os.makedirs(shots,exist_ok=True)

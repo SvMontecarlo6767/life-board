@@ -18,11 +18,11 @@ await ctx.route(/life-board-whoop\.momo-haskamp\.workers\.dev/,r=>{const h={'acc
   const u=new globalThis.URL(r.request().url());if(u.pathname==='/data'){reqs.push(u.searchParams.get('from'));if(offline)return r.abort();const f=u.searchParams.get('from'),t=u.searchParams.get('to');const d={};for(const k in whoop)if(k>=f&&k<=t)d[k]=whoop[k];return r.fulfill({headers:h,body:JSON.stringify({days:d})})}
   return r.fulfill({headers:h,body:'{}'})});
 const pg=await ctx.newPage();pg.on('pageerror',e=>console.log('ERR',String(e)));pg.on('console',m=>{if(m.type()==='error')console.log('CON',m.text())});await pg.clock.setFixedTime(new Date('2026-10-25T12:00:00+01:00'));
-await pg.goto(URL+'/recovery.html');await pg.waitForSelector('#c-rec svg',{timeout:15000});
+await pg.goto(URL+'/recovery.html');await pg.waitForSelector('#c-rec svg:not([data-lbc]), #c-rec canvas',{timeout:15000});
 ck('erstes Öffnen lädt das ganze Jahr',reqs[0]<'2025-11-01',reqs[0]);
-await pg.reload();await pg.waitForSelector('#c-rec svg',{timeout:15000});
+await pg.reload();await pg.waitForSelector('#c-rec svg:not([data-lbc]), #c-rec canvas',{timeout:15000});
 ck('zweites Öffnen lädt nur die letzten Tage',reqs[1]>='2026-10-15',reqs[1]);
 ck('trotzdem alle Tage da',(await pg.evaluate(()=>ALL.length))===120);
-offline=true;await pg.reload();await pg.waitForSelector('#c-rec svg',{timeout:15000}).catch(()=>{});
+offline=true;await pg.reload();await pg.waitForSelector('#c-rec svg:not([data-lbc]), #c-rec canvas',{timeout:15000}).catch(()=>{});
 ck('ohne Netz: gespeicherter Stand',(await pg.evaluate(()=>typeof ALL!=='undefined'?ALL.length:0))===120);
 await b.close();srv.close();console.log(fails?fails+' FEHLER':'alles ok');process.exit(fails?1:0);

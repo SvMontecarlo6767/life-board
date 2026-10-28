@@ -152,6 +152,7 @@ h2.sec{font-size:17px;margin:22px 0 10px}
 <script src="whoop-cache.js"></script>
 <script src="sleep-lever.js?v=1"></script>
 <script src="sleep-card.js?v=1"></script>
+<script src="lb-chart.js?v=1"></script>
 <script>
 const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
 const $=id=>document.getElementById(id);
@@ -283,6 +284,9 @@ function chart(host,o){
   hit.addEventListener('pointermove',at);hit.addEventListener('pointerdown',at);
   hit.addEventListener('pointerleave',()=>{hideTip();cross.setAttribute('visibility','hidden');dot.setAttribute('visibility','hidden')});
   host.appendChild(svg);
+  // Chart.js-Darstellung derselben Werte (SVG bleibt als Rückfall erhalten)
+  try{if(window.LBChart)LBChart.upgrade(svg,{labels:o.dates,sets:[{data:vals,label:o.label}],kind:o.kind,fixed:o.fixed,digits:o.digits||0,height:H,
+    fmtDate:fmtLong,fmtTick:fmtD,fmtVal:v=>fmtN(v,o.digits||0)+(o.unit||''),extra:o.extra})}catch(e){}
 }
 
 

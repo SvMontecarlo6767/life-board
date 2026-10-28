@@ -43,7 +43,7 @@ with sync_playwright() as p:
     ck('Kaputte Datei wird abgelehnt','nicht gelesen' in pg.inner_text('#bkPrev'),pg.inner_text('#bkPrev'))
     ck('Keine Seitenfehler',errs==[],errs[:3])
     # App-Modus
-    for pgname in ['index','checkin','muster','news','recovery','learn','puzzle','training','calendar']:
+    for pgname in ['index','checkin','muster','news','recovery','learn','training','calendar']:
         s=open(os.path.join(root,pgname+'.html')).read()
         ck(f'{pgname}.html: Manifest, Symbol, App-Tags','rel="manifest"' in s and 'apple-touch-icon' in s and 'apple-mobile-web-app-capable' in s and 'theme-color' in s)
     m=json.load(open(os.path.join(root,'manifest.webmanifest')))

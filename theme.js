@@ -10,7 +10,6 @@ const ICON={
   muster:'<path d="M4 19l5-6 4 3 7-9"/><circle cx="4" cy="19" r="1.5"/><circle cx="9" cy="13" r="1.5"/><circle cx="13" cy="16" r="1.5"/><circle cx="20" cy="7" r="1.5"/>',
   recovery:'<path d="M3 12h4l2-6 4 12 2-6h6"/>',
   lernen:'<path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4zM20 5h-7a3 3 0 00-3 3v12a2 2 0 012-2h8z"/>',
-  puzzle:'<path d="M10 4a2 2 0 114 0v2h4v4h-2a2 2 0 100 4h2v4h-4v-2a2 2 0 10-4 0v2H6v-4h2a2 2 0 100-4H6V6h4z"/>',
   training:'<circle cx="15" cy="5" r="2"/><path d="M13 21l-1-6 3-3-2-4-4 2-2 4M12 9l5 3 3-1M9 21l3-6"/>',
   kalender:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M12 14h2M16 14h2M8 18h2M12 18h2"/>',
   gear:'<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2-1.2L14.2 3h-4l-.4 2.6a7 7 0 00-2 1.2l-2.3-.9-2 3.4 2 1.5A7 7 0 005 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-.9c.6.5 1.3.9 2 1.2l.4 2.6h4l.4-2.6c.7-.3 1.4-.7 2-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/>'
@@ -21,7 +20,6 @@ const TABS=[
   {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=3',rgb:[255,200,70],rgb2:[255,120,90]},
   {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=6',rgb:[52,235,170],rgb2:[58,215,255]},
   {id:'lernen',name:'Lernen',file:'learn.html',href:'learn.html?v=3',rgb:[150,125,255],rgb2:[70,140,255]},
-  {id:'puzzle',name:'Puzzle',file:'puzzle.html',href:'puzzle.html?v=4',rgb:[255,150,60],rgb2:[255,70,170]},
   {id:'training',name:'Training',file:'training.html',href:'training.html?v=4',rgb:[255,84,96],rgb2:[255,154,92]},
   {id:'muster',name:'Muster',file:'muster.html',href:'muster.html?v=2',rgb:[120,230,255],rgb2:[180,120,255]}
 ];
@@ -33,13 +31,13 @@ const THEMES={
   cockpit:{id:'cockpit',name:'Cockpit',sw:['#3ad7ff','#7896ff'],meta:'#04080f'},
   jungle:{id:'jungle',name:'Dschungel',sw:['#6fe39a','#d8e86a'],meta:'#050d08',
     tabs:{hub:[[110,225,140],[205,235,105]],checkin:[[255,196,92],[255,140,80]],kalender:[[240,205,90],[225,140,70]],
-      recovery:[[60,222,165],[130,232,120]],lernen:[[200,140,235],[140,110,235]],puzzle:[[255,150,60],[255,70,170]],training:[[255,112,80],[255,172,70]],muster:[[120,228,210],[190,232,120]]}}
+      recovery:[[60,222,165],[130,232,120]],lernen:[[200,140,235],[140,110,235]],training:[[255,112,80],[255,172,70]],muster:[[120,228,210],[190,232,120]]}}
 };
 const themeOf=()=>THEMES[S.theme]||THEMES.cockpit;
 const trgb=t=>{const x=themeOf().tabs&&themeOf().tabs[t.id];return x?x[0]:t.rgb};
 const trgb2=t=>{const x=themeOf().tabs&&themeOf().tabs[t.id];return x?x[1]:t.rgb2};
 /* ---------- Einstellungen (localStorage + Firestore best effort) ---------- */
-const DEF={perf:false,sounds:true,tilt:false,fps:false,theme:'cockpit'};
+const DEF={perf:false,sounds:true,tilt:false,fps:false,theme:'cockpit',bgc:'auto',bgj:'auto'};
 let S=Object.assign({},DEF);
 try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('lb_ui')||'{}'))}catch(e){}
 const listeners=[];
@@ -101,7 +99,7 @@ function buildNav(){
   document.body.prepend(nav);
   const panel=document.createElement('div');panel.id='lb-set';panel.hidden=true;
   const row=(k,t,sub)=>'<div class="r"><div>'+t+(sub?'<small>'+sub+'</small>':'')+'</div><button class="lb-sw" role="switch" data-k="'+k+'" aria-checked="'+!!S[k]+'" aria-label="'+t+'"></button></div>';
-  panel.innerHTML='<h4>Einstellungen</h4>'+'<div class="th"><div class="thl">Design<small>Ändert nur Farben und Stimmung, an den Funktionen ändert sich nichts</small></div><div class="thg">'+Object.values(THEMES).map(t=>'<button class="lb-th" data-th="'+t.id+'" aria-pressed="'+(t.id===themeOf().id)+'"><i style="background:linear-gradient(135deg,'+t.sw[0]+','+t.sw[1]+')"></i>'+t.name+'</button>').join('')+'</div></div>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
+  panel.innerHTML='<h4>Einstellungen</h4>'+'<div class="th"><div class="thl">Design<small>Ändert nur Farben und Stimmung, an den Funktionen ändert sich nichts</small></div><div class="thg">'+Object.values(THEMES).map(t=>'<button class="lb-th" data-th="'+t.id+'" aria-pressed="'+(t.id===themeOf().id)+'"><i style="background:linear-gradient(135deg,'+t.sw[0]+','+t.sw[1]+')"></i>'+t.name+'</button>').join('')+'</div></div>'+'<div class="th" id="lb-bgsel"></div>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
   document.body.append(panel);
   nav.querySelector('#lb-gear').onclick=()=>{panel.hidden=!panel.hidden;sound(panel.hidden?'off':'on')};
   document.addEventListener('pointerdown',e=>{if(!panel.hidden&&!panel.contains(e.target)&&!nav.querySelector('#lb-gear').contains(e.target))panel.hidden=true},true);
@@ -113,13 +111,24 @@ function buildNav(){
     b.setAttribute('aria-checked',v);setSetting(k,v);sound(v?'on':'off');
   });
   panel.querySelectorAll('.lb-th').forEach(b=>b.onclick=()=>{setTheme(b.dataset.th);sound('ok')});
+  paintBg();
+  panel.querySelector('#lb-bgsel').addEventListener('click',e=>{const b=e.target.closest('[data-bg]');if(!b)return;
+    const k=themeOf().id==='jungle'?'bgj':'bgc';if(b.dataset.bg==='auto'&&window.LBBG)LBBG.resetProbe();setSetting(k,b.dataset.bg);paintBg();sound('ok')});
   const h=nav.getBoundingClientRect().height;if(h)root.style.setProperty('--navh',Math.ceil(h)+'px');
+}
+/* ---------- Hintergrund-Auswahl je Design (Knöpfe im Einstellungs-Panel) ---------- */
+const BGS={cockpit:[['auto','Automatisch'],['vanta','3D-Netz'],['classic','Klassik 3D'],['light','Leicht']],jungle:[['auto','Automatisch'],['fireflies','Glühwürmchen'],['leaves','Blätter'],['classic','Klassik 3D']]};
+function paintBg(){
+  const box=document.getElementById('lb-bgsel');if(!box)return;
+  const j=themeOf().id==='jungle',cur=S[j?'bgj':'bgc']||'auto';
+  box.innerHTML='<div class="thl">Hintergrund<small>'+(j?'Automatisch: Glühwürmchen':'Automatisch: Handy leicht, iPad 3D-Netz, wenn es flüssig läuft')+'. Im Performance-Modus aus.</small></div><div class="thg">'+
+    BGS[j?'jungle':'cockpit'].map(([id,n])=>'<button class="lb-th lb-bgo" data-bg="'+id+'" aria-pressed="'+(id===cur)+'">'+n+'</button>').join('')+'</div>';
 }
 /* ---------- Design wechseln: weich überblenden (View Transitions, sonst kurzes Farbüberblenden) ---------- */
 function refreshThemeUI(){
   const nav=document.getElementById('lb-nav');
   if(nav)nav.querySelectorAll('a.tab').forEach(a=>{const t=TABS.find(x=>x.id===a.dataset.tab);if(t)a.style.setProperty('--tc',trgb(t).join(' '))});
-  document.querySelectorAll('#lb-set .lb-th').forEach(b=>b.setAttribute('aria-pressed',b.dataset.th===themeOf().id));
+  document.querySelectorAll('#lb-set .lb-th[data-th]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.th===themeOf().id));paintBg();
   const tab=curTab(),R=trgb(tab);
   root.style.setProperty('--tc',R.join(' '));setAcc(R,trgb2(tab));
   try{sessionStorage.setItem('lb_acc',JSON.stringify(R))}catch(e){}
@@ -183,7 +192,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('vendor/three.min.js?v=150');await loadScript('bg3d.js?v=3')}catch(e){bgStarted=false}
+  try{await loadScript('lb-bg.js?v=1')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
 }
 /* ---------- Start ---------- */
 const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,

@@ -1,7 +1,7 @@
 {
   "name": "Life Board",
   "short_name": "Life Board",
-  "description": "Persönliches Dashboard: Heute, Recovery, Lernen, Puzzle, Training",
+  "description": "Persönliches Dashboard: Heute, Recovery, Lernen, Training",
   "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
