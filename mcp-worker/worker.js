@@ -4,6 +4,9 @@
 //   get_today    – heutiger Stand: Whoop (Recovery, Schlaf, Workouts), Check-in, Lernen
 //   get_week     – Verlauf der letzten Tage (Standard 7, höchstens 30)
 //   get_learning – Lernstand: Stufen, fällig, überfällig, pro Thema
+//   get_range    – kompakte Tagestabelle (CSV) für bis zu 400 Tage: Whoop, Check-in, Gym in einer Zeile pro Tag
+//   get_gym      – Krafteinheiten mit Sätzen, Bestwerte pro Übung
+//   get_correlations – rechnet Zusammenhänge im Worker (z. B. Strain gestern → Recovery heute) und liefert nur das Ergebnis
 //
 // Benötigt in Cloudflare (siehe mcp-worker/README.md):
 //   Secrets:   MCP_TOKEN (langes Zufallspasswort), SA_JSON (Service-Account-Schlüssel, nur Leserechte)
@@ -161,10 +164,127 @@ function learnStats(qs, today) {
 }
 const learnQs = env => listCol(env, 'questions', ['stage', 'due', 'reps', 'pageId', 'pageTitle']);
 
+// ---------- Tagestabelle: Whoop + Check-in + Gym in einer Zeile pro Tag ----------
+const MAX_RANGE = 400;
+const COLS = ['rec', 'hrv', 'rhr', 'sleep_h', 'sleep_perf', 'bed', 'strain', 'steps', 'wk_n', 'wk_min', 'mood', 'energy', 'stress', 'alc', 'sick', 'goals_pct', 'gym', 'gym_min', 'gym_sets', 'gym_vol', 'gym_rpe'];
+const LEGEND = 'rec=Recovery %, hrv=HRV ms, rhr=Ruhepuls, sleep_h=Schlafstunden, sleep_perf=Schlafleistung %, bed=Einschlafzeit als Uhrzeit (24.5 = 0:30 Uhr), strain=Tagesbelastung 0-21, steps=Schritte, wk_n/wk_min=Whoop-Workouts Anzahl/Minuten, mood/energy/stress=Check-in 1-5, alc=Alkohol (1/0), sick=krank (1/0), goals_pct=erledigte Tagesziele %, gym=Krafteinheit (1/0), gym_min/gym_sets/gym_vol(kg)/gym_rpe=Gym-Werte. Der Tag wechselt um 4 Uhr. Leer = keine Daten. Recovery, HRV, Ruhepuls und Schlaf gehören zur Nacht VOR dem Datum; strain gehört zum Tag selbst.';
+function dayRange(from, to) { const out = []; for (let k = from; k <= to; k = addDays(k, 1)) out.push(k); return out; }
+function checkRange(args, defDays) {
+  const today = dayKey();
+  let to = args && /^\d{4}-\d{2}-\d{2}$/.test(args.to || '') ? args.to : today;
+  if (to > today) to = today;
+  let from = args && /^\d{4}-\d{2}-\d{2}$/.test(args.from || '') ? args.from : addDays(to, -((parseInt(args && args.days, 10) || defDays) - 1));
+  if (from > to) from = to;
+  if ((Date.parse(to) - Date.parse(from)) / 864e5 + 1 > MAX_RANGE) from = addDays(to, -(MAX_RANGE - 1));
+  return { from, to };
+}
+function localHour(iso, tz) { // Uhrzeit des Zeitstempels in der gespeicherten Zeitzone, nachts nach 24 verlängert (0:30 → 24.5)
+  let min = 0; const m = /^([+-])(\d{2}):(\d{2})$/.exec(tz || '');
+  if (m) min = (m[1] === '-' ? -1 : 1) * (+m[2] * 60 + +m[3]);
+  const h = (((Date.parse(iso) + min * 6e4) / 36e5) % 24 + 24) % 24;
+  return r1(h < 12 ? h + 24 : h);
+}
+function whoopFlat(w) {
+  if (!w) return {};
+  const d = whoopDay(w), o = {};
+  if (d.recovery) { o.rec = d.recovery.score; o.hrv = d.recovery.hrv_ms; o.rhr = d.recovery.ruhepuls; }
+  if (d.schlaf) { o.sleep_h = d.schlaf.stunden; o.sleep_perf = d.schlaf.leistung_prozent; if (w.sleep && w.sleep.start) o.bed = localHour(w.sleep.start, w.sleep.tz); }
+  o.strain = d.strain; o.steps = d.schritte; o.wk_n = d.workouts.length; o.wk_min = d.workouts.reduce((s, x) => s + (x.minuten || 0), 0);
+  return o;
+}
+async function journalRange(env, from, to) {
+  const docs = await listCol(env, 'journal', ['m', 'e.stress', 'alc', 'sick', 'g']);
+  const out = {}; docs.forEach(d => { if (d.id >= from && d.id <= to) out[d.id] = d; });
+  return out;
+}
+function journalFlat(j) {
+  if (!j) return {};
+  const o = {};
+  if (j.m) { o.mood = j.m.mood ?? null; o.energy = j.m.energy ?? null; }
+  if (j.e) o.stress = j.e.stress ?? null;
+  if (typeof j.alc === 'boolean') o.alc = j.alc ? 1 : 0;
+  o.sick = j.sick ? 1 : 0;
+  const g = Array.isArray(j.g) ? j.g : [];
+  if (g.length) o.goals_pct = Math.round(100 * g.filter(x => x && x.done).length / g.length);
+  return o;
+}
+async function gymSessions(env, from, to) {
+  const ids = []; for (let y = +from.slice(0, 4); y <= +to.slice(0, 4); y++) ids.push('gym_' + y);
+  const docs = await getDocs(env, 'training', ids), out = [];
+  Object.values(docs).forEach(d => (d.list || []).forEach(s => { if (s && s.d >= from && s.d <= to) out.push(s); }));
+  return out.sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : (a.t || 0) - (b.t || 0));
+}
+const setsOf = s => (s.e || []).flatMap(e => e.s || []);
+function gymFlat(list, haveData) {
+  if (!list || !list.length) return haveData ? { gym: 0 } : {};
+  const sets = list.flatMap(setsOf), rp = list.map(s => s.x).filter(x => typeof x === 'number');
+  return { gym: 1, gym_min: list.reduce((a, s) => a + (s.m || 0), 0) || null, gym_sets: sets.length, gym_vol: Math.round(sets.reduce((a, x) => a + (x.w || 0) * (x.r || 0), 0)), gym_rpe: avg(rp) };
+}
+async function dayTable(env, from, to) {
+  const [w, j, g] = await Promise.all([whoopRange(env, from, to), journalRange(env, from, to), gymSessions(env, from, to)]);
+  const gBy = {}; g.forEach(s => (gBy[s.d] ||= []).push(s));
+  const haveGym = g.length > 0;
+  return dayRange(from, to).map(k => ({ date: k, ...whoopFlat(w[k]), ...journalFlat(j[k]), ...gymFlat(gBy[k], haveGym) }));
+}
+function toCsv(rows, cols) {
+  return ['date,' + cols.join(',')].concat(rows.map(r => r.date + ',' + cols.map(c => r[c] == null ? '' : r[c]).join(','))).join('\n');
+}
+
+// ---------- Zusammenhänge rechnen ----------
+function pearson(xs, ys) {
+  const n = xs.length; if (n < 3) return null;
+  const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < n; i++) { const dx = xs[i] - mx, dy = ys[i] - my; sxy += dx * dy; sxx += dx * dx; syy += dy * dy; }
+  return sxx > 0 && syy > 0 ? sxy / Math.sqrt(sxx * syy) : null;
+}
+// Paare (x vom Vortag bzw. gleicher Tag, y von heute)
+function pairs(rows, x, y, lag) {
+  const xs = [], ys = [];
+  for (let i = lag; i < rows.length; i++) {
+    const a = rows[i - lag][x], b = rows[i][y];
+    if (typeof a === 'number' && typeof b === 'number') { xs.push(a); ys.push(b); }
+  }
+  return { xs, ys };
+}
+const isBinary = xs => xs.every(v => v === 0 || v === 1);
+function describe(x, y, lag, xs, ys) {
+  const r = pearson(xs, ys); if (r == null) return null;
+  const o = { x, y, vortag: lag === 1, r: Math.round(r * 100) / 100, n: xs.length };
+  if (isBinary(xs)) {
+    const a = ys.filter((_, i) => xs[i] === 1), b = ys.filter((_, i) => xs[i] === 0);
+    if (a.length < 5 || b.length < 5) return null;
+    o.mittel_bei_ja = avg(a); o.mittel_bei_nein = avg(b); o.tage_ja = a.length; o.tage_nein = b.length;
+  } else {
+    const idx = xs.map((v, i) => i).sort((p, q) => xs[p] - xs[q]), t = Math.floor(xs.length / 3);
+    if (t < 5) return null;
+    o.mittel_y_bei_niedrigem_x = avg(idx.slice(0, t).map(i => ys[i]));
+    o.mittel_y_bei_hohem_x = avg(idx.slice(-t).map(i => ys[i]));
+  }
+  return o;
+}
+const TARGETS = ['rec', 'hrv', 'rhr', 'sleep_h', 'sleep_perf', 'mood', 'energy', 'stress'];
+const SAME_FAMILY = [['rec', 'hrv', 'rhr'], ['sleep_h', 'sleep_perf'], ['gym', 'gym_min', 'gym_sets', 'gym_vol', 'gym_rpe'], ['wk_n', 'wk_min']];
+const related = (a, b) => SAME_FAMILY.some(f => f.includes(a) && f.includes(b));
+function scan(rows) {
+  const out = [];
+  for (const y of TARGETS) for (const x of COLS) for (const lag of [0, 1]) {
+    if (x === y || (lag === 0 && related(x, y))) continue;
+    const { xs, ys } = pairs(rows, x, y, lag);
+    if (xs.length < 20) continue;
+    const d = describe(x, y, lag, xs, ys);
+    if (d && Math.abs(d.r) >= 0.2) out.push(d);
+  }
+  return out.sort((a, b) => Math.abs(b.r) - Math.abs(a.r)).slice(0, 20);
+}
+
 // ---------- Tools ----------
 const TOOLS = [
   { name: 'get_today', description: 'Heutiger Stand im Life Board: Whoop (Recovery, Schlaf, Strain, Workouts), Check-in (Stimmung, Tagesziele) und Lernstand. Der Tag wechselt um 4 Uhr.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
   { name: 'get_week', description: 'Tagesweiser Verlauf der letzten Tage mit Whoop-Werten und Check-in, dazu Durchschnitte. Standard 7 Tage, höchstens 30.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 30, description: 'Anzahl Tage inklusive heute (Standard 7)' } }, additionalProperties: false } },
+  { name: 'get_range', description: 'Kompakte Tagestabelle (CSV) für einen frei wählbaren Zeitraum bis 400 Tage, eine Zeile pro Tag: Whoop (Recovery, HRV, Ruhepuls, Schlaf, Einschlafzeit, Strain, Schritte, Workouts), Check-in (Stimmung, Energie, Stress, Alkohol, krank, Tagesziele) und Gym. Gut für Fragen über Wochen oder Monate. Mit "columns" lässt sich die Tabelle auf bestimmte Spalten verkleinern.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 400, description: 'Anzahl Tage bis heute (Standard 90)' }, from: { type: 'string', description: 'Startdatum JJJJ-MM-TT (statt days)' }, to: { type: 'string', description: 'Enddatum JJJJ-MM-TT (Standard heute)' }, columns: { type: 'array', items: { type: 'string', enum: COLS }, description: 'nur diese Spalten ausgeben' } }, additionalProperties: false } },
+  { name: 'get_gym', description: 'Krafteinheiten mit Übungen und Sätzen (Gewicht x Wiederholungen) sowie Bestwerte pro Übung (geschätztes 1-Wiederholungs-Maximum). Mit "exercise" nur Einheiten, die diese Übung enthalten.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 400, description: 'Zeitraum in Tagen bis heute (Standard 90)' }, exercise: { type: 'string', description: 'Teil des Übungsnamens, z. B. "bank"' } }, additionalProperties: false } },
+  { name: 'get_correlations', description: 'Rechnet Zusammenhänge im Worker und liefert nur das Ergebnis, ohne Rohdaten. Ohne x und y: die stärksten Zusammenhänge im Zeitraum (Standard 365 Tage). Mit x und y: ein bestimmtes Paar. lag=1 vergleicht x vom Vortag mit y von heute (z. B. strain gestern gegen Recovery heute). Metriken: ' + COLS.join(', ') + '. Hinweis: Korrelation ist keine Ursache, und bei vielen Paaren sind einzelne Treffer Zufall.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 14, maximum: 400 }, x: { type: 'string', enum: COLS }, y: { type: 'string', enum: COLS }, lag: { type: 'integer', enum: [0, 1], description: '1 = x vom Vortag' } }, additionalProperties: false } },
   { name: 'get_learning', description: 'Lernstand der Wiederholungsfragen: Stufen 1–4, neue, fällige und überfällige Fragen, aufgeschlüsselt nach Thema.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } }
 ];
 const avg = a => { a = a.filter(x => typeof x === 'number'); return a.length ? r1(a.reduce((s, x) => s + x, 0) / a.length) : null; };
@@ -192,6 +312,37 @@ async function callTool(env, name, args) {
       }
     };
   }
+  if (name === 'get_range') {
+    const { from, to } = checkRange(args, 90);
+    const cols = Array.isArray(args && args.columns) && args.columns.length ? args.columns.filter(c => COLS.includes(c)) : COLS;
+    const rows = await dayTable(env, from, to);
+    return 'Zeitraum ' + from + ' bis ' + to + ' (' + rows.length + ' Tage)\n' + LEGEND + '\n\n' + toCsv(rows, cols);
+  }
+  if (name === 'get_correlations') {
+    const days = Math.min(MAX_RANGE, Math.max(14, parseInt(args && args.days, 10) || 365));
+    const { from, to } = checkRange({ days }, days);
+    const rows = await dayTable(env, from, to);
+    const base = { zeitraum: from + ' bis ' + to, tage: rows.length, hinweis: 'Korrelation ist keine Ursache. Bei vielen geprüften Paaren sind einzelne Treffer Zufall. r nahe 0 = kaum Zusammenhang, ab etwa 0.3 deutlich, ab 0.5 stark.' };
+    if (args && args.x && args.y) {
+      if (!COLS.includes(args.x) || !COLS.includes(args.y)) { const e = new Error('Unbekannte Metrik'); e.rpc = -32602; throw e; }
+      const lag = args.lag === 1 ? 1 : 0, { xs, ys } = pairs(rows, args.x, args.y, lag);
+      return { ...base, ergebnis: xs.length >= 10 ? describe(args.x, args.y, lag, xs, ys) : 'Zu wenige gemeinsame Tage (' + xs.length + ')' };
+    }
+    return { ...base, staerkste_zusammenhaenge: scan(rows) };
+  }
+  if (name === 'get_gym') {
+    const { from, to } = checkRange(args, 90), ex = String((args && args.exercise) || '').toLowerCase().trim();
+    let list = await gymSessions(env, from, to);
+    if (ex) list = list.map(s => ({ ...s, e: (s.e || []).filter(e => String(e.n || '').toLowerCase().includes(ex)) })).filter(s => s.e.length);
+    const best = {};
+    list.forEach(s => (s.e || []).forEach(e => {
+      const b = best[e.n] ||= { einheiten: 0, erster_tag: s.d, letzter_tag: s.d, bester_e1rm_kg: 0, bester_satz: null };
+      b.einheiten++; b.letzter_tag = s.d;
+      (e.s || []).forEach(x => { const v = x.w > 0 && x.r > 0 ? (x.r === 1 ? x.w : x.w * (1 + Math.min(x.r, 12) / 30)) : 0; if (v > b.bester_e1rm_kg) { b.bester_e1rm_kg = r1(v); b.bester_satz = x.w + 'x' + x.r; } });
+    }));
+    const fmt = s => ({ tag: s.d, plan: s.p || null, minuten: s.m ?? null, rpe_1_10: s.x ?? null, notiz: s.n || null, uebungen: (s.e || []).map(e => ({ name: e.n, saetze: (e.s || []).map(x => x.w + 'x' + x.r).join(', ') })) });
+    return { zeitraum: from + ' bis ' + to, einheiten: list.length, uebungen: best, letzte_einheiten: list.slice(-30).map(fmt), hinweis: list.length > 30 ? 'Nur die letzten 30 Einheiten im Detail, die Bestwerte gelten für den ganzen Zeitraum.' : undefined };
+  }
   if (name === 'get_learning') return { tag: today, ...learnStats(await learnQs(env), today) };
   const e = new Error('Unbekanntes Tool: ' + name); e.rpc = -32602; throw e;
 }
@@ -202,13 +353,13 @@ const rpcErr = (id, code, message) => ({ jsonrpc: '2.0', id, error: { code, mess
 async function handle(env, msg) {
   const { id, method, params } = msg || {};
   if (id === undefined) return null; // Benachrichtigungen (z. B. notifications/initialized) brauchen keine Antwort
-  if (method === 'initialize') return rpcOk(id, { protocolVersion: (params && params.protocolVersion) || '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'life-board', version: '1.0.0' } });
+  if (method === 'initialize') return rpcOk(id, { protocolVersion: (params && params.protocolVersion) || '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'life-board', version: '1.1.0' } });
   if (method === 'ping') return rpcOk(id, {});
   if (method === 'tools/list') return rpcOk(id, { tools: TOOLS });
   if (method === 'tools/call') {
     try {
       const data = await callTool(env, params && params.name, params && params.arguments);
-      return rpcOk(id, { content: [{ type: 'text', text: JSON.stringify(data, null, 1) }] });
+      return rpcOk(id, { content: [{ type: 'text', text: typeof data === 'string' ? data : JSON.stringify(data, null, 1) }] });
     } catch (e) {
       if (e.rpc) return rpcErr(id, e.rpc, e.message);
       return rpcOk(id, { isError: true, content: [{ type: 'text', text: 'Fehler: ' + (e.message || e) }] });

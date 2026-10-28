@@ -16,6 +16,7 @@ const env = {
 const S = v => ({ stringValue: v }), I = v => ({ integerValue: String(v) }), B = v => ({ booleanValue: v });
 const M = o => ({ mapValue: { fields: o } }), A = a => ({ arrayValue: { values: a } });
 let puts = 0;
+const journalMap = {}, trainMap = {};
 function mkQuestions() {
   const f = (id, o) => ({ name: `projects/proj/databases/(default)/documents/users/uid1/questions/${id}`, fields: o });
   const t = new Date().toISOString().slice(0, 10), past = '2000-01-01', fut = '2999-01-01';
@@ -32,10 +33,12 @@ globalThis.fetch = async (url, init = {}) => {
   assert.ok(init.method !== 'PATCH' && init.method !== 'DELETE' && init.method !== 'PUT', 'nur lesen!');
   if (url.endsWith(':batchGet')) {
     const docs = JSON.parse(init.body).documents;
-    return Response.json(docs.map(d => d.endsWith('/' + todayKey)
-      ? { found: { name: d, fields: { m: M({ mood: I(4), energy: I(3), feel: S('ruhig') }), alc: B(false), g: A([M({ t: S('x'), done: B(true) }), M({ t: S('y'), done: B(false) })]) } } }
-      : { missing: d }));
+    return Response.json(docs.map(d => {
+      const [col, id] = d.split('/').slice(-2), f = (col === 'journal' ? journalMap : col === 'training' ? trainMap : {})[id];
+      return f ? { found: { name: d, fields: f } } : { missing: d };
+    }));
   }
+  if (url.includes('/journal?')) return Response.json({ documents: Object.entries(journalMap).map(([id, fields]) => ({ name: `projects/proj/databases/(default)/documents/users/uid1/journal/${id}`, fields })) });
   if (url.includes('/questions?')) return Response.json({ documents: mkQuestions() });
   throw new Error('unerwartet: ' + url);
 };
@@ -57,13 +60,14 @@ let r = await (await call(rpc(1, 'initialize', { protocolVersion: '2025-06-18' }
 assert.equal(r.result.serverInfo.name, 'life-board'); assert.equal(r.result.protocolVersion, '2025-06-18');
 assert.equal((await call({ jsonrpc: '2.0', method: 'notifications/initialized' }, auth)).status, 202);
 r = await (await call(rpc(2, 'tools/list'), auth)).json();
-assert.deepEqual(r.result.tools.map(t => t.name), ['get_today', 'get_week', 'get_learning']);
+assert.deepEqual(r.result.tools.map(t => t.name), ['get_today', 'get_week', 'get_range', 'get_gym', 'get_correlations', 'get_learning']);
 r = await (await call(rpc(3, 'nix'), auth)).json(); assert.equal(r.error.code, -32601);
 r = await (await call(rpc(4, 'tools/call', { name: 'gibtsnicht' }), auth)).json(); assert.equal(r.error.code, -32602);
 
 // --- Tools ---
 const tool = async (name, args) => JSON.parse((await (await call(rpc(9, 'tools/call', { name, arguments: args }), auth)).json()).result.content[0].text);
 var todayKey = (await tool('get_learning')).tag;
+journalMap[todayKey] = { m: M({ mood: I(4), energy: I(3), feel: S('ruhig') }), alc: B(false), g: A([M({ t: S('x'), done: B(true) }), M({ t: S('y'), done: B(false) })]) };
 const month = todayKey.slice(0, 7);
 kvData.set('m:' + month, JSON.stringify({ [todayKey]: {
   cycle: { score: { strain: 12.34 }, steps: 8000 },
@@ -89,4 +93,63 @@ assert.equal((await tool('get_week')).tage.length, 7);
 // leerer Tag ohne Whoop/Check-in bricht nichts
 kvData.clear(); const E = await tool('get_today'); assert.equal(E.whoop, null);
 assert.equal(puts, 1, 'Google-Token wird zwischengespeichert');
+
+// ===== Jahresabfrage, Gym, Zusammenhänge =====
+// 300 Tage künstliche Daten: Alkohol senkt die Recovery am NÄCHSTEN Tag um ca. 25 Punkte, mehr Strain senkt sie leicht
+const DAYS = 300, start = new Date(todayKey + 'T00:00:00Z').getTime() - (DAYS - 1) * 864e5;
+const key = i => new Date(start + i * 864e5).toISOString().slice(0, 10);
+function addD(k, n) { return new Date(Date.parse(k) + n * 864e5).toISOString().slice(0, 10); }
+const months = {}; let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+let prevAlc = 0, prevStrain = 10;
+const gymList = {};
+for (let i = 0; i < DAYS; i++) {
+  const k = key(i), alc = rnd() < 0.25 ? 1 : 0, strain = 6 + rnd() * 12;
+  const rec = Math.max(5, Math.min(99, 80 - 25 * prevAlc - 1.0 * (prevStrain - 12) + (rnd() - 0.5) * 10));
+  (months[k.slice(0, 7)] ||= {})[k] = {
+    cycle: { score: { strain }, steps: 5000 + Math.round(rnd() * 5000) },
+    recovery: { score: { recovery_score: rec, hrv_rmssd_milli: 40 + rec / 3, resting_heart_rate: 60 - rec / 10 } },
+    sleep: { start: k + 'T21:30:00Z', end: addD(k, 1) + 'T05:30:00Z', tz: '+02:00', score: { sleep_performance_percentage: 80, stage_summary: { total_in_bed_time_milli: 29e6, total_awake_time_milli: 1e6 } } },
+    workouts: i % 3 === 0 ? [{ sport: 'Run', start: k + 'T15:00:00Z', end: k + 'T15:30:00Z', score: { strain: 8, average_heart_rate: 150, max_heart_rate: 175 } }] : []
+  };
+  journalMap[k] = { m: M({ mood: I(3 + (rnd() < 0.5 ? 1 : 0)), energy: I(3) }), alc: B(!!alc) };
+  if (i % 4 === 0) (gymList[k.slice(0, 4)] ||= []).push({ mapValue: { fields: { d: S(k), m: I(60), x: I(7), p: S('Push'), e: A([M({ n: S('Bankdrücken'), s: A([M({ w: I(60), r: I(8) }), M({ w: I(70), r: I(5) })]) }), M({ n: S('Kniebeuge'), s: A([M({ w: I(100), r: I(5) })]) })]) } } });
+  prevAlc = alc; prevStrain = strain;
+}
+Object.entries(months).forEach(([m, v]) => kvData.set('m:' + m, JSON.stringify(v)));
+Object.entries(gymList).forEach(([y, list]) => { trainMap['gym_' + y] = { list: { arrayValue: { values: list } } }; });
+
+const raw = async (name, args) => (await (await call(rpc(9, 'tools/call', { name, arguments: args }), auth)).json()).result.content[0].text;
+const csv = await raw('get_range', { days: 300 });
+const lines = csv.split('\n'), header = lines.findIndex(l => l.startsWith('date,'));
+assert.equal(lines.length - header - 1, 300, '300 Zeilen');
+const cols = lines[header].split(',');
+const lastRow = lines[lines.length - 1].split(',');
+assert.equal(lastRow[0], todayKey);
+assert.ok(lastRow[cols.indexOf('rec')] !== '', 'Recovery vorhanden');
+assert.equal(lastRow[cols.indexOf('bed')], '23.5', 'Einschlafen 21:30 UTC +02:00 = 23:30');
+assert.ok(csv.includes('Der Tag wechselt um 4 Uhr'), 'Legende');
+const small = await raw('get_range', { days: 10, columns: ['rec', 'alc'] });
+assert.equal(small.split('\n').find(l => l.startsWith('date,')), 'date,rec,alc');
+assert.equal((await raw('get_range', { days: 9999 })).split('\n').filter(l => /^\d{4}-/.test(l)).length, 400, 'Obergrenze 400');
+assert.equal((await raw('get_range', { from: key(10), to: key(14) })).split('\n').filter(l => /^\d{4}-/.test(l)).length, 5, 'from/to');
+
+const C = JSON.parse(await raw('get_correlations', { days: 300 }));
+const top = C.staerkste_zusammenhaenge;
+assert.ok(top.length > 0 && top.length <= 20);
+const alcRec = top.find(x => x.x === 'alc' && x.y === 'rec' && x.vortag);
+assert.ok(alcRec && alcRec.r < -0.4, 'Alkohol gestern senkt Recovery: ' + JSON.stringify(alcRec));
+assert.ok(alcRec.mittel_bei_ja < alcRec.mittel_bei_nein - 15);
+const P = JSON.parse(await raw('get_correlations', { days: 300, x: 'alc', y: 'rec', lag: 1 })).ergebnis;
+assert.ok(P.r < -0.4 && P.vortag === true && P.n > 250);
+const P0 = JSON.parse(await raw('get_correlations', { days: 300, x: 'alc', y: 'rec', lag: 0 })).ergebnis;
+assert.ok(Math.abs(P0.r) < 0.3, 'gleicher Tag zeigt kaum Zusammenhang');
+const SC = JSON.parse(await raw('get_correlations', { days: 300, x: 'strain', y: 'rec', lag: 1 })).ergebnis;
+assert.ok(SC.r < -0.1 && SC.mittel_y_bei_hohem_x < SC.mittel_y_bei_niedrigem_x);
+
+const G = JSON.parse(await raw('get_gym', { days: 300 }));
+assert.equal(G.einheiten, 75); assert.equal(G.uebungen['Bankdrücken'].bester_e1rm_kg, 81.7); assert.equal(G.uebungen['Bankdrücken'].bester_satz, '70x5');
+assert.equal(G.letzte_einheiten.length, 30); assert.equal(G.letzte_einheiten[0].uebungen[0].saetze, '60x8, 70x5');
+const G2 = JSON.parse(await raw('get_gym', { days: 300, exercise: 'knie' }));
+assert.deepEqual(Object.keys(G2.uebungen), ['Kniebeuge']); assert.equal(G2.uebungen.Kniebeuge.bester_satz, '100x5');
+assert.ok(lines.slice(header + 1).some(l => l.split(',')[cols.indexOf('gym_sets')] === '3'), 'Gym-Sätze in Tagestabelle');
 console.log('Alle Tests bestanden');
