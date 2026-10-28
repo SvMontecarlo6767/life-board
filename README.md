@@ -130,6 +130,14 @@ Eigener Kalender im Life Board (keine Verbindung zu Google/Apple). Ansichten: **
 ## Designs (Zahnrad → „Design“)
 - Zwei Designs: **Cockpit** (Standard) und **Dschungel**. Ein Design ändert **nur Farben, Hintergrund und Formen**; Seiten, Knöpfe, Graphen, Vollbild und Statistiken sind identisch.
 - Wechsel mit weichem Überblenden (View Transitions, Safari/iOS ab 18; sonst kurzes Farbüberblenden; im Performance-Modus oder bei „Bewegung reduzieren“ sofort). Die Wahl steht in `lb_ui.theme` (localStorage + Firestore `settings/main.ui`) und wird vor dem ersten Zeichnen gesetzt (kleines Skript vor `theme.css`), damit nichts flackert.
-- Technik: `theme.js` (`THEMES`: Name, Farbmuster, Akzent je Reiter), `theme.css` (Block `html[data-hud][data-theme="id"]` überschreibt nur Variablen und einige Restflächen), `bg3d.js` (Dschungel: Glühwürmchen statt Gitter, grüner Nebel).
+- Technik: `theme.js` (`THEMES`: Name, Farbmuster, Akzent je Reiter), `theme.css` (Block `html[data-hud][data-theme="id"]` überschreibt nur Variablen und einige Restflächen), `lb-bg.js` (Hintergrund je Design, siehe unten).
 - **Neues Design:** in `THEMES` eintragen, in `theme.css` einen Block für `data-theme="id"` ergänzen, fertig. Ein Knopf im Zahnrad entsteht automatisch.
 - Test: `python3 tools/browser/test_theme.py <Ordner>` (Umschalten, Speichern, alle Seiten, Graph-Vollbild).
+
+## Animierte Hintergründe (Zahnrad → „Hintergrund“, `lb-bg.js`)
+- **Cockpit:** Automatisch (Handy: Leicht, iPad/Computer: 3D-Netz), **3D-Netz** (Vanta NET in der Reiterfarbe), **Klassik 3D** (bisheriger Hintergrund `bg3d.js`), **Leicht** (tsParticles-Netz).
+- **Dschungel:** Automatisch = **Glühwürmchen**, **Blätter** (fallend), **Klassik 3D**. Wahl je Design in `lb_ui.bgc` / `lb_ui.bgj`.
+- Automatisch misst auf dem iPad kurz die Bildrate; ruckelt das 3D-Netz (unter 40 fps), bleibt es dauerhaft bei Leicht (`localStorage lb_bgslow`). „Automatisch“ erneut antippen misst neu.
+- Jede Ebene liegt hinter allem (`z-index:-1`, `pointer-events:none`), Wechsel blendet weich über. Performance-Modus oder „Bewegung reduzieren“: kein animierter Hintergrund, nur der ruhige CSS-Verlauf. Versteckter Tab: Pause. Lädt eine Bibliothek nicht: ebenfalls der Verlauf.
+- Bibliotheken lokal in `vendor/` (siehe `vendor/LICENSES.md`), geladen erst nach dem Seitenaufbau und nur die gerade gebrauchte. Vanta braucht three.js r134 (`vendor/three.r134.min.js`), Klassik bleibt bei r150.
+- Test: `python3 tools/browser/test_bg.py <Ordner>` (Handy/iPad, alle Varianten werden gezeichnet, Klicks gehen durch, Wechsel, Performance-Modus, ohne Bibliotheken).

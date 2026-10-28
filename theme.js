@@ -37,7 +37,7 @@ const themeOf=()=>THEMES[S.theme]||THEMES.cockpit;
 const trgb=t=>{const x=themeOf().tabs&&themeOf().tabs[t.id];return x?x[0]:t.rgb};
 const trgb2=t=>{const x=themeOf().tabs&&themeOf().tabs[t.id];return x?x[1]:t.rgb2};
 /* ---------- Einstellungen (localStorage + Firestore best effort) ---------- */
-const DEF={perf:false,sounds:true,tilt:false,fps:false,theme:'cockpit'};
+const DEF={perf:false,sounds:true,tilt:false,fps:false,theme:'cockpit',bgc:'auto',bgj:'auto'};
 let S=Object.assign({},DEF);
 try{S=Object.assign({},DEF,JSON.parse(localStorage.getItem('lb_ui')||'{}'))}catch(e){}
 const listeners=[];
@@ -99,7 +99,7 @@ function buildNav(){
   document.body.prepend(nav);
   const panel=document.createElement('div');panel.id='lb-set';panel.hidden=true;
   const row=(k,t,sub)=>'<div class="r"><div>'+t+(sub?'<small>'+sub+'</small>':'')+'</div><button class="lb-sw" role="switch" data-k="'+k+'" aria-checked="'+!!S[k]+'" aria-label="'+t+'"></button></div>';
-  panel.innerHTML='<h4>Einstellungen</h4>'+'<div class="th"><div class="thl">Design<small>Ändert nur Farben und Stimmung, an den Funktionen ändert sich nichts</small></div><div class="thg">'+Object.values(THEMES).map(t=>'<button class="lb-th" data-th="'+t.id+'" aria-pressed="'+(t.id===themeOf().id)+'"><i style="background:linear-gradient(135deg,'+t.sw[0]+','+t.sw[1]+')"></i>'+t.name+'</button>').join('')+'</div></div>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
+  panel.innerHTML='<h4>Einstellungen</h4>'+'<div class="th"><div class="thl">Design<small>Ändert nur Farben und Stimmung, an den Funktionen ändert sich nichts</small></div><div class="thg">'+Object.values(THEMES).map(t=>'<button class="lb-th" data-th="'+t.id+'" aria-pressed="'+(t.id===themeOf().id)+'"><i style="background:linear-gradient(135deg,'+t.sw[0]+','+t.sw[1]+')"></i>'+t.name+'</button>').join('')+'</div></div>'+'<div class="th" id="lb-bgsel"></div>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
   document.body.append(panel);
   nav.querySelector('#lb-gear').onclick=()=>{panel.hidden=!panel.hidden;sound(panel.hidden?'off':'on')};
   document.addEventListener('pointerdown',e=>{if(!panel.hidden&&!panel.contains(e.target)&&!nav.querySelector('#lb-gear').contains(e.target))panel.hidden=true},true);
@@ -111,13 +111,24 @@ function buildNav(){
     b.setAttribute('aria-checked',v);setSetting(k,v);sound(v?'on':'off');
   });
   panel.querySelectorAll('.lb-th').forEach(b=>b.onclick=()=>{setTheme(b.dataset.th);sound('ok')});
+  paintBg();
+  panel.querySelector('#lb-bgsel').addEventListener('click',e=>{const b=e.target.closest('[data-bg]');if(!b)return;
+    const k=themeOf().id==='jungle'?'bgj':'bgc';if(b.dataset.bg==='auto'&&window.LBBG)LBBG.resetProbe();setSetting(k,b.dataset.bg);paintBg();sound('ok')});
   const h=nav.getBoundingClientRect().height;if(h)root.style.setProperty('--navh',Math.ceil(h)+'px');
+}
+/* ---------- Hintergrund-Auswahl je Design (Knöpfe im Einstellungs-Panel) ---------- */
+const BGS={cockpit:[['auto','Automatisch'],['vanta','3D-Netz'],['classic','Klassik 3D'],['light','Leicht']],jungle:[['auto','Automatisch'],['fireflies','Glühwürmchen'],['leaves','Blätter'],['classic','Klassik 3D']]};
+function paintBg(){
+  const box=document.getElementById('lb-bgsel');if(!box)return;
+  const j=themeOf().id==='jungle',cur=S[j?'bgj':'bgc']||'auto';
+  box.innerHTML='<div class="thl">Hintergrund<small>'+(j?'Automatisch: Glühwürmchen':'Automatisch: Handy leicht, iPad 3D-Netz, wenn es flüssig läuft')+'. Im Performance-Modus aus.</small></div><div class="thg">'+
+    BGS[j?'jungle':'cockpit'].map(([id,n])=>'<button class="lb-th lb-bgo" data-bg="'+id+'" aria-pressed="'+(id===cur)+'">'+n+'</button>').join('')+'</div>';
 }
 /* ---------- Design wechseln: weich überblenden (View Transitions, sonst kurzes Farbüberblenden) ---------- */
 function refreshThemeUI(){
   const nav=document.getElementById('lb-nav');
   if(nav)nav.querySelectorAll('a.tab').forEach(a=>{const t=TABS.find(x=>x.id===a.dataset.tab);if(t)a.style.setProperty('--tc',trgb(t).join(' '))});
-  document.querySelectorAll('#lb-set .lb-th').forEach(b=>b.setAttribute('aria-pressed',b.dataset.th===themeOf().id));
+  document.querySelectorAll('#lb-set .lb-th[data-th]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.th===themeOf().id));paintBg();
   const tab=curTab(),R=trgb(tab);
   root.style.setProperty('--tc',R.join(' '));setAcc(R,trgb2(tab));
   try{sessionStorage.setItem('lb_acc',JSON.stringify(R))}catch(e){}
@@ -181,7 +192,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('vendor/three.min.js?v=150');await loadScript('bg3d.js?v=3')}catch(e){bgStarted=false}
+  try{await loadScript('lb-bg.js?v=1')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
 }
 /* ---------- Start ---------- */
 const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,

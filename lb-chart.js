@@ -63,7 +63,7 @@ function draw(svg,spec){
       if(kind==='bar')return{label:s.label||'',data,yAxisID:dual&&j?'y2':'y',borderRadius:4,maxBarThickness:24,categoryPercentage:.9,barPercentage:.88,
         backgroundColor:c=>{const a=c.chart.chartArea;if(!a)return alpha(col,.85);const g=c.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,alpha(col,.98));g.addColorStop(1,alpha(col,.45));return g},
         hoverBackgroundColor:col,_col:col};
-      return{label:s.label||'',data,yAxisID:dual&&j?'y2':'y',borderColor:col,borderWidth:2.2,tension:.35,cubicInterpolationMode:'monotone',spanGaps:false,
+      return{label:s.label||'',data,yAxisID:dual&&j?'y2':'y',borderColor:col,borderWidth:2.2,tension:0,spanGaps:false,
         fill:dual?false:'start',backgroundColor:c=>{const a=c.chart.chartArea;if(!a)return 'transparent';const g=c.chart.ctx.createLinearGradient(0,a.top,0,a.bottom);g.addColorStop(0,alpha(col,.30));g.addColorStop(1,alpha(col,0));return g},
         pointRadius:c=>c.dataIndex===li?4.5:(n<=31&&data[c.dataIndex]!=null?(dual?2.5:2):0),pointHoverRadius:6,pointHitRadius:12,
         pointBackgroundColor:col,pointBorderColor:'rgba(4,8,15,.9)',pointBorderWidth:c=>c.dataIndex===li?2:0,_col:col};
