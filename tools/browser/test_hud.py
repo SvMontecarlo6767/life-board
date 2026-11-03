@@ -23,10 +23,10 @@ with sync_playwright() as p:
     b=p.chromium.launch(args=['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
     ctx=ctxof(b); pg=ctx.new_page(); errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('console',lambda m:errs.append(m.text) if m.type=='error' else None)
-    pg.goto(f'http://127.0.0.1:{port}/learn.html'); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(1200)
-    ck('Navigation mit 7 Reitern',pg.locator('#lb-nav a.tab').count()==7)
-    ck('Aktiver Reiter = Lernen',pg.inner_text('#lb-nav a.tab.act').strip().lower()=='lernen')
-    ck('Akzent Lernen = Violett',pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")=='150 125 255')
+    pg.goto(f'http://127.0.0.1:{port}/muster.html'); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(1200)
+    ck('Navigation mit 6 Reitern',pg.locator('#lb-nav a.tab').count()==6)
+    ck('Aktiver Reiter = Muster',pg.inner_text('#lb-nav a.tab.act').strip().lower()=='muster')
+    ck('Akzent Muster = Cyan',pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")=='120 230 255')
     pg.wait_for_selector('.lb-bgl.on',state='attached',timeout=15000); pg.wait_for_timeout(1200)
     ck('Animierter Hintergrund da',pg.evaluate("!!document.querySelector('.lb-bgl.on')"))
     from PIL import Image
@@ -57,7 +57,7 @@ with sync_playwright() as p:
     ck('Akzent Recovery = Grün',pg.evaluate("getComputedStyle(document.documentElement).getPropertyValue('--acc').trim()")=='52 235 170')
     # neuer Reiter per Config
     pg.evaluate("LBUI.registerTab({id:'test',name:'Test',file:'test.html',href:'test.html',rgb:[255,0,0],rgb2:[0,0,255]})")
-    ck('Neuer Reiter per registerTab',pg.locator('#lb-nav a.tab').count()==8)
+    ck('Neuer Reiter per registerTab',pg.locator('#lb-nav a.tab').count()==7)
     ck('Keine Konsolenfehler',not errs,errs[:3])
     ctx.close()
     # Reduced Motion
@@ -66,7 +66,7 @@ with sync_playwright() as p:
     ctx.close()
     # Zurück-Taste / bfcache: Seite nicht ausgeblendet
     ctx=ctxof(b); pg=ctx.new_page(); pg.goto(f'http://127.0.0.1:{port}/index.html'); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(500)
-    pg.tap('#lb-nav a.tab[data-tab=lernen]:visible, #jv-hubp a.hp[href^=learn]:visible',force=True); pg.wait_for_url(re.compile('learn.html')); pg.go_back(); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(600)
+    pg.tap('#lb-nav a.tab[data-tab=muster]:visible',force=True); pg.wait_for_url(re.compile('muster.html')); pg.go_back(); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(600)
     ck('Zurück-Taste: Seite sichtbar',pg.evaluate("!document.documentElement.classList.contains('lb-leave') && getComputedStyle(document.body).opacity")!='0' )
     b.close()
 print('\n'.join(res)); print('FEHLER:',fails); sys.exit(1 if fails else 0)

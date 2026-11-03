@@ -178,16 +178,6 @@ html[data-tab="heute"] .hero .card::after{content:"";position:absolute;left:14px
 @keyframes hvScan{50%{opacity:.15;transform:scaleX(.5)}}
 html[data-perf] .hero .card::after{animation:none}
 
-/* Lernen: Violett, Energiebalken */
-.en{display:grid;gap:8px;margin-top:14px}
-.en .e{display:grid;grid-template-columns:70px 1fr 34px;align-items:center;gap:10px;font:600 13px var(--font-ui,system-ui);letter-spacing:.1em;text-transform:uppercase;color:var(--mu)}
-.en .e b{color:var(--tx);text-align:right;font-variant-numeric:tabular-nums}
-.en .b{height:14px;border-radius:8px;background:rgba(160,140,255,.12);overflow:hidden;border:1px solid rgb(var(--acc) / .25)}
-.en .b i{display:block;height:100%;width:var(--w);border-radius:8px;background:repeating-linear-gradient(90deg,rgb(var(--acc)) 0 10px,rgb(var(--acc2)) 10px 12px);box-shadow:0 0 14px rgb(var(--acc) / .7);transform-origin:left;animation:enGrow 1s cubic-bezier(.2,.8,.2,1) backwards;animation-delay:var(--d,0s)}
-.en .e2 .b i{filter:hue-rotate(20deg)}.en .e3 .b i{filter:hue-rotate(45deg)}.en .e4 .b i{filter:hue-rotate(75deg) brightness(1.15)}
-@keyframes enGrow{from{transform:scaleX(0)}}
-html[data-perf] .en .b i{animation:none}
-html[data-tab="lernen"] .grid.st b{font-family:var(--font-hud);font-size:30px;text-shadow:0 0 16px rgb(var(--acc) / .6)}
 
 
 #lb-fps{position:fixed;left:8px;bottom:6px;z-index:200;padding:3px 8px;border-radius:8px;background:rgba(0,0,0,.65);color:#7dffb0;font:600 12px ui-monospace,Menlo,monospace;pointer-events:none}
