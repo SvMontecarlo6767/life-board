@@ -1,5 +1,5 @@
 /* Life Board – Tage: Board-Tag (Europe/Berlin, Wechsel um 4 Uhr) und Datumsrechnung. Reine Funktionen.
-   Benutzt von checkin.html, muster.html, learn.html und dem Hub; Tests: node tools/test-day.mjs. */
+   Benutzt von checkin.html, muster.html und dem Hub; Tests: node tools/test-day.mjs. */
 (function(root){
 function pad(n){return String(n).padStart(2,'0')}
 /* Board-Tag: Berliner Wandzeit, vor changeHour (4 Uhr) zählt noch der Vortag */

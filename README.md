@@ -1,6 +1,6 @@
 # Life Board
 
-Persönliches Board (iPhone und iPad, Safari): Hub, Check-in (Stimmung, Gedanken, 3 gute Dinge), Muster (Zusammenhänge), Recovery (Whoop), Training, Lernen (Notion), Kalender. Ohne KI – alles fest gerechnet.
+Persönliches Board (iPhone und iPad, Safari): Hub, Check-in (Stimmung, Gedanken, 3 gute Dinge), Muster (Zusammenhänge), Recovery (Whoop), Training, Kalender. Ohne KI – alles fest gerechnet.
 Statische Seiten auf GitHub Pages, Daten in Firebase (Auth + Firestore), Schnittstellen über einen Cloudflare-Worker (`worker/worker.js`).
 
 ## Cloudflare-Worker aktualisieren
@@ -79,10 +79,10 @@ Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gle
 Performance-Modus (schwächt 3D, Unschärfe, Animationen ab – nur per Schalter), UI-Sounds, Geräteneigung, FPS-Anzeige.
 
 ## Tests
-- `node worker/test.mjs`, `node tools/test-learn.mjs`, `node tools/test-insights.mjs`
+- `node worker/test.mjs`, `node tools/test-insights.mjs`
 - `node tools/test-whoop.mjs`, `node tools/test-day.mjs`, `node tools/test-calendar.mjs`, `node tools/test-sleep.mjs`
 - Browser (Node + Playwright): `node tools/browser/test_checkin.mjs`, `test_muster.mjs`, `test_news.mjs`, `test_full.mjs`
-- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, `test_learn.py`, Screenshots mit `shot_hud.py`.
+- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, Screenshots mit `shot_hud.py`.
 - Notion ist nur mit Mocks getestet. Die KI-Routen im Worker (`/ask`, `/stt`, `/tts`) werden vom Board nicht mehr benutzt.
 
 ## Hinweis zu Versionsnummern
