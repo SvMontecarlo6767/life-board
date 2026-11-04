@@ -215,7 +215,7 @@ const SCENES = [];
 const S = (a, b, fn) => SCENES.push({a, b, fn});
 
 /* 1 HOOK 0–6 s */
-S(0, 3.1, (t) => {
+S(0.0, 3.8, (t, d) => {
   const k = eOut(prog(t, .1, 2.0)), n = Math.round(25*k);
   const sc = 1 + .06*Math.sin(t*3) * prog(t, 2, 3);
   ctx.save(); ctx.translate(W/2, 610); ctx.scale(sc, sc);
@@ -224,7 +224,7 @@ S(0, 3.1, (t) => {
   txt("JAHRE", W/2, 740, 70, C.ink, {weight:800, track:18, alpha: prog(t,.3,.9)});
   txt("verschläfst du in deinem Leben.", W/2, 210, 64, C.mute, {weight:600, alpha: prog(t,.0,.6)});
 });
-S(3.1, 6.2, (t) => {
+S(3.8, 7.3, (t, d) => {
   // life bar 81 years, one third fills
   const x0 = 260, x1 = W-260, y = 470, h = 90, w = x1-x0;
   txt("Ein Leben: rund 81 Jahre", W/2, 300, 60, C.ink, {weight:700, alpha: prog(t,0,.5)});
@@ -243,7 +243,7 @@ S(3.1, 6.2, (t) => {
 });
 
 /* 2 PARADISE 6–16 s */
-S(6.2, 11.1, (t) => {
+S(7.3, 13.08, (t, d) => {
   tag("DAS PARADIES", W/2, 140, C.gold, prog(t,0,.4));
   const cx = 640, cy = 560, R = 270;
   // dial
@@ -270,7 +270,7 @@ S(6.2, 11.1, (t) => {
   txt("Stunden pro Jahr", 1320, 630, 58, C.ink, {weight:700, alpha: prog(t,2.0,2.5)});
   txt("7,5 h × 365 Tage", 1320, 710, 40, C.mute, {weight:600, alpha: prog(t,2.4,2.9)});
 });
-S(11.1, 16.2, (t) => {
+S(13.08, 18.18, (t, d) => {
   tag("DAS PARADIES", W/2, 140, C.gold);
   txt("Zeit für alles.", W/2, 300, 96, C.ink, {weight:800, alpha: prog(t,0,.5)});
   const items = [["lang","Sprachen"],["music","Musik"],["travel","Reisen"],["friends","Freunde"]];
@@ -292,7 +292,7 @@ S(11.1, 16.2, (t) => {
 });
 
 /* 3 THE CATCH 16–40 s — brain */
-S(16.2, 20.2, (t) => {
+S(18.18, 24.56, (t, d) => {
   tag("DER HAKEN  ·  1  GEHIRN", W/2, 140, C.red, prog(t,0,.4));
   const pulse = 1 + .04*Math.sin(t*5);
   ctx.save(); ctx.translate(W/2 - 380, 560); ctx.scale(pulse, pulse); brain(0, 0, 1.15, t*2, .7 + .3*Math.sin(t*5), .7 + .3*Math.sin(t*5)); ctx.restore();
@@ -313,7 +313,7 @@ S(16.2, 20.2, (t) => {
   txt("+" + n + " %", 1290, 700, 120, C.gold, {weight:900, glow:"rgba(242,193,78,.5)", alpha: prog(t,.8,1.2)});
   txt("mehr Platz zum Durchspülen (bei Mäusen)", 1290, 770, 36, C.mute, {weight:600, alpha: prog(t,1.2,1.7)});
 });
-S(20.2, 24.2, (t) => {
+S(24.56, 30.61, (t, d) => {
   tag("DER HAKEN  ·  1  GEHIRN", W/2, 140, C.red);
   txt("17 Stunden wach ≈ 0,5 ‰", W/2, 290, 88, C.ink, {weight:800, alpha: prog(t,0,.5)});
   // chart
@@ -338,7 +338,7 @@ S(20.2, 24.2, (t) => {
 });
 
 /* body */
-S(24.2, 28.2, (t) => {
+S(30.61, 36.61, (t, d) => {
   tag("DER HAKEN  ·  2  KÖRPER", W/2, 140, C.red, prog(t,0,.4));
   txt("Das Immunsystem schwächelt.", W/2, 290, 80, C.ink, {weight:800, alpha: prog(t,0,.5)});
   const base = 820, unit = 95, g = eOut(prog(t, .5, 2.2));
@@ -351,7 +351,7 @@ S(24.2, 28.2, (t) => {
   }
   txt("Risiko für Erkältung nach Viruskontakt", W/2, base + 120, 34, "rgba(159,176,207,.8)", {weight:600, alpha: prog(t,1,1.5)});
 });
-S(28.2, 32.2, (t) => {
+S(36.61, 40.82, (t, d) => {
   tag("DER HAKEN  ·  2  KÖRPER", W/2, 140, C.red);
   txt("Der Hunger wächst.", W/2, 290, 88, C.ink, {weight:800, alpha: prog(t,0,.5)});
   const zero = 600, unit = 7.5, g = eOut(prog(t, .5, 2.0));
@@ -370,7 +370,7 @@ S(28.2, 32.2, (t) => {
 });
 
 /* psyche / society */
-S(32.2, 36.2, (t) => {
+S(40.82, 46.22, (t, d) => {
   tag("DER HAKEN  ·  3  PSYCHE", W/2, 140, C.red, prog(t,0,.4));
   ctx.save(); ctx.globalAlpha = prog(t,0,.5); sideBrain(620, 600, 1.35); ctx.restore();
   // amygdala glow
@@ -388,7 +388,7 @@ S(32.2, 36.2, (t) => {
   txt("+" + Math.round(60*m) + " %", 1390, 700, 120, C.red, {weight:900, glow:"rgba(255,122,107,.5)", alpha: prog(t,.8,1.1)});
   txt("stärkere Reaktion nach ~35 h wach", 1390, 770, 36, C.mute, {weight:600, alpha: prog(t,1.2,1.7)});
 });
-S(36.2, 40.2, (t) => {
+S(46.22, 51.97, (t, d) => {
   tag("GEDANKENEXPERIMENT", W/2, 140, C.gold, prog(t,0,.4));
   txt("Eine Welt, die nie schläft?", W/2, 290, 84, C.ink, {weight:800, alpha: prog(t,0,.5)});
   // skyline with windows lighting up
@@ -410,7 +410,7 @@ S(36.2, 40.2, (t) => {
 });
 
 /* 4 SURPRISE 40–52 s */
-S(40.2, 46.2, (t) => {
+S(51.97, 57.97, (t, d) => {
   tag("DIE ÜBERRASCHUNG", W/2, 140, C.teal, prog(t,0,.4));
   txt("Delfine schlafen mit halbem Gehirn.", W/2, 280, 76, C.ink, {weight:800, alpha: prog(t,0,.5)});
   dolphin(560, 680, 1.15, t);
@@ -424,14 +424,14 @@ S(40.2, 46.2, (t) => {
   eeg(1345, 790, 200, lerp(6, 22, sw), lerp(.16, .03, sw), t, sw<.5? C.teal : C.mute);
   txt("Hirnstrom (EEG)", 1330, 855, 28, "rgba(159,176,207,.7)", {weight:600});
 });
-S(46.2, 52.2, (t) => {
+S(57.97, 64.34, (t, d) => {
   tag("DIE ÜBERRASCHUNG", W/2, 140, C.teal);
   txt("Fregattvögel schlafen im Flug.", W/2, 280, 80, C.ink, {weight:800, alpha: prog(t,0,.5)});
-  const bx = lerp(300, 1650, t/6), by = 440 + Math.sin(t*1.5)*30;
+  const bx = lerp(300, 1650, t/d), by = 440 + Math.sin(t*1.5)*30;
   bird(bx, by, .9, t*7);
   // trail
   ctx.save(); ctx.setLineDash([4, 18]); ctx.lineCap = "round"; ctx.strokeStyle = "rgba(242,193,78,.5)"; ctx.lineWidth = 5;
-  ctx.beginPath(); for (let x = 150; x < bx - 120; x += 10) { const tt = (x-300)/1350*6; const y = 470 + Math.sin(tt*1.5)*30; x===150?ctx.moveTo(x,y):ctx.lineTo(x,y);} ctx.stroke(); ctx.restore();
+  ctx.beginPath(); for (let x = 150; x < bx - 120; x += 10) { const tt = (x-300)/1350*d; const y = 470 + Math.sin(tt*1.5)*30; x===150?ctx.moveTo(x,y):ctx.lineTo(x,y);} ctx.stroke(); ctx.restore();
   // comparison bars
   const g = eOut(prog(t, .8, 2.8)), full = 760, x0 = 560;
   const rows = [["im Flug", 42/720, C.gold, "42 Min./Tag", 680], ["an Land", 1, C.teal, "über 12 Std./Tag", 820]];
@@ -443,13 +443,13 @@ S(46.2, 52.2, (t) => {
 });
 
 /* 5 CONCLUSION 52–60 s */
-S(52.2, 56.2, (t) => {
+S(64.34, 68.34, (t, d) => {
   moon(W/2, 330 - eOut(prog(t,0,2))*40, 110, .8 + .2*Math.sin(t*2));
   txt("Die Natur hat Schlaf", W/2, 620, 92, C.ink, {weight:800, alpha: prog(t,.2,.7)});
   txt("nie abgeschafft.", W/2, 730, 92, C.gold, {weight:900, alpha: prog(t,.5,1.0), glow:"rgba(242,193,78,.4)"});
   txt("Nur ausgetrickst.", W/2, 850, 56, C.teal, {weight:700, alpha: prog(t,1.6,2.1)});
 });
-S(56.2, 61.0, (t) => {
+S(68.34, 74.38, (t, d) => {
   moon(W/2, 290, 110, .8 + .2*Math.sin(t*2));
   txt("Schlaf ist keine verlorene Zeit.", W/2, 560, 84, C.ink, {weight:800, alpha: prog(t,0,.5)});
   txt("Er ist der Preis", W/2, 700, 96, C.gold, {weight:900, alpha: prog(t,.9,1.4), glow:"rgba(242,193,78,.4)"});
@@ -467,7 +467,7 @@ const SOURCES = [
   "Rattenborg et al. (2016): Evidence that birds sleep in mid-flight. Nature Communications 7",
   "Cirelli & Tononi (2008): Is sleep essential? PLoS Biology 6",
 ];
-S(61.0, 68.0, (t) => {
+S(74.38, 81.38, (t, d) => {
   txt("Quellen", W/2, 170, 72, C.gold, {weight:800, alpha: prog(t,0,.5)});
   SOURCES.forEach((s, i) => {
     const a = prog(t, .3 + i*.18, .8 + i*.18);
@@ -478,21 +478,22 @@ S(61.0, 68.0, (t) => {
 });
 
 /* ---------- subtitles (always on screen) ---------- */
+// subtitles match the narration word for word (tools/narration.json)
 const SUBS = [
-  [0.2, 3.1, "Rund 25 Jahre deines Lebens verbringst du im Schlaf."],
-  [3.1, 6.2, "Was wäre, wenn wir diese Zeit einfach wach sein könnten?"],
-  [6.2, 11.1, "Jede Nacht 7,5 Stunden extra – das wären rund 2.700 Stunden pro Jahr."],
-  [11.1, 16.2, "Zeit für Sprachen, Musik, Reisen und Freunde. Klingt nach dem Paradies\u00A0…"],
-  [16.2, 20.2, "Der Haken: Im Schlaf spült das Gehirn Abfallstoffe aus. Bei Mäusen werden die Zwischenräume dafür rund 60 % größer."],
-  [20.2, 24.2, "Wer 17 bis 19 Stunden wach ist, schneidet in Tests teils so schlecht ab wie mit 0,5 Promille."],
-  [24.2, 28.2, "Körper: Wer unter 6 Stunden schläft, erkältet sich laut einer Studie 4,2-mal so leicht."],
-  [28.2, 32.2, "Und die Hormone kippen: weniger Sättigungshormon, mehr Hungerhormon."],
-  [32.2, 36.2, "Psyche: Nach einer durchwachten Nacht reagiert das Angstzentrum rund 60 % stärker."],
-  [36.2, 40.2, "Gedankenexperiment: Eine Welt ohne Nacht – hätten wir mehr Freizeit oder nur mehr Schichten?"],
-  [40.2, 46.2, "Die Überraschung: Delfine müssen zum Atmen auftauchen. Darum schläft immer nur eine Gehirnhälfte."],
-  [46.2, 52.2, "Fregattvögel schlafen im Flug nur etwa 42 Minuten am Tag – an Land über 12 Stunden."],
-  [52.2, 56.2, "Selbst unter Druck verzichten diese Tiere nicht ganz auf Schlaf. Forscher vermuten: Er ist unverzichtbar."],
-  [56.2, 61.0, "Forscher vermuten: Schlaf ist der Preis dafür, dass unser Gehirn morgen wieder lernen kann."],
+  [0.2, 3.8, "Rund 25 Jahre deines Lebens verschläfst du."],
+  [3.8, 7.3, "Was wäre, wenn wir nie mehr schlafen müssten?"],
+  [7.3, 13.08, "Jede Nacht 7,5 Stunden extra – rund 2.700 Stunden pro Jahr."],
+  [13.08, 18.18, "Zeit für Sprachen, Musik, Reisen und Freunde. Das Paradies?"],
+  [18.18, 24.56, "Der Haken: Nachts spült das Gehirn Abfall aus. Bei Mäusen wird der Platz dafür rund 60 % größer."],
+  [24.56, 30.61, "17 bis 19 Stunden wach – in Tests teils so schlecht wie mit 0,5 Promille."],
+  [30.61, 36.61, "Wer unter 6 Stunden schläft, erkältet sich laut einer Studie 4,2-mal so leicht."],
+  [36.61, 40.82, "Dazu: weniger Sättigungshormon, mehr Hungerhormon."],
+  [40.82, 46.22, "Nach einer durchwachten Nacht reagiert das Angstzentrum rund 60 % stärker."],
+  [46.22, 51.97, "Gedankenexperiment: Eine Welt ohne Nacht – mehr Freizeit oder nur mehr Schichten?"],
+  [51.97, 57.97, "Die Überraschung: Delfine müssen zum Atmen auftauchen – darum schläft immer nur eine Gehirnhälfte."],
+  [57.97, 64.34, "Fregattvögel schlafen im Flug nur etwa 42 Minuten am Tag, an Land über 12 Stunden."],
+  [64.34, 68.34, "Die Natur hat Schlaf nie abgeschafft – nur ausgetrickst."],
+  [68.34, 74.38, "Forscher vermuten: Schlaf ist der Preis für ein Gehirn, das morgen wieder lernen kann."]
 ];
 function wrap(s, maxW) {
   const words = s.split(" "), lines = []; let line = "";
@@ -516,7 +517,7 @@ function subtitles(t) {
 }
 
 /* ---------- master render ---------- */
-const DURATION = 68.0;
+const DURATION = 81.38;
 function renderAt(t) {
   ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
   background(t);
@@ -543,7 +544,7 @@ window.renderAt = renderAt; window.DURATION = DURATION; window.FPS = FPS; window
 renderAt(0.0001);
 if (new URLSearchParams(location.search).has("export")) document.body.classList.add("export");
 let t0 = null, raf = null;
-const audio = new Audio("schlaf-musik.m4a"); audio.volume = .6;
+const audio = new Audio("schlaf-ton.m4a"); audio.volume = 1;
 function loop(now) {
   const t = (now - t0) / 1000;
   if (t >= DURATION) { renderAt(DURATION - .001); document.getElementById("overlay").style.display = "flex"; document.getElementById("play").textContent = "↻ Nochmal"; return; }
