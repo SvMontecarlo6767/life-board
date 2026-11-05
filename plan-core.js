@@ -162,6 +162,65 @@ function diff(a, b) {
   return out.length ? out : ['keine Änderung'];
 }
 
-const api = { WD, WD_LONG, PRIO, KINDS, LIM, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff };
+/* ---------- Heute ändern (Phase 2) ----------
+   Tagesdokument plan/t_JJJJ-MM-TT: nur Abweichungen für diesen Tag, die Vorlage bleibt unverändert.
+   { pick:{Blockschlüssel: unitId|''}, units:{unitId:{skip, done, ex:{exId:{skip, sets}}}}, reason, gym:[Gym-IDs] }
+   Beim Speichern kommen geplant (Schnappschuss), gemacht, ausgelassen und die Abweichungstexte dazu – für Muster und MCP. */
+const REASONS = [{ id: 'zeit', name: 'Zeit' }, { id: 'recovery', name: 'Recovery' }, { id: 'schmerz', name: 'Schmerz' }, { id: 'lust', name: 'Lust' }, { id: 'sonst', name: 'Sonstiges' }];
+const nkey = s => String(s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
+const slotKey = s => s.alts.join('|');
+function cleanDay(d) {
+  d = d || {}; const o = { pick: {}, units: {}, reason: '', gym: [] };
+  if (d.pick && typeof d.pick === 'object') Object.keys(d.pick).slice(0, 12).forEach(k => { o.pick[txt(k, 120)] = txt(d.pick[k], 24) });
+  if (d.units && typeof d.units === 'object') Object.keys(d.units).slice(0, 12).forEach(u => {
+    const x = d.units[u] || {}, ex = {};
+    if (x.ex && typeof x.ex === 'object') Object.keys(x.ex).slice(0, 40).forEach(e => { const y = x.ex[e] || {}, z = {}; if (y.skip) z.skip = true; const s = int(y.sets, 0, 20); if (s != null) z.sets = s; if (Object.keys(z).length) ex[txt(e, 24)] = z });
+    const v = {}; if (x.skip) v.skip = true; if (x.done) v.done = true; if (Object.keys(ex).length) v.ex = ex;
+    if (Object.keys(v).length) o.units[txt(u, 24)] = v;
+  });
+  if (REASONS.some(r => r.id === d.reason)) o.reason = d.reason;
+  if (Array.isArray(d.gym)) o.gym = [...new Set(d.gym.map(x => txt(x, 40)).filter(Boolean))].slice(0, 10);
+  return o;
+}
+/* gym: Gym-Einheiten (aus training/gym_JJJJ, nur gelesen) – Felder {id, date, plan, ex:[{n, s:[{w,r}]}], skip:[Namen]} */
+function todayView(plan, key, day, gym) {
+  day = cleanDay(day); const wd = wdOf(key), slots = [], devs = [];
+  const gToday = (gym || []).filter(s => s && s.date === key);
+  (plan.week[wd] || { slots: [] }).slots.forEach(s => {
+    const k = slotKey(s), want = day.pick[k], pick = want !== undefined && s.alts.includes(want) ? want : s.alts[0];
+    const unit = pick === '' ? null : unitById(plan, pick);
+    if (!unit) { slots.push({ key: k, alts: s.alts, pick, unit: null }); return }
+    const o = day.units[unit.id] || {}, uex = o.ex || {};
+    const g = gToday.filter(x => { const a = nkey(x.plan), b = nkey(unit.name); return a && b && (a === b || a.includes(b) || b.includes(a)) });
+    const gEx = new Map(), gSkip = new Set(); g.forEach(x => { (x.ex || []).forEach(e => gEx.set(nkey(e.n), (gEx.get(nkey(e.n)) || 0) + (e.s || []).length)); (x.skip || []).forEach(n => gSkip.add(nkey(n))) });
+    const ex = unit.ex.map(e => {
+      const v = uex[e.id] || {}, sets = v.sets == null ? e.sets : v.sets, gk = nkey(e.n);
+      return { e, skip: !!v.skip, sets, gym: g.length ? (gEx.has(gk) ? gEx.get(gk) : gSkip.has(gk) ? 0 : null) : null };
+    });
+    const skip = !!o.skip, done = !skip && (!!o.done || g.length > 0);
+    if (skip) devs.push({ t: 'unit', u: unit.id, text: unit.name + ' heute weggelassen' });
+    else ex.forEach(x => {
+      if (x.skip) devs.push({ t: 'ex', u: unit.id, ex: x.e.id, text: x.e.n + ' weggelassen' });
+      else if (x.sets !== x.e.sets) devs.push({ t: 'sets', u: unit.id, ex: x.e.id, from: x.e.sets, to: x.sets, text: x.e.n + ' ' + x.e.sets + ' → ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
+      if (!x.skip && x.gym != null && x.gym < x.sets) devs.push({ t: 'gym', u: unit.id, ex: x.e.id, from: x.sets, to: x.gym, text: 'laut Gym-Log: ' + x.e.n + ' ' + x.gym + ' statt ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
+    });
+    slots.push({ key: k, alts: s.alts, pick, unit, skip, done, ex, gym: g });
+  });
+  return { key, wd, slots, devs, gym: gToday, reason: day.reason, day };
+}
+/* Was gespeichert wird: Abweichungen + Schnappschuss geplant/gemacht */
+function dayDoc(view, ver) {
+  const d = view.day, units = view.slots.filter(s => s.unit);
+  const exDone = s => s.ex.filter(x => !x.skip && x.sets > 0).map(x => ({ n: x.e.n, sets: x.gym != null ? Math.min(x.gym, x.sets) : x.sets }));
+  return Object.assign({}, d, {
+    date: view.key, ver: ver || null, at: Date.now(), gym: [...new Set(d.gym.concat(view.gym.map(g => g.id)))].slice(0, 10),
+    planned: units.map(s => ({ u: s.unit.id, name: s.unit.name, kind: s.unit.kind, hard: s.unit.hard, legs: s.unit.legs, min: s.unit.min, ex: s.unit.ex.map(e => ({ n: e.n, sets: e.sets, prio: e.prio })) })),
+    done: units.filter(s => s.done).map(s => ({ u: s.unit.id, name: s.unit.name, ex: exDone(s), gym: s.gym.map(g => g.id) })),
+    skipped: units.filter(s => s.skip).map(s => s.unit.id),
+    dev: view.devs.map(x => x.text).slice(0, 40)
+  });
+}
+
+const api = { WD, WD_LONG, PRIO, KINDS, LIM, REASONS, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff, nkey, slotKey, cleanDay, todayView, dayDoc };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PlanCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
