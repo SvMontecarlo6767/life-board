@@ -6,7 +6,7 @@ description: Gives Claude "ears" for voiceovers and videos. Use it whenever you 
 # audio-ohren: hearing for narration and video sound
 
 Claude cannot hear audio. This skill replaces hearing with measurements that can be repeated.
-**The user's own ear still decides.** Measurements catch masked and mispronounced words and wrong pacing. They do NOT catch "sounds tired/bored". So: always send the user 10-second voice samples first, then build the full video.
+**The user's own ear still decides.** Measurements catch masked and mispronounced words and wrong pacing. They do NOT catch "sounds tired/bored". So take the user's feedback on finished videos seriously and adjust the voice settings.
 
 ## 0. Setup (once per session, about 2–4 minutes)
 ```bash
@@ -20,10 +20,9 @@ Numbers as `{display|spoken}`, for example `{7.5|seven and a half}`. The caption
 ```bash
 python3 -I ${CLAUDE_SKILL_DIR}/scripts/tts.py script.txt out_dir/ [--voice af_heart] [--speed 1.22] [--energy]
 ```
-- **The user's preferred voice (2026-11-05):** favorites are **1B** and **1C**, both fast and energetic.
-  - **1B (default):** `--voice af_heart --speed 1.22 --energy`
-  - **1C (alternative):** `--voice af_heart:0.65,af_bella:0.35 --speed 1.22 --energy`
-  - For each new video, first send a 10-second sample of 1B and 1C with the video's hook sentence and let the user choose.
+- **The user's voice (2026-11-05): always use 1B** unless they ask for something else: `--voice af_heart --speed 1.22 --energy`.
+  - Alternative only on request, "1C": `--voice af_heart:0.65,af_bella:0.35 --speed 1.22 --energy`.
+  - Do NOT send voice samples beforehand (the user does not want that). The quality check (section 2) still always runs.
 - `--energy` adds a brighter, denser sound (presence boost, compression, slight lift).
 - The script should also carry the punch: short sentences, `!`, and `...` before punchlines.
 - Each scene is synthesized as ONE piece (no gluing sentences together, which sounds choppy).
@@ -49,4 +48,4 @@ If a scene fails, generate it again (the voice varies slightly per run) or rephr
 ## 3. Rules for sound in videos
 - Effects (whoosh, pop, impact) must never sit on spoken words: place them before the cut, or make them short.
 - Duck the music under the voice (sidechain); voice around −16 LUFS, final mix −14 to −16 LUFS.
-- Send the user short samples and let them choose; only then build the full video.
+- Voice: 1B by default (see section 1). Only send samples if the user asks for them.
