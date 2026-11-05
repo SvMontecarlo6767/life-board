@@ -23,6 +23,14 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Wetter und Ortssuche: einziger externer Abruf der Seite (Open-Meteo, nur Ort und Rennen-Datum).
 - Tests: `node tools/test-training.mjs`, `node worker/test.mjs`, Browser: `node tools/browser/gen_training_seed.mjs seed.json` und `python3 tools/browser/test_training.py <Ordner> seed.json`.
 
+## Trainingsplan (oben im Reiter „Training“)
+- Eigenes Modul (`plan-core.js` rechnen, `plan.js` Oberfläche). Liest `training/settings.workouts` nur (Push/Pull im Startplan), schreibt ausschließlich in `users/{uid}/plan/` – in der Sicherung enthalten.
+- **Wochenvorlage:** pro Tag Blöcke; ein Block mit mehreren Einträgen heißt „A oder B“, „nichts“ macht ihn optional. **Einheiten** mit Übungen (Name, Sätze, Wdh./Dauer, Pause, Notiz, Priorität Kern / Normal / kürzbar / zuerst weglassen), Art, „hart“, „belastet die Beine“, Minuten; Zeitschätzung aus den Übungen.
+- **Versionen:** Speichern legt `plan/v_JJJJ-MM-TT` an, gilt ab diesem Tag bis zur nächsten Version (mehrere Änderungen am selben Tag = eine Version). Einstellungen (Zeitbudget, Zone-2-Puls) in `plan/settings`.
+- Ohne gespeicherten Plan zeigt das Board den Startplan als Vorschlag; erst „Startplan übernehmen“ speichert.
+- **Heute ändern** (Karte „Heute“ oben im Plan): Alternative wählen, „✎ Heute anpassen“ → Übung weglassen, Sätze −/+, Einheit heute weglassen, „erledigt“ abhaken, optional Grund (Zeit, Recovery, Schmerz, Lust, Sonstiges). Die Vorlage bleibt unverändert. Gespeichert in `plan/t_JJJJ-MM-TT` (Abweichungen, Schnappschuss geplant/gemacht, Abweichungstexte). Gym-Einträge des Tages werden nur gelesen: passt der Workout-Name zur Einheit, gilt sie als erledigt, die Gym-ID wird verknüpft und weniger Sätze als geplant erscheinen als Abweichung.
+- Tests: `node tools/test-plan.mjs`, `python3 tools/browser/test_plan.py <Ordner>` (Handy, iPad, Dschungel, leere Daten, Lese-/Schreibfehler).
+
 ## Allround-Training (nach dem Sportler-Interview)
 - **Noch ergänzen:** Whoop-Einheiten der letzten 14 Tage (z. B. „Functional Fitness“) bekommen Sportart (Kraft, Isometrie, Plyometrie, Fußball, Lauf …), Fokus (z. B. Pull, Sprungkraft, Spiel), Anstrengung 1–10 und Notiz. Gespeichert am Eintrag (`o`, `f`, `x`, `no`, `ok`). „Speichern + Übungen eintragen“ öffnet das Gym-Logbuch mit Vorlage; die Gym-Einheit wird mit der Whoop-Einheit verknüpft (`w`) und zählt nur einmal.
 - **Balance-Ampel:** Kraft (Kraft, Isometrie), Ausdauer (Lauf, Rad …), Explosiv (Plyometrie, HIIT), Fußball pro Woche gegen Ziele (Standard 2/2/1/2, änderbar, `settings.balance`).

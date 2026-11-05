@@ -254,11 +254,70 @@ ol.how2{margin:8px 0 0 18px;padding:0;color:var(--ink2);font-size:14px}ol.how2 l
 footer.ft{margin:36px 0 90px;color:var(--muted);font-size:12px;line-height:1.5}
 @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
+/* Trainingsplan (plan.js) */
+#planCard{margin:0 0 14px}
+.pn-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.pn-info{border:1px solid rgb(var(--acc)/.5);background:rgb(var(--acc)/.08);border-radius:12px;padding:10px 12px;margin:6px 0 10px;font-size:14px}
+.pn-today{font-size:15px;margin:4px 0}
+.pn-week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:10px 0}
+#planCard .pn-week button{min-height:56px;padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1.15;letter-spacing:0;border-radius:12px;border:1px solid var(--border);background:rgb(var(--acc)/.05);color:var(--ink2);cursor:pointer;min-width:0}
+.pn-week button b{font-size:13px;color:var(--ink)}
+.pn-week button small{font-size:10.5px;font-weight:500;color:var(--muted);overflow:hidden;text-overflow:ellipsis;max-width:100%;white-space:nowrap}
+#planCard .pn-week button[aria-pressed=true]{border-color:rgb(var(--acc));box-shadow:inset 0 0 0 1px rgb(var(--acc));background:rgb(var(--acc)/.14)}
+.pn-week button.today b{color:rgb(var(--acc))}
+.pn-dayh{font-weight:600;margin:6px 0 8px}
+.pn-slot{border-left:2px solid rgb(var(--acc)/.45);padding:2px 0 2px 10px;margin:0 0 10px}
+.pn-or,.pn-or2{font-size:12px;color:var(--muted);margin:4px 0;text-transform:uppercase;letter-spacing:.08em}
+.pn-or2{margin:0 2px;align-self:center}
+.pn-unit{margin:2px 0}.pn-none{color:var(--muted);font-style:italic}
+.pn-meta{font-size:12.5px}
+ul.pn-ex{list-style:none;margin:6px 0 0;padding:0}
+ul.pn-ex li{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--border);font-size:14px}
+.pn-n{font-weight:600;min-width:0}.pn-d{color:var(--ink2);font-size:13px}.pn-d i{color:var(--muted)}
+.pn-p{font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid var(--border);color:var(--ink2);margin-left:auto}
+.pn-p.kern{border-color:rgb(var(--acc));color:rgb(var(--acc))}.pn-p.kurz{border-color:rgba(255,210,79,.6);color:#ffd24f}.pn-p.weg{border-color:rgba(255,160,90,.7);color:#ffb37a}
+.pn-foot{font-size:12px;margin-top:6px}
+.pn-tabs{margin:2px 0 12px;flex-wrap:wrap}
+.pn-body{margin-bottom:8px}
+.pn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.pn-row2{display:flex;gap:8px;flex-wrap:wrap}.pn-row2>*{flex:1;min-width:110px}
+#planCard .fm .pn-row input.pn-grow{flex:1;min-width:110px}
+#planCard .pn-ed>.pn-row{flex-wrap:nowrap}#planCard .pn-ed>.pn-row button{min-width:40px;padding:0 8px;flex:none}
+#planCard .fm select{min-height:44px;border-radius:12px;border:1px solid var(--border);padding:0 10px;font:inherit;font-size:15px;flex:1;min-width:150px;max-width:100%}
+#planCard .pn-row button{min-width:44px;padding:0 12px}
+.pn-eday{padding:10px 0;border-top:1px solid var(--border)}.pn-eday>b{display:block;margin-bottom:4px}
+.pn-eslot{padding:6px 0 6px 10px;border-left:2px solid rgb(var(--acc)/.45);margin:4px 0}
+.chip .pn-x,html[data-hud] .chip button.pn-x{min-height:32px;min-width:32px;padding:0;margin:0 -6px 0 4px;border:0;background:none;box-shadow:none;color:var(--muted);font-size:13px}
+.pn-ulist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+#planCard .pn-ulist button{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:10px 12px;min-height:56px;letter-spacing:0}
+.pn-ulist small{font-weight:400;color:var(--muted);font-size:12px}
+.pn-ed{border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin:10px 0;background:rgb(var(--acc)/.04)}
+.pn-step{display:flex;align-items:center;gap:6px}#planCard .pn-step button{min-width:44px;font-size:18px;padding:0}.pn-step b{min-width:22px;text-align:center;font-size:17px}
+.pn-prio{display:flex;flex-wrap:wrap;border-radius:16px}.pn-prio button{flex:1;min-width:70px}
+.pn-est{font-size:13px;margin-top:8px}
+.pn-bar{position:sticky;bottom:calc(var(--tabh,0px) + 8px);z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;border-radius:14px;border:1px solid rgb(var(--acc)/.5);background:rgba(6,13,24,.95);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.pn-bar span{flex:1;min-width:140px;font-size:13px}
+html[data-theme="jungle"] .pn-bar{background:rgba(6,18,10,.95)}
+@media(max-width:500px){.pn-bar{padding:8px}.pn-bar span{flex-basis:100%;font-size:12px}.pn-bar button{flex:1}}
+.pn-tbox{border:1px solid rgb(var(--acc)/.35);border-radius:14px;padding:10px 12px;margin:4px 0 6px;background:rgb(var(--acc)/.05)}
+.pn-th{font-size:15px}
+.pn-pick{margin:2px 0 6px}
+.pn-urow{display:flex;justify-content:space-between;align-items:center;gap:8px}.pn-urow>div{min-width:0}
+#planCard .pn-urow button{flex:none;padding:0 14px}
+#planCard button.pn-done.on{background:rgba(31,191,133,.22);border-color:#1fbf85;color:var(--ink)}
+#planCard button.pn-done:disabled{opacity:1}
+.pn-strike{text-decoration:line-through;opacity:.7}
+ul.pn-tex li.pn-off .pn-n{text-decoration:line-through;opacity:.6}
+.pn-tact{display:flex;gap:6px;margin-left:auto}#planCard .pn-tact button{min-width:44px;padding:0 10px;font-size:13px}
+.pn-dev{margin:8px 0 2px;font-size:13.5px;color:var(--ink2)}
+.pn-tmsg{font-size:12px;min-height:16px;margin-top:4px}.pn-tmsg.err{color:#ff8a7c}
+.pn-ver{padding:8px 0;border-top:1px solid var(--border)}
 </style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
 </head><body><main>
 <a class="back" href="index.html">← Life Board</a>
 <h1>💪 Training</h1>
 <div class="seg" id="viewSw" role="group" aria-label="Ansicht" style="margin:0 0 10px"><button type="button" data-v="multi" aria-pressed="true">Allround</button><button type="button" data-v="lauf" aria-pressed="false">Läufer</button></div>
+<section class="card" id="planCard" aria-label="Trainingsplan"></section>
 <div id="trNav" role="navigation" aria-label="Abschnitte"></div>
 <div id="msg" class="msg">Lade Daten …</div>
 
@@ -345,5 +404,7 @@ html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
 <script src="training-gym.js?v=7"></script>
 <script src="training-multi.js?v=6"></script>
 <script src="training.js?v=9"></script>
+<script src="plan-core.js?v=2"></script>
+<script src="plan.js?v=2"></script>
 <script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=5"></script><script src="theme.js?v=16"></script>
 </body></html>
