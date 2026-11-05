@@ -20,7 +20,7 @@ Numbers as `{display|spoken}`, for example `{7.5|seven and a half}`. The caption
 ```bash
 python3 -I ${CLAUDE_SKILL_DIR}/scripts/tts.py script.txt out_dir/ [--voice af_heart] [--speed 1.22] [--energy]
 ```
-- **The user's preferred voice:** `af_heart`, speed `1.22`, with `--energy`. They chose variant 1B on 2026-11-05: faster, more punch. Use this unless the user says otherwise.
+- **The user's preferred voice (2026-11-05):** `af_heart` ("voice 1"), but **faster and with more energy**. Default: speed `1.22` + `--energy`, that is variant 1B. The choice between 1A (faster only), 1B (+ punch/sound) and 1C (blend `af_heart:0.65,af_bella:0.35`) is still open, so ask the user if needed.
 - `--energy` adds a brighter, denser sound (presence boost, compression, slight lift).
 - The script should also carry the punch: short sentences, `!`, and `...` before punchlines.
 - Each scene is synthesized as ONE piece (no gluing sentences together, which sounds choppy).
