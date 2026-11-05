@@ -15,7 +15,7 @@ def ck(n,c,x=''):
     print(('ok     ' if c else 'FEHLER ')+n+(' '+str(x) if x!='' else ''),flush=True)
     if not c: fails+=1
 SEED={'users/u1/training/settings':{'workouts':[{'id':'w1','name':'Pull','ex':['Klimmzüge','Face Pulls','Hanging Leg Raise']}]}}
-def ctx_for(b,w,h,seed,theme=None):
+def ctx_for(b,w,h,seed,theme=None,whoop=None):
     ctx=b.new_context(viewport={'width':w,'height':h},has_touch=True,is_mobile=w<500)
     ctx.add_init_script('window.__seed=%s;'%json.dumps(seed)+("localStorage.setItem('lb_ui',JSON.stringify({theme:'%s'}));"%theme if theme else ''))
     for n,body in(('app',mock),('auth',''),('firestore','')):
@@ -24,6 +24,7 @@ def ctx_for(b,w,h,seed,theme=None):
     def worker(r):
         hd={'access-control-allow-origin':'*','content-type':'application/json'}
         if r.request.method=='OPTIONS': return r.fulfill(status=204,headers={'access-control-allow-origin':'*','access-control-allow-headers':'*','access-control-allow-methods':'*'})
+        if '/data' in r.request.url and whoop is not None: return r.fulfill(headers=hd,body=json.dumps({'days':whoop}))
         if '/strava/status' in r.request.url: return r.fulfill(headers=hd,body=json.dumps({'configured':False}))
         return r.fulfill(headers=hd,body='{}')
     ctx.route(re.compile(r'workers\.dev'),worker)
@@ -94,7 +95,8 @@ def run(p,w,h,tag,theme=None):
     # Einstellungen
     pg.tap('#planCard [data-a=edit]'); pg.tap('#planCard [data-a=tab][data-t=set]'); pg.fill('#pnZ2lo','125'); pg.fill('#pnZ2hi','140'); pg.fill('#pnBudget','55'); pg.locator('#pnBudget').dispatch_event('change'); pg.locator('#pnZ2hi').dispatch_event('change'); pg.locator('#pnZ2lo').dispatch_event('change')
     pg.tap('#planCard [data-a=setsave]'); pg.wait_for_timeout(200)
-    ck(t+'Einstellungen gespeichert',pg.evaluate('window.__store')['users/u1/plan/settings']=={'budget':55,'z2lo':125,'z2hi':140},pg.evaluate('window.__store').get('users/u1/plan/settings'))
+    se=pg.evaluate('window.__store')['users/u1/plan/settings']
+    ck(t+'Einstellungen gespeichert',se['budget']==55 and se['z2lo']==125 and se['z2hi']==140 and se['rules']['a']['red']==33,se)
     # Versionen
     pg.tap('#planCard [data-a=tab][data-t=ver]'); vt=pg.inner_text('#planCard')
     ck(t+'Versionsliste mit „gilt heute“','ab 05.11.2026' in vt and 'gilt heute' in vt)
@@ -116,26 +118,51 @@ def run(p,w,h,tag,theme=None):
     pg.goto(URL); pg.wait_for_function('window.__planReady===true',timeout=20000)
     ck(t+'Lesefehler: Meldung statt leerer Karte','Plan konnte nicht geladen werden' in pg.inner_text('#planCard') and not e2,e2[:2])
     ctx.close()
-    monday(b,w,h,t)
+    monday(b,w,h,t,theme)
     b.close()
 VER=json.loads(subprocess.check_output(['node','-e',"const P=require('./plan-core.js');console.log(JSON.stringify(Object.assign(P.seed([]),{from:'2026-11-05',at:1})))"],cwd=root))
-def monday(b,w,h,t):
+def monday(b,w,h,t,theme=None):
     t=t[:-2]+'/Montag] '
-    ctx=ctx_for(b,w,h,{'users/u1/plan/v_2026-11-05':VER})
+    WH={'2026-11-09':{'recovery':{'score':{'recovery_score':22}},'sleep':{'start':'2026-11-08T22:05:00Z','end':'2026-11-09T06:00:00Z','tz':'+01:00','nap':False,'score':{'sleep_performance_percentage':88}}},'2026-11-08':{'cycle':{'score':{'strain':9.1}}}}
+    ctx=ctx_for(b,w,h,{'users/u1/plan/v_2026-11-05':VER},theme,whoop=WH)
     pg=ctx.new_page(); errs=[]
     pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('dialog',lambda d:d.accept())
     pg.clock.set_fixed_time('2026-11-09T18:00:00+01:00')
     pg.goto(URL); pg.wait_for_function('window.__planReady===true',timeout=20000); pg.wait_for_timeout(300)
     tx=pg.inner_text('#planCard')
     ck(t+'Heute-Karte: Beine + Haltung, Übungen sichtbar','Heute · Montag' in tx and 'Nordic Curls' in tx and 'erledigt?' in tx)
+    # Phase 3: Vorschlag a) Recovery rot + Beintag
+    ck(t+'Whoop-Werte und Vorschlagskarte mit Grund','Recovery 22 % (rot)' in tx and pg.locator('#planCard .pn-sug[data-sug=a]').count()==1 and 'Split Squat Jumps weglassen · Wadenheben auf 1 Satz' in tx,tx[:400])
+    pg.screenshot(path=f'{shots}/plan_{t.strip("[] ").replace("/","_")}_vorschlag.png')
+    pg.tap('#planCard [data-a=sugok][data-r=a]'); pg.wait_for_timeout(800)
+    d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-09',{})
+    ck(t+'Übernehmen: nur heute geändert, Entscheidung gespeichert',d.get('sug',{}).get('a',{}).get('d')=='ok' and d['units']['beine']['ex']=={'beine_3':{'skip':True},'beine_7':{'sets':1}} and pg.evaluate('window.__store')['users/u1/plan/v_2026-11-05']==VER,d)
+    ck(t+'Karte weg, Status sichtbar',pg.locator('#planCard .pn-sug').count()==0 and '✓ übernommen' in pg.inner_text('#planCard'))
+    pg.tap('#planCard [data-a=short]'); pg.wait_for_timeout(200)
+    ck(t+'„heute kurz“ zeigt Kürzungsvorschlag',pg.locator('#planCard .pn-sug[data-sug=e]').count()==1 or 'Heute kurz' not in pg.inner_text('#planCard'))
+    if pg.locator('#planCard .pn-sug[data-sug=e]').count():
+        pg.tap('#planCard [data-a=sugno][data-r=e]'); pg.wait_for_timeout(800)
+        ck(t+'Ignorieren gespeichert',pg.evaluate('window.__store')['users/u1/plan/t_2026-11-09']['sug']['e']['d']=='no')
+    pg.tap('#planCard [data-a=sugundo][data-r=a]'); pg.wait_for_timeout(800)
+    ck(t+'Entscheidung zurücknehmen → Karte wieder da (nichts mehr zu tun → nur, wenn noch etwas übrig ist)','a' not in pg.evaluate('window.__store')['users/u1/plan/t_2026-11-09']['sug'])
+    # Kern und Einheiten bleiben
+    d=pg.evaluate('window.__store')['users/u1/plan/t_2026-11-09']
+    ck(t+'Nie Kern, nie ganze Einheiten',not d.get('skipped') and 'beine_0' not in d['units'].get('beine',{}).get('ex',{}))
+    # Regel in den Einstellungen ausschalten
+    pg.tap('#planCard [data-a=edit]'); pg.tap('#planCard [data-a=tab][data-t=set]'); pg.tap('#planCard [data-a=rtog][data-r=e][data-k=on]'); pg.fill('#planCard [data-rf="c.strain"]','14,5'); pg.locator('#planCard [data-rf="c.strain"]').dispatch_event('change'); pg.tap('#planCard [data-a=setsave]'); pg.wait_for_timeout(300)
+    se=pg.evaluate('window.__store')['users/u1/plan/settings']['rules']
+    ck(t+'Regeln einstellbar und abschaltbar',se['e']['on'] is False and se['c']['strain']==14.5,se)
+    sm=small_targets(pg); ck(t+'Einstellungen touch-tauglich',not sm,sm[:3])
+    pg.tap('#planCard [data-a=cancel]')
     pg.tap('#planCard [data-a=adj]')
-    ck(t+'Anpassen-Modus mit −/+ und weglassen',pg.locator('#planCard [data-a=exskip]').count()==8 and pg.locator('#planCard [data-a=tsets]').count()==16)
+    ck(t+'Anpassen-Modus mit −/+ und weglassen',pg.locator('#planCard [data-a=exskip]').count()==8 and pg.locator('#planCard [data-a=tsets]').count()>=14)
     sm=small_targets(pg); ck(t+'Touch-Ziele groß genug',not sm,sm[:3]); ck(t+'Kein seitliches Scrollen',noscroll(pg))
-    pg.tap('#planCard [data-a=exskip][data-e=beine_3]'); pg.tap('#planCard [data-a=tsets][data-e=beine_5][data-d="-1"]')
+    if 'doch machen' not in pg.inner_text('#planCard li:has([data-e=beine_3])'): pg.tap('#planCard [data-a=exskip][data-e=beine_3]')
+    pg.tap('#planCard [data-a=tsets][data-e=beine_5][data-d="-1"]')
     pg.tap('#planCard [data-a=reason][data-r=zeit]'); pg.tap('#planCard [data-a=udone][data-u=haltung]'); pg.wait_for_timeout(900)
     pg.screenshot(path=f'{shots}/plan_{t.strip("[] ").replace("/","_")}_heute.png')
     st=pg.evaluate('window.__store'); d=st.get('users/u1/plan/t_2026-11-09',{})
-    ck(t+'Gespeichert: geplant, Abweichung, Grund, erledigt',d.get('units',{}).get('beine',{}).get('ex')=={'beine_3':{'skip':True},'beine_5':{'sets':1}} and d.get('reason')=='zeit' and d.get('dev')==['Split Squat Jumps weggelassen','Nordic Curls 2 → 1 Satz'] and [x['u'] for x in d.get('done',[])]==['haltung'] and len(d.get('planned',[]))==2,d)
+    ck(t+'Gespeichert: geplant, Abweichung, Grund, erledigt',{k:v for k,v in d.get('units',{}).get('beine',{}).get('ex').items() if k!='beine_7'}=={'beine_3':{'skip':True},'beine_5':{'sets':1}} and d.get('reason')=='zeit' and d.get('dev')[:2]==['Split Squat Jumps weggelassen','Nordic Curls 2 → 1 Satz'] and [x['u'] for x in d.get('done',[])]==['haltung'] and len(d.get('planned',[]))==2,d)
     ck(t+'Vorlage unverändert',st['users/u1/plan/v_2026-11-05']==VER)
     ck(t+'Abweichung und Grund sichtbar','Abweichung heute' in pg.inner_text('#planCard') and pg.get_attribute('#planCard [data-a=reason][data-r=zeit]','aria-pressed')=='true')
     # Gym-Eintrag kommt dazu (z. B. im Gym-Logbuch gespeichert) → wird nur gelesen und verknüpft
@@ -151,7 +178,7 @@ def monday(b,w,h,t):
     ck(t+'Einheit heute weglassen',d['skipped']==['haltung'] and 'Haltungsübungen heute weggelassen' in d['dev'])
     pg.tap('#planCard [data-a=treset]'); pg.wait_for_timeout(800)
     d=pg.evaluate('window.__store')['users/u1/plan/t_2026-11-09']
-    ck(t+'Zurück auf den Plan (Gym-Verknüpfung bleibt)',d['dev']==['laut Gym-Log: Nordic Curls 1 statt 2 Sätze'] and d['reason']=='' and d['gym']==['xg1'],d['dev'])
+    ck(t+'Zurück auf den Plan (Gym-Verknüpfung bleibt)',d['dev']==['laut Gym-Log: Nordic Curls 1 statt 2 Sätze'] and d['reason']=='' and not d['short'] and d['gym']==['xg1'],d['dev'])
     ck(t+'Keine JS-Fehler',not errs,errs[:3])
     ctx.close()
 with sync_playwright() as p:
