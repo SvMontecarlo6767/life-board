@@ -64,4 +64,51 @@ ok(doc.date === MO && doc.ver === '2026-11-05' && doc.gym.join() === 'g1' && doc
 const cd = P.cleanDay({ units: { a: { ex: { e: { skip: false } } }, b: { done: 1, ex: { x: { sets: '99' } } } }, reason: 'quatsch', gym: ['g', 'g'] });
 ok(!cd.units.a && cd.units.b.done === true && cd.units.b.ex.x.sets === 20 && cd.reason === '' && cd.gym.length === 1, 'Tagesdaten bereinigen', cd);
 ok(P.todayView(P.clean(null), MO, null, []).slots.length === 0, 'Leerer Plan: kein Training');
+// Vorschläge (Phase 3)
+const W = (rec, perf, bedUtc, strain) => ({ recovery: rec == null ? undefined : { score: { recovery_score: rec } }, sleep: bedUtc ? { start: bedUtc, tz: '+01:00', nap: false, score: { sleep_performance_percentage: perf } } : undefined, cycle: strain == null ? undefined : { score: { strain } } });
+const days = {}; for (let i = 1; i <= 14; i++) { const k = P.addDays(MO, -i); days[k] = W(70, 90, P.addDays(k, -1) + 'T22:00:00Z', 8) }   // sonst 23:00 Uhr
+const sug = (dd, day, set, hist, k) => P.suggest({ plan: s, view: P.todayView(s, k || MO, day || null, []), days: dd, set: set || {}, hist: hist || {} });
+let r = sug(Object.assign({}, days, { [MO]: W(80, 92, '2026-11-08T22:10:00Z') }));
+ok(r.open.length === 0 && r.zone === 'grün', 'Grün und normaler Schlaf: keine Vorschläge');
+r = sug(Object.assign({}, days, { [MO]: W(50, 92, '2026-11-08T22:10:00Z') }));
+ok(r.open.length === 1 && r.open[0].id === 'a' && r.open[0].ops.map(o => o.text).join() === 'Split Squat Jumps weglassen' && /Recovery 50 % \(gelb\)/.test(r.open[0].why[0]), 'a) Gelb + Beintag: zuerst weglassen', r.open);
+r = sug(Object.assign({}, days, { [MO]: W(20, 92, '2026-11-08T22:10:00Z') }));
+ok(r.open[0].ops.map(o => o.text).join('|') === 'Split Squat Jumps weglassen|Wadenheben auf 1 Satz' && r.zone === 'rot', 'a) Rot: zusätzlich kürzbar auf 1 Satz', r.open[0].ops);
+ok(r.open.every(x => x.ops.every(o => !o.ex || P.unitById(s, o.u).ex.find(e => e.id === o.ex).prio !== 'kern')), 'Kern wird nie angetastet');
+ok(sug(Object.assign({}, days, { [MO]: W(50) }), null, { rules: { a: { yellow: false } } }).open.length === 0, 'a) Gelb abschaltbar');
+ok(sug(Object.assign({}, days, { [MO]: W(20) }), null, { rules: { a: { on: false } } }).open.length === 0, 'a) Regel ausschaltbar');
+ok(sug(Object.assign({}, days, { [DI]: W(20) }), null, null, null, DI).open.length === 0, 'a) Kein Beintag (Di Pull) → nichts');
+r = sug(Object.assign({}, days, { [MO]: W(80, 55, '2026-11-09T00:40:00Z') }));
+ok(r.open.length === 1 && r.open[0].id === 'b' && r.open[0].why.some(w => /Schlafleistung 55 %/.test(w)) && r.open[0].why.some(w => /eingeschlafen 01:40, sonst 23:00 \(\+160 min\)/.test(w)), 'b) Schlaf schlecht und spät + Beintag', r.open[0] && r.open[0].why);
+ok(sug(Object.assign({}, days, { [MO]: W(80, 90, '2026-11-08T22:30:00Z') })).open.length === 0, 'b) 30 min später ist noch normal');
+r = sug(Object.assign({}, days, { [MO]: W(80, 90, '2026-11-08T22:00:00Z') }), { units: { beine: { ex: { beine_3: { skip: true } } } } }, { rules: { a: { red: 90, yellowMax: 95 } } });
+ok(r.open.length === 1 && r.open[0].ops.length === 1 && r.open[0].ops[0].text === 'Wadenheben auf 1 Satz', 'Schon Weggelassenes wird nicht nochmal vorgeschlagen', r.open);
+// c) Strain gestern
+const MI = '2026-11-11'; const dc = Object.assign({}, days, { '2026-11-10': W(70, 90, null, 18) });
+r = sug(dc, { pick: { 'fussball|lauf_np': 'lauf_np' } }, null, null, MI);
+ok(r.open.length === 1 && r.open[0].id === 'c' && /Strain gestern 18/.test(r.open[0].why[0]) && r.open[0].ops.some(o => o.pick) === false, 'c) Strain hoch + harte Einheit (Lauf ohne Zone-2-Alternative → Hinweis)', r.open);
+const s3 = P.copy(s); s3.week[2].slots[1].alts.push('z2'); const r3 = P.suggest({ plan: s3, view: P.todayView(s3, MI, { pick: { 'fussball|lauf_np|z2': 'lauf_np' } }, []), days: dc, set: {}, hist: {} });
+ok(r3.open[0].ops.find(o => o.pick).text === 'Zone 2 statt Laufen (Norwegian Protocol)', 'c) Zone 2 statt Lauf, wenn als Alternative da', r3.open[0].ops);
+// d) harte Tage in Folge
+const dd = Object.assign({}, days, { '2026-11-07': W(70, 90, null, 15), '2026-11-08': W(70, 90, null, 9) });
+const hist = { '2026-11-08': { planned: [{ u: 'push', hard: true }], done: [{ u: 'push' }] } };
+r = sug(dd, null, null, hist);
+ok(r.open.length === 1 && r.open[0].id === 'd' && r.open[0].hint && /3 harte Tage/.test(r.open[0].title), 'd) Sa (Strain) + So (harte Einheit erledigt) + heute Beine → Hinweis', r.open);
+ok(sug(dd).open.length === 0, 'd) ohne erledigte Einheit am So nur 1 harter Tag');
+// e) heute kurz
+r = sug({}, { short: true }, { rules: { e: { target: 30 } } });
+const e = r.open.find(x => x.id === 'e');
+ok(e && e.ops[0].text === 'Split Squat Jumps weglassen' && !e.ops.some(o => /Mobilisieren/.test(o.text)) && /≈ \d+ → \d+ min/.test(e.title), 'e) Heute kurz: nach Priorität, Kern bleibt', e);
+const lo = P.dayMin(P.todayView(s, MO, P.applyOps({ short: true }, e.ops), []));
+ok(lo < P.dayMin(P.todayView(s, MO, null, [])), 'e) Übernehmen macht den Tag kürzer (' + lo + ' min)');
+ok(!sug({}, null, { rules: { e: { target: 30 } } }).open.length, 'e) nur mit Schalter „heute kurz“');
+// f) Zone 2 bei Rot
+r = sug(Object.assign({}, days, { [DI]: W(20) }), { pick: { 'fussball|z2': 'z2' } }, null, null, DI);
+ok(r.open.length === 1 && r.open[0].id === 'f' && r.open[0].ops[0].min === 25, 'f) Zone 2 bei Rot: 45 → 25 min', r.open);
+const tv = P.todayView(s, DI, P.applyOps({ pick: { 'fussball|z2': 'z2' } }, r.open[0].ops), []);
+ok(tv.devs.some(d => d.text === 'Zone-2-Spin 45 → 25 min'), 'f) Übernommen = Abweichung mit Minuten');
+// Entscheidungen
+r = sug(Object.assign({}, days, { [MO]: W(50) }), { sug: { a: { d: 'no', at: 1, title: 'x' } } });
+ok(r.open.length === 0 && r.decided.length === 1 && r.decided[0].d === 'no', 'Entschiedene Vorschläge erscheinen nicht erneut');
+ok(P.cleanRules({ a: { red: 200, yellowMax: 10 }, c: { strain: '15,5' } }).a.red === 98 && P.cleanRules({ a: { red: 200 } }).a.yellowMax === 99 && P.cleanRules({ c: { strain: '15,5' } }).c.strain === 15.5, 'Regel-Einstellungen begrenzt');
 console.log(fail ? fail + ' FEHLER' : 'alle Tests ok'); process.exit(fail ? 1 : 0);

@@ -4,7 +4,8 @@
 'use strict';
 const P = window.PlanCore, $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const S = { base: '', versions: [], cur: null, draft: null, dirty: false, edit: false, tab: 'week', unit: null, day: null, set: P.cleanSettings({}), seeded: false, viewV: null, msg: '', err: false, busy: false, loaded: false, tday: null, gym: [], adj: false, tmsg: '' };
+const S = { base: '', versions: [], cur: null, draft: null, dirty: false, edit: false, tab: 'week', unit: null, day: null, set: P.cleanSettings({}), seeded: false, viewV: null, msg: '', err: false, busy: false, loaded: false, tday: null, gym: [], adj: false, tmsg: '', whoop: {}, hist: {}, whoopOk: false };
+const WORKER = 'https://life-board-whoop.momo-haskamp.workers.dev';   // derselbe Worker wie im Training (nur lesen: /data)
 const todayKey = () => (window.TrainingCore ? window.TrainingCore.local(Date.now()).key : new Date().toISOString().slice(0, 10));
 const fmtD = k => k ? k.slice(8, 10) + '.' + k.slice(5, 7) + '.' + k.slice(0, 4) : '';
 const kindName = id => (P.KINDS.find(k => k.id === id) || {}).name || '';
@@ -19,7 +20,7 @@ async function load() {
   const u = await requireUser(); S.base = 'users/' + u.uid;
   try {
     const q = await fs.collection(S.base + '/plan').get();
-    const vs = []; q.docs.forEach(d => { const x = d.data() || {}; if (/^v_\d{4}-\d{2}-\d{2}$/.test(d.id)) vs.push(Object.assign(P.clean(x), { from: d.id.slice(2), at: x.at || 0 })); else if (d.id === 'settings') S.set = P.cleanSettings(x); else if (d.id === 't_' + todayKey()) S.tday = P.cleanDay(x) });
+    const vs = []; q.docs.forEach(d => { const x = d.data() || {}; if (/^v_\d{4}-\d{2}-\d{2}$/.test(d.id)) vs.push(Object.assign(P.clean(x), { from: d.id.slice(2), at: x.at || 0 })); else if (d.id === 'settings') S.set = P.cleanSettings(x); else if (/^t_\d{4}-\d{2}-\d{2}$/.test(d.id)) { S.hist[d.id.slice(2)] = x; if (d.id === 't_' + todayKey()) S.tday = P.cleanDay(x) } });
     S.versions = P.sortVersions(vs);
     S.cur = P.versionAt(S.versions, todayKey()) || S.versions[S.versions.length - 1] || null;
     if (!S.cur) {   // noch kein Plan: Startplan vorschlagen (nicht gespeichert, bis du ihn übernimmst)
@@ -28,7 +29,14 @@ async function load() {
     }
   } catch (e) { S.msg = 'Plan konnte nicht geladen werden: ' + errText(e); S.err = true; S.cur = P.seed([]); S.seeded = true }
   await loadGym();
-  S.loaded = true; draw(); autoLink(); window.__planReady = true;
+  S.loaded = true; draw(); autoLink();
+  await loadWhoop(u); draw(); window.__planReady = true;
+}
+/* Whoop der letzten 30 Tage aus dem Gerätespeicher (whoop-cache.js), frische Tage vom Worker – nur lesen */
+async function loadWhoop(u) {
+  if (!window.LBWhoop) return; const to = todayKey(), from = P.addDays(to, -30);
+  const get = async (f, t) => { const tok = await u.getIdToken(), r = await fetch(WORKER + '/data?from=' + f + '&to=' + t, { headers: { Authorization: 'Bearer ' + tok } }); if (!r.ok) throw new Error('Whoop ' + r.status); return r.json() };
+  try { S.whoop = await LBWhoop.load({ uid: u.uid, from, to, fetch: get }) || {}; S.whoopOk = true } catch (e) { S.whoop = {}; S.whoopOk = false }
 }
 /* Gym-Einheiten von heute (training/gym_JJJJ) – nur lesen, nie schreiben */
 async function loadGym() {
@@ -100,9 +108,23 @@ function shortDay(p, wd) {
   return (u ? u.name.split(/[ (]/)[0] : 'Pause') + (d.slots.length > 1 || s.alts.length > 1 ? ' +' : '');
 }
 /* Heute: gewählte Alternative, Anpassungen nur für heute, erledigt, Grund */
+function sugBox(v) {
+  const r = P.suggest({ plan: S.cur, view: v, days: S.whoop, set: S.set, hist: S.hist }), F = r.facts;
+  const vals = [F.rec != null ? 'Recovery ' + Math.round(F.rec) + ' %' + (r.zone ? ' (' + r.zone + ')' : '') : '', F.perf != null ? 'Schlaf ' + Math.round(F.perf) + ' %' : '', F.bed != null ? 'eingeschlafen ' + P.clockOf(F.bed) : '', F.strainY != null ? 'Strain gestern ' + String(Math.round(F.strainY * 10) / 10).replace('.', ',') : ''].filter(Boolean);
+  let h = '<div class="mu pn-facts">' + (vals.length ? esc(vals.join(' · ')) : S.whoopOk ? 'Whoop-Werte von heute fehlen noch – Vorschläge, die Recovery oder Schlaf brauchen, warten darauf.' : 'Keine Whoop-Daten – nur „heute kurz“ und Hinweise aus deinem Plan.') + '</div>';
+  r.open.forEach(x => {
+    h += '<div class="pn-sug" data-sug="' + x.id + '"><b>' + esc(x.title) + '</b><div class="pn-why">Grund: ' + esc(x.why.join(' · ')) + '</div>' +
+      (x.ops.length ? '<div class="pn-d">Vorschlag: ' + esc(x.ops.map(o => o.text).join(' · ')) + '</div>' : '') +
+      '<div class="btns"><button type="button" class="primary" data-a="sugok" data-r="' + x.id + '">Übernehmen</button><button type="button" data-a="sugno" data-r="' + x.id + '">Ignorieren</button></div></div>';
+  });
+  r.decided.forEach(x => { h += '<div class="mu pn-sugd">' + (x.d === 'ok' ? '✓ übernommen: ' : '✕ ignoriert: ') + esc(x.title) + ' <button type="button" class="txt" data-a="sugundo" data-r="' + x.id + '">Entscheidung zurücknehmen</button></div>' });
+  return h;
+}
 function todayBox(tw) {
   const v = view(), A = S.adj && !S.seeded;
-  let h = '<div class="pn-tbox"><div class="pn-top"><b class="pn-th">Heute · ' + P.WD_LONG[tw] + '</b>' + (S.seeded || !v.slots.some(s => s.unit) ? '' : '<button type="button" data-a="adj" aria-pressed="' + A + '">' + (A ? '✓ Fertig' : '✎ Heute anpassen') + '</button>') + '</div>';
+  const any = !S.seeded && v.slots.some(s => s.unit);
+  let h = '<div class="pn-tbox"><div class="pn-top"><b class="pn-th">Heute · ' + P.WD_LONG[tw] + '</b>' + (any ? '<span class="pn-row" style="margin:0"><button type="button" class="chip' + (v.day.short ? ' on' : '') + '" data-a="short" aria-pressed="' + !!v.day.short + '">⏱ heute kurz</button><button type="button" data-a="adj" aria-pressed="' + A + '">' + (A ? '✓ Fertig' : '✎ Heute anpassen') + '</button></span>' : '') + '</div>';
+  if (any) h += sugBox(v);
   if (!v.slots.length) return h + '<div class="mu">Heute ist kein Training geplant.</div></div>';
   if (S.seeded) return h + '<div><b>' + esc(P.dayText(S.cur, tw)) + '</b></div><div class="mu pn-d">Anpassen und Abhaken geht, sobald der Plan übernommen ist.</div></div>';
   v.slots.forEach(s => {
@@ -118,6 +140,7 @@ function todayBox(tw) {
       return '<li class="' + (x.skip ? 'pn-off' : '') + '"><span class="pn-n">' + esc(x.e.n) + '</span><span class="pn-d">' + (x.skip ? 'heute weggelassen' : (ch ? '<s>' + x.e.sets + '</s> ' : '') + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') + (x.e.amt ? ' · ' + esc(x.e.amt) : '') + (x.gym != null ? ' · Gym: ' + x.gym : '')) + '</span>' +
         (A ? '<span class="pn-tact">' + (x.skip ? '' : '<button type="button" data-a="tsets" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '" data-d="-1" aria-label="ein Satz weniger">−</button><button type="button" data-a="tsets" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '" data-d="1" aria-label="ein Satz mehr">+</button>') + '<button type="button" data-a="exskip" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '">' + (x.skip ? 'doch machen' : 'weglassen') + '</button></span>' : (x.e.prio !== 'norm' ? '<span class="pn-p ' + x.e.prio + '">' + esc(prioName(x.e.prio)) + '</span>' : '')) + '</li>';
     }).join('') + '</ul>';
+    if (!s.skip && window.TrainingGym && s.ex.some(x => x.e.gym)) h += '<div class="pn-row"><button type="button" data-a="gymgo" data-u="' + esc(u.id) + '">🏋️ ' + esc(u.name) + ' im Gym-Logbuch eintragen</button></div>';
     if (A && !s.skip) h += '<div class="pn-row"><button type="button" data-a="uskip" data-u="' + esc(u.id) + '">' + esc(u.name) + ' heute weglassen</button></div>';
     h += '</div>';
   });
@@ -173,6 +196,7 @@ function unitEditor(p, u) {
     '<div><label>Wdh. oder Dauer</label><input type="text" maxlength="40" data-ef="amt" data-i="' + i + '" value="' + esc(e.amt) + '" placeholder="z. B. 8 Wdh. / 30 s"></div>' +
     '<div><label>Pause (s)</label><input type="number" inputmode="numeric" min="0" max="900" data-ef="rest" data-i="' + i + '" value="' + (e.rest == null ? '' : e.rest) + '"></div></div>' +
     '<label>Notiz</label><input type="text" maxlength="160" data-ef="note" data-i="' + i + '" value="' + esc(e.note) + '">' +
+    '<div class="pn-row"><button type="button" class="chip' + (e.gym !== false ? ' on' : '') + '" data-a="exgym" data-i="' + i + '" aria-pressed="' + (e.gym !== false) + '">im Gym-Logbuch</button></div>' +
     '<label>Priorität</label><div class="seg pn-prio" role="group" aria-label="Priorität">' + P.PRIO.map(pr => '<button type="button" data-a="prio" data-i="' + i + '" data-p="' + pr.id + '" aria-pressed="' + (e.prio === pr.id) + '" title="' + esc(pr.hint) + '">' + esc(pr.name) + '</button>').join('') + '</div></div>').join('');
   h += '<div class="btns"><button type="button" data-a="exadd">+ Übung</button><button type="button" class="txt" data-a="udel" style="margin-left:auto">Einheit löschen</button></div>';
   return h;
@@ -182,7 +206,20 @@ function settingsEditor() {
   return '<div class="pn-row2"><div><label for="pnBudget">Zeitbudget pro Einheit (min)</label><input id="pnBudget" type="number" inputmode="numeric" min="15" max="240" data-sf="budget" value="' + s.budget + '"></div>' +
     '<div><label for="pnZ2lo">Zone-2-Puls von</label><input id="pnZ2lo" type="number" inputmode="numeric" min="60" max="220" data-sf="z2lo" value="' + (s.z2lo || '') + '" placeholder="bpm"></div>' +
     '<div><label for="pnZ2hi">bis</label><input id="pnZ2hi" type="number" inputmode="numeric" min="60" max="220" data-sf="z2hi" value="' + (s.z2hi || '') + '" placeholder="bpm"></div></div>' +
+    rulesEditor() +
     '<div class="btns"><button type="button" data-a="setsave">Einstellungen speichern</button></div><div class="sub" style="margin-top:8px">Einstellungen gelten sofort und sind keine Planversion.</div>';
+}
+function rulesEditor() {
+  const R = S.set.rules, inp = (id, k, lab, step) => '<div><label>' + esc(lab) + '</label><input type="text" inputmode="decimal" maxlength="5" data-rf="' + id + '.' + k + '" value="' + String(R[id][k]).replace('.', ',') + '"></div>';
+  const tog = (id, k, lab) => '<button type="button" class="chip' + (R[id][k] ? ' on' : '') + '" data-a="rtog" data-r="' + id + '" data-k="' + k + '" aria-pressed="' + R[id][k] + '">' + esc(lab) + '</button>';
+  const row = (id, extra) => { const r = P.RULES.find(x => x.id === id); return '<div class="pn-rule"><div class="pn-row">' + tog(id, 'on', R[id].on ? 'an' : 'aus') + '<b>' + id + ') ' + esc(r.name) + '</b></div>' + (extra ? '<div class="pn-row2">' + extra + '</div>' : '') + '</div>' };
+  return '<h3 class="pn-h3">Vorschläge</h3><div class="sub">Nur Empfehlungen – du entscheidest mit Übernehmen oder Ignorieren. Kern-Übungen werden nie zum Streichen vorgeschlagen, ganze Einheiten nie gestrichen.</div>' +
+    row('a', inp('a', 'red', 'Rot bis Recovery %') + inp('a', 'yellowMax', 'Gelb bis Recovery %') + '<div><label>Auch bei Gelb</label>' + tog('a', 'yellow', R.a.yellow ? 'ja' : 'nein') + '</div>') +
+    row('b', inp('b', 'perf', 'Schlafleistung unter %') + inp('b', 'late', 'Einschlafen später als sonst um min')) +
+    row('c', inp('c', 'strain', 'Strain gestern ab', 0.5)) +
+    row('d', inp('d', 'n', 'Anzahl Tage') + inp('d', 'hard', 'Harter Tag ab Strain', 0.5)) +
+    row('e', inp('e', 'target', 'Zielzeit heute (min)')) +
+    row('f', inp('f', 'keep', 'Kürzen auf % der Dauer'));
 }
 function versionsList() {
   if (!S.versions.length) return '<div class="mu">Noch keine gespeicherte Version.</div>';
@@ -217,6 +254,21 @@ function act(a, b) {
   switch (a) {
     case 'day': S.day = S.day === d ? null : d; break;
     case 'adj': S.adj = !S.adj; break;
+    case 'gymgo': {   // Gym-Logbuch mit den heutigen Übungen öffnen (Sätze = heute geplant, weggelassen = ausgelassen)
+      const sl = view().slots.find(x => x.unit && x.unit.id === b.dataset.u); if (!sl || !window.TrainingGym) return;
+      window.TrainingGym.start({ plan: sl.unit.name, date: todayKey(), ex: sl.ex.filter(x => x.e.gym).map(x => ({ n: x.e.n, sets: x.sets, skip: x.skip || !x.sets })) });
+      const g = $('m-gym') || $('gymBox'); if (g) g.scrollIntoView({ block: 'start' }); return }
+    case 'short': case 'sugok': case 'sugno': case 'sugundo': {
+      let t = S.tday = P.cleanDay(S.tday || {}), id = b.dataset.r;
+      if (a === 'short') t.short = !t.short;
+      else if (a === 'sugundo') { if (!confirm('Entscheidung zurücknehmen? Schon übernommene Änderungen bleiben – die kannst du unter „Heute anpassen“ ändern.')) return; delete t.sug[id] }
+      else {
+        const x = P.suggest({ plan: S.cur, view: view(), days: S.whoop, set: S.set, hist: S.hist }).open.find(y => y.id === id); if (!x) return;
+        if (a === 'sugok') t = P.applyOps(t, x.ops);
+        t.sug[id] = { d: a === 'sugok' ? 'ok' : 'no', at: Date.now(), title: x.title, why: x.why, ops: x.ops.map(o => o.text) };
+      }
+      S.tday = P.cleanDay(t); saveDay(); break }
+    case 'rtog': { const R = S.set.rules[b.dataset.r]; R[b.dataset.k] = !R[b.dataset.k]; break }
     case 'pick': case 'udone': case 'uskip': case 'exskip': case 'tsets': case 'reason': case 'treset': {
       const t = S.tday = S.tday || P.cleanDay({}), uid = b.dataset.u, ue = () => (t.units[uid] = t.units[uid] || {}), ee = () => { const x = ue(); x.ex = x.ex || {}; return (x.ex[b.dataset.e] = x.ex[b.dataset.e] || {}) };
       if (a === 'pick') t.pick[b.dataset.k] = uid;
@@ -225,7 +277,7 @@ function act(a, b) {
       else if (a === 'exskip') { const x = ee(); x.skip = !x.skip }
       else if (a === 'tsets') { const ex = (P.unitById(S.cur, uid) || { ex: [] }).ex.find(e => e.id === b.dataset.e); if (!ex) return; const x = ee(), cur = x.sets == null ? ex.sets : x.sets; x.sets = Math.max(0, Math.min(20, cur + d)); if (x.sets === ex.sets) delete x.sets }
       else if (a === 'reason') t.reason = t.reason === b.dataset.r ? '' : b.dataset.r;
-      else if (a === 'treset') { if (!confirm('Alle Anpassungen von heute verwerfen? Erledigt-Haken bleiben.')) return; Object.keys(t.units).forEach(k => { t.units[k] = t.units[k].done ? { done: true } : {} }); t.pick = {}; t.reason = '' }
+      else if (a === 'treset') { if (!confirm('Alle Anpassungen von heute verwerfen? Erledigt-Haken bleiben.')) return; Object.keys(t.units).forEach(k => { t.units[k] = t.units[k].done ? { done: true } : {} }); t.pick = {}; t.reason = ''; t.short = false }
       S.tday = P.cleanDay(t); saveDay(); break }
     case 'edit': S.edit = true; S.draft = P.copy(S.cur); S.dirty = false; S.tab = 'week'; S.unit = null; say(''); break;
     case 'adopt': savePlan(); return;
@@ -240,12 +292,13 @@ function act(a, b) {
     case 'unew': { const id = P.uid('u'); p.units.push({ id, name: 'Neue Einheit', kind: 'kraft', hard: false, legs: false, min: null, ex: [] }); S.unit = id; S.dirty = true; break }
     case 'udel': if (!u || !confirm('Einheit „' + u.name + '“ löschen? Sie verschwindet auch aus der Woche (ab der nächsten Version).')) return; p.units = p.units.filter(x => x.id !== u.id); p.week.forEach(w => { w.slots.forEach(s => { s.alts = s.alts.filter(x => x !== u.id) }); w.slots = w.slots.filter(s => s.alts.length && !(s.alts.length === 1 && s.alts[0] === '')) }); S.unit = null; S.dirty = true; break;
     case 'utog': u[b.dataset.k] = !u[b.dataset.k]; S.dirty = true; break;
-    case 'exadd': u.ex.push({ id: P.uid('e'), n: '', sets: 2, amt: '', rest: 60, note: '', prio: 'norm' }); S.dirty = true; draw(); { const f = document.querySelector('#planCard [data-ef=n][data-i="' + (u.ex.length - 1) + '"]'); if (f) { f.focus(); f.scrollIntoView({ block: 'center' }) } } return;
+    case 'exadd': u.ex.push({ id: P.uid('e'), n: '', sets: 2, amt: '', rest: 60, note: '', prio: 'norm', gym: true }); S.dirty = true; draw(); { const f = document.querySelector('#planCard [data-ef=n][data-i="' + (u.ex.length - 1) + '"]'); if (f) { f.focus(); f.scrollIntoView({ block: 'center' }) } } return;
     case 'exdel': if (!confirm('Übung „' + (u.ex[i].n || 'ohne Namen') + '“ löschen?')) return; u.ex.splice(i, 1); S.dirty = true; break;
     case 'exmv': { const j = i + d; if (j < 0 || j >= u.ex.length) return; [u.ex[i], u.ex[j]] = [u.ex[j], u.ex[i]]; S.dirty = true; break }
     case 'sets': u.ex[i].sets = Math.max(0, Math.min(20, (u.ex[i].sets || 0) + d)); S.dirty = true; break;
     case 'prio': u.ex[i].prio = b.dataset.p; S.dirty = true; break;
-    case 'setsave': saveSettings(); return;
+    case 'exgym': u.ex[i].gym = u.ex[i].gym === false; S.dirty = true; break;
+    case 'setsave': S.set = P.cleanSettings(S.set); saveSettings(); return;
     case 'vview': S.viewV = S.viewV === b.dataset.v ? null : b.dataset.v; break;
     case 'vload': { const v = S.versions.find(x => x.from === b.dataset.v); if (!v || (S.dirty && !confirm('Dein ungespeicherter Entwurf wird ersetzt. Weiter?'))) return; S.draft = P.copy({ units: v.units, week: v.week }); S.dirty = true; S.tab = 'week'; say('Version vom ' + fmtD(v.from) + ' ist jetzt dein Entwurf. Speichern macht sie ab heute gültig.'); break }
     default: return;
@@ -267,8 +320,9 @@ function bind() {
     if (t.dataset.uf && u) { const f = t.dataset.uf; u[f] = f === 'min' ? (t.value === '' ? null : Math.max(0, Math.min(600, Math.round(+t.value) || 0))) : t.value; markDirty(); updEst() }
     else if (t.dataset.ef && u) { const ex = u.ex[+t.dataset.i], f = t.dataset.ef; if (!ex) return; ex[f] = f === 'rest' ? (t.value === '' ? null : Math.max(0, Math.min(900, Math.round(+t.value) || 0))) : t.value; markDirty(); updEst() }
     else if (t.dataset.sf) { S.set[t.dataset.sf] = t.value === '' ? null : +t.value }
+    else if (t.dataset.rf) { const [id, k] = t.dataset.rf.split('.'); S.set.rules[id][k] = t.value }
   });
-  host.addEventListener('change', e => { const t = e.target; if (t.dataset.sf) S.set = P.cleanSettings(Object.assign({}, S.set, { [t.dataset.sf]: t.value === '' ? null : +t.value })) });
+  host.addEventListener('change', e => { const t = e.target; if (t.dataset.rf) S.set.rules = P.cleanRules(S.set.rules); if (t.dataset.sf) S.set = P.cleanSettings(Object.assign({}, S.set, { [t.dataset.sf]: t.value === '' ? null : +t.value })) });
   window.addEventListener('beforeunload', e => { if (S.edit && S.dirty) { e.preventDefault(); e.returnValue = '' } });
 }
 window.LBPlan = { state: S };

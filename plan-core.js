@@ -35,7 +35,7 @@ const copy = o => JSON.parse(JSON.stringify(o));
 /* ---------- Bereinigen (alles, was gespeichert oder geladen wird, geht hier durch) ---------- */
 function cleanEx(e, i) {
   e = e || {};
-  return { id: txt(e.id, 24) || 'e' + i, n: txt(e.n, 60), sets: int(e.sets, 0, 20) == null ? 2 : int(e.sets, 0, 20), amt: txt(e.amt, 40), rest: int(e.rest, 0, 900), note: txt(e.note, 160), prio: PRIO_IDS.includes(e.prio) ? e.prio : 'norm' };
+  return { id: txt(e.id, 24) || 'e' + i, n: txt(e.n, 60), sets: int(e.sets, 0, 20) == null ? 2 : int(e.sets, 0, 20), amt: txt(e.amt, 40), rest: int(e.rest, 0, 900), note: txt(e.note, 160), prio: PRIO_IDS.includes(e.prio) ? e.prio : 'norm', gym: e.gym !== false };
 }
 function cleanUnit(u, i) {
   u = u || {};
@@ -61,7 +61,7 @@ function clean(p) {
 }
 function cleanSettings(s) {
   s = s || {};
-  return { budget: int(s.budget, 15, 240) || 60, z2lo: int(s.z2lo, 60, 220), z2hi: int(s.z2hi, 60, 220) };
+  return { budget: int(s.budget, 15, 240) || 60, z2lo: int(s.z2lo, 60, 220), z2hi: int(s.z2hi, 60, 220), rules: cleanRules(s.rules) };
 }
 
 /* ---------- Startplan aus deinen Angaben (alles editierbar) ---------- */
@@ -75,11 +75,11 @@ function seed(workouts) {
   };
   const units = [
     { id: 'beine', name: 'Beine', kind: 'kraft', hard: true, legs: true, min: 60, ex: [
-      E('Mobilisieren und Aufwärmen', 1, 'mind. 5 min', 0, 'kern'),
-      E('Pogo Jumps', 2, '30–90 s', 90, 'norm'),
+      Object.assign(E('Mobilisieren und Aufwärmen', 1, 'mind. 5 min', 0, 'kern'), { gym: false }),
+      E('Pogo Jumps', 2, '30–90 s', 90, 'norm', 'im Gym-Log: Anzahl Sprünge'),
       E('Box Jumps', 2, '4 Wdh.', 120, 'norm'),
-      E('Split Squat Jumps', 2, '6 pro Bein', 90, 'weg'),
-      E('Bulgarian Split Squats', 2, '', 90, 'norm', 'Supersatz links/rechts'),
+      E('Split Squat Jumps', 2, '12 Sprünge', 90, 'weg', '6 pro Bein, Beinwechsel in der Luft'),
+      E('Bulgarian Split Squats', 2, 'pro Bein', 90, 'norm', 'Supersatz links/rechts'),
       E('Nordic Curls', 2, '4–5 Wdh.', 100, 'norm', 'so langsam wie möglich'),
       E('Reverse Nordics', 2, '', 90, 'norm'),
       E('Wadenheben', 2, 'pro Bein', 60, 'kurz', '2–3 Sätze pro Bein')
@@ -166,19 +166,21 @@ function diff(a, b) {
    Tagesdokument plan/t_JJJJ-MM-TT: nur Abweichungen für diesen Tag, die Vorlage bleibt unverändert.
    { pick:{Blockschlüssel: unitId|''}, units:{unitId:{skip, done, ex:{exId:{skip, sets}}}}, reason, gym:[Gym-IDs] }
    Beim Speichern kommen geplant (Schnappschuss), gemacht, ausgelassen und die Abweichungstexte dazu – für Muster und MCP. */
+const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f'];
 const REASONS = [{ id: 'zeit', name: 'Zeit' }, { id: 'recovery', name: 'Recovery' }, { id: 'schmerz', name: 'Schmerz' }, { id: 'lust', name: 'Lust' }, { id: 'sonst', name: 'Sonstiges' }];
 const nkey = s => String(s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
 const slotKey = s => s.alts.join('|');
 function cleanDay(d) {
-  d = d || {}; const o = { pick: {}, units: {}, reason: '', gym: [] };
+  d = d || {}; const o = { pick: {}, units: {}, reason: '', gym: [], short: !!d.short, sug: {} };
   if (d.pick && typeof d.pick === 'object') Object.keys(d.pick).slice(0, 12).forEach(k => { o.pick[txt(k, 120)] = txt(d.pick[k], 24) });
   if (d.units && typeof d.units === 'object') Object.keys(d.units).slice(0, 12).forEach(u => {
     const x = d.units[u] || {}, ex = {};
     if (x.ex && typeof x.ex === 'object') Object.keys(x.ex).slice(0, 40).forEach(e => { const y = x.ex[e] || {}, z = {}; if (y.skip) z.skip = true; const s = int(y.sets, 0, 20); if (s != null) z.sets = s; if (Object.keys(z).length) ex[txt(e, 24)] = z });
-    const v = {}; if (x.skip) v.skip = true; if (x.done) v.done = true; if (Object.keys(ex).length) v.ex = ex;
+    const v = {}; if (x.skip) v.skip = true; if (x.done) v.done = true; const mn = int(x.min, 0, 600); if (mn != null) v.min = mn; if (Object.keys(ex).length) v.ex = ex;
     if (Object.keys(v).length) o.units[txt(u, 24)] = v;
   });
   if (REASONS.some(r => r.id === d.reason)) o.reason = d.reason;
+  if (d.sug && typeof d.sug === 'object') Object.keys(d.sug).filter(k => RULE_IDS.includes(k)).forEach(k => { const x = d.sug[k] || {}; if (x.d === 'ok' || x.d === 'no') o.sug[k] = { d: x.d, at: +x.at || 0, title: txt(x.title, 120), why: (Array.isArray(x.why) ? x.why : []).slice(0, 6).map(w => txt(w, 160)), ops: (Array.isArray(x.ops) ? x.ops : []).slice(0, 30).map(t => txt(t, 120)) } });
   if (Array.isArray(d.gym)) o.gym = [...new Set(d.gym.map(x => txt(x, 40)).filter(Boolean))].slice(0, 10);
   return o;
 }
@@ -204,7 +206,8 @@ function todayView(plan, key, day, gym) {
       else if (x.sets !== x.e.sets) devs.push({ t: 'sets', u: unit.id, ex: x.e.id, from: x.e.sets, to: x.sets, text: x.e.n + ' ' + x.e.sets + ' → ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
       if (!x.skip && x.gym != null && x.gym < x.sets) devs.push({ t: 'gym', u: unit.id, ex: x.e.id, from: x.sets, to: x.gym, text: 'laut Gym-Log: ' + x.e.n + ' ' + x.gym + ' statt ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
     });
-    slots.push({ key: k, alts: s.alts, pick, unit, skip, done, ex, gym: g });
+    slots.push({ key: k, alts: s.alts, pick, unit, skip, done, ex, gym: g, min: o.min == null ? null : o.min });
+    if (!skip && o.min != null && o.min !== unit.min) devs.push({ t: 'min', u: unit.id, from: unit.min, to: o.min, text: unit.name + ' ' + (unit.min || '?') + ' → ' + o.min + ' min' });
   });
   return { key, wd, slots, devs, gym: gToday, reason: day.reason, day };
 }
@@ -221,6 +224,145 @@ function dayDoc(view, ver) {
   });
 }
 
-const api = { WD, WD_LONG, PRIO, KINDS, LIM, REASONS, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff, nkey, slotKey, cleanDay, todayView, dayDoc };
+/* ---------- Vorschläge (Phase 3): regelbasiert, nur Empfehlung ----------
+   Ein Vorschlag ändert nie die Vorlage, nie Kern-Übungen und streicht nie ganze Einheiten.
+   „Übernehmen“ schreibt seine Schritte (ops) in den heutigen Tag, die Entscheidung landet in day.sug. */
+const RULES = [
+  { id: 'a', name: 'Recovery niedrig + Beintag' }, { id: 'b', name: 'Schlaf schlecht oder spät + Beintag' },
+  { id: 'c', name: 'Strain gestern hoch + harte Einheit' }, { id: 'd', name: 'Harte Tage in Folge' },
+  { id: 'e', name: '„Heute kurz“' }, { id: 'f', name: 'Zone 2 bei roter Recovery' }
+];
+const RULE_DEF = { a: { on: true, yellow: true, red: 33, yellowMax: 66 }, b: { on: true, perf: 70, late: 60 }, c: { on: true, strain: 16 }, d: { on: true, n: 3, hard: 14 }, e: { on: true, target: 60 }, f: { on: true, keep: 60 } };
+const RULE_LIM = { red: [1, 98], yellowMax: [2, 99], perf: [30, 100], late: [15, 240], strain: [5, 21], n: [2, 7], hard: [5, 21], target: [15, 240], keep: [20, 90] };
+function cleanRules(r) {
+  const o = {}; r = r && typeof r === 'object' ? r : {};
+  Object.keys(RULE_DEF).forEach(id => {
+    const d = RULE_DEF[id], x = r[id] && typeof r[id] === 'object' ? r[id] : {}, y = {};
+    Object.keys(d).forEach(k => {
+      if (typeof d[k] === 'boolean') y[k] = x[k] == null ? d[k] : !!x[k];
+      else { const v = parseFloat(String(x[k] == null ? '' : x[k]).replace(',', '.')); y[k] = isFinite(v) ? Math.max(RULE_LIM[k][0], Math.min(RULE_LIM[k][1], k === 'strain' || k === 'hard' ? Math.round(v * 10) / 10 : Math.round(v))) : d[k] }
+    });
+    o[id] = y;
+  });
+  if (o.a.yellowMax <= o.a.red) o.a.yellowMax = Math.min(99, o.a.red + 1);
+  return o;
+}
+const tzMin = tz => { const m = /^([+-])(\d\d):?(\d\d)$/.exec(tz || ''); return m ? (m[1] === '-' ? -1 : 1) * (+m[2] * 60 + +m[3]) : 0 };
+const num = v => typeof v === 'number' && isFinite(v) ? v : null;
+/* Einschlafzeit als Minuten seit 18:00 (nach Mitternacht = über 360) */
+function bedMin(sl) {
+  if (!sl || sl.nap || !sl.start) return null; const t = Date.parse(sl.start); if (isNaN(t)) return null;
+  const d = new Date(t + tzMin(sl.tz) * 60000), m = d.getUTCHours() * 60 + d.getUTCMinutes();
+  return ((m - 1080) % 1440 + 1440) % 1440;
+}
+const clockOf = m => pad(Math.floor(((m + 1080) % 1440) / 60)) + ':' + pad((m + 1080) % 60);
+const median = a => { if (!a.length) return null; const s = a.slice().sort((x, y) => x - y), n = s.length; return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2 };
+/* Whoop-Werte für einen Tag (days = Whoop-Tage wie im Board-Speicher). Recovery und Schlaf gehören zur Nacht vor dem Tag. */
+function facts(days, key) {
+  days = days || {}; const d = days[key] || {}, y = days[addDays(key, -1)] || {};
+  const rs = d.recovery && d.recovery.score, sl = d.sleep, ss = sl && sl.score;
+  const bed = bedMin(sl), prev = [];
+  for (let i = 1; i <= 14; i++) { const b = bedMin((days[addDays(key, -i)] || {}).sleep); if (b != null) prev.push(b) }
+  return {
+    rec: rs ? num(rs.recovery_score) : null, perf: ss ? num(ss.sleep_performance_percentage) : null,
+    bed, bedUsual: prev.length >= 5 ? median(prev) : null, nBed: prev.length,
+    strainY: y.cycle && y.cycle.score ? num(y.cycle.score.strain) : null,
+    strainOf: k => { const c = (days[k] || {}).cycle; return c && c.score ? num(c.score.strain) : null }
+  };
+}
+const zone = (rec, a) => rec == null ? null : rec <= a.red ? 'rot' : rec <= a.yellowMax ? 'gelb' : 'grün';
+const r0 = v => String(Math.round(v)), r1 = v => String(Math.round(v * 10) / 10).replace('.', ',');
+/* Minuten einer Einheit heute (mit Anpassungen des Tages) */
+function slotMin(s) {
+  if (!s.unit || s.skip) return 0;
+  if (s.min != null) return s.min;
+  if (!s.ex.length || (['z2', 'lauf', 'sport'].includes(s.unit.kind) && s.unit.min)) return s.unit.min || 0;
+  return estMin(Object.assign({}, s.unit, { ex: s.ex.filter(x => !x.skip).map(x => Object.assign({}, x.e, { sets: x.sets })) }));
+}
+const dayMin = v => v.slots.reduce((n, s) => n + slotMin(s), 0);
+/* Kürzen nach Priorität: level 1 = „zuerst weglassen“ weg, level 2 = zusätzlich „kürzbar“ auf 1 Satz. Kern und Normal bleiben. */
+function trimOps(v, filter, level) {
+  const ops = [];
+  v.slots.forEach(s => {
+    if (!s.unit || s.skip || !filter(s.unit)) return;
+    s.ex.forEach(x => {
+      if (x.skip) return;
+      if (x.e.prio === 'weg') ops.push({ u: s.unit.id, ex: x.e.id, skip: true, text: x.e.n + ' weglassen' });
+      else if (level >= 2 && x.e.prio === 'kurz' && x.sets > 1) ops.push({ u: s.unit.id, ex: x.e.id, sets: 1, text: x.e.n + ' auf 1 Satz' });
+    });
+  });
+  return ops;
+}
+/* „Heute kurz“: so lange nach Priorität kürzen, bis die Zielzeit erreicht ist */
+function shortOps(v, target) {
+  const w = JSON.parse(JSON.stringify({ slots: v.slots.map(s => ({ unit: s.unit && { id: s.unit.id, min: s.unit.min, ex: [] }, skip: s.skip, min: s.min, ex: (s.ex || []).map(x => ({ e: x.e, skip: x.skip, sets: x.sets })) })) }));
+  w.slots.forEach(s => { if (s.unit) s.unit.ex = s.ex.map(x => x.e) });
+  const ops = [], steps = [];
+  const each = f => w.slots.forEach(s => { if (s.unit && !s.skip) s.ex.forEach(x => { if (!x.skip) f(s, x) }) });
+  each((s, x) => { if (x.e.prio === 'weg') steps.push(() => { x.skip = true; return { u: s.unit.id, ex: x.e.id, skip: true, text: x.e.n + ' weglassen' } }) });
+  each((s, x) => { if (x.e.prio === 'kurz' && x.sets > 1) steps.push(() => { x.sets = 1; return { u: s.unit.id, ex: x.e.id, sets: 1, text: x.e.n + ' auf 1 Satz' } }) });
+  each((s, x) => { if (x.e.prio === 'kurz') steps.push(() => { x.skip = true; return { u: s.unit.id, ex: x.e.id, skip: true, text: x.e.n + ' weglassen' } }) });
+  each((s, x) => { if (x.e.prio === 'norm' && x.sets > 1) steps.push(() => { x.sets = Math.max(1, x.sets - 1); return { u: s.unit.id, ex: x.e.id, sets: x.sets, text: x.e.n + ' auf ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') } }) });
+  const before = dayMin(w);
+  for (const st of steps) { if (dayMin(w) <= target) break; ops.push(st()) }
+  const merged = new Map(); ops.forEach(o => merged.set(o.u + '|' + o.ex, o));   // spätere Schritte ersetzen frühere bei derselben Übung
+  return { ops: [...merged.values()], from: before, to: dayMin(w) };
+}
+/* hist: Tagesdokumente {datum: doc} (für harte Tage), days: Whoop-Tage, set: Einstellungen inkl. rules */
+function suggest(o) {
+  const v = o.view, R = cleanRules(o.set && o.set.rules), F = facts(o.days, v.key), out = [];
+  const live = v.slots.filter(s => s.unit && !s.skip), legs = live.filter(s => s.unit.legs && s.ex.length), z = zone(F.rec, R.a);
+  const add = (id, title, why, ops, hint) => { ops = (ops || []).filter(Boolean); if (!hint && !ops.length) return; out.push({ id, title, why, ops, hint: !!hint }) };
+  // a) Recovery rot/gelb + Beintag
+  if (R.a.on && legs.length && (z === 'rot' || (z === 'gelb' && R.a.yellow)))
+    add('a', 'Recovery ' + z + ': Beintag heute mit weniger Volumen?', ['Recovery ' + r0(F.rec) + ' % (' + z + ')', 'geplant: ' + legs.map(s => s.unit.name).join(', ')], trimOps(v, u => u.legs, z === 'rot' ? 2 : 1));
+  // b) Schlaf schlecht oder spät + Beintag
+  if (R.b.on && legs.length) {
+    const why = [];
+    if (F.perf != null && F.perf < R.b.perf) why.push('Schlafleistung ' + r0(F.perf) + ' % (Schwelle ' + R.b.perf + ' %)');
+    if (F.bed != null && F.bedUsual != null && F.bed - F.bedUsual >= R.b.late) why.push('eingeschlafen ' + clockOf(F.bed) + ', sonst ' + clockOf(Math.round(F.bedUsual)) + ' (+' + Math.round(F.bed - F.bedUsual) + ' min)');
+    if (why.length) add('b', 'Schlaf ' + (why.length > 1 ? 'kurz und spät' : /Schlafleistung/.test(why[0]) ? 'schlecht' : 'spät') + ': Beintag heute leichter?', why.concat(['Schlaf ist in deinen Daten der stärkste Recovery-Faktor']), trimOps(v, u => u.legs, 1));
+  }
+  // c) Strain gestern hoch + harte Einheit heute
+  const hard = live.filter(s => s.unit.hard);
+  if (R.c.on && hard.length && F.strainY != null && F.strainY >= R.c.strain) {
+    const ops = [];
+    v.slots.forEach(s => { if (s.unit && !s.skip && s.unit.kind === 'lauf') { const z2 = s.alts.find(a => a && o.plan && (unitById(o.plan, a) || {}).kind === 'z2'); if (z2) ops.push({ pick: { key: s.key, u: z2 }, text: 'Zone 2 statt ' + s.unit.name }) } });
+    trimOps(v, u => u.hard && u.kind === 'kraft', 1).forEach(x => ops.push(x));
+    add('c', 'Strain gestern hoch: heute Intensität senken?', ['Strain gestern ' + r1(F.strainY) + ' (Schwelle ' + r1(R.c.strain) + ')', 'heute hart: ' + hard.map(s => s.unit.name).join(', ')], ops, !ops.length);
+  }
+  // d) harte Tage in Folge (heute wäre der n-te)
+  if (R.d.on && hard.length) {
+    const hist = o.hist || {}, isHard = k => { const st = F.strainOf(k), h = hist[k]; return (st != null && st >= R.d.hard) || !!(h && (h.done || []).some(x => ((h.planned || []).find(p => p.u === x.u) || {}).hard)) };
+    let n = 0; while (n < R.d.n - 1 && isHard(addDays(v.key, -(n + 1)))) n++;
+    if (n >= R.d.n - 1) add('d', (n + 1) + ' harte Tage in Folge: heute eher Erholung?', ['die letzten ' + n + ' Tage hart (Strain ab ' + r1(R.d.hard) + ' oder harte Einheit erledigt)', 'heute hart geplant: ' + hard.map(s => s.unit.name).join(', ')], [], true);
+  }
+  // e) heute kurz
+  if (R.e.on && v.day.short) {
+    const r = shortOps(v, R.e.target);
+    if (r.ops.length) add('e', 'Heute kurz: ≈ ' + r.from + ' → ' + r.to + ' min', ['Ziel ' + R.e.target + ' min', r.to > R.e.target ? 'mehr geht nur mit Kern- oder Normal-Übungen bzw. Einheiten ohne Übungen' : 'gekürzt nach Priorität, Kern bleibt'], r.ops);
+  }
+  // f) Zone 2 bei roter Recovery
+  if (R.f.on && z === 'rot') live.filter(s => s.unit.kind === 'z2').forEach(s => {
+    const m = slotMin(s); if (!m) return; const to = Math.max(15, Math.round(m * R.f.keep / 100 / 5) * 5);
+    if (to < m) add('f', 'Recovery rot: Zone 2 kürzer?', ['Recovery ' + r0(F.rec) + ' % (rot)', s.unit.name + ' ' + m + ' min geplant'], [{ u: s.unit.id, min: to, text: s.unit.name + ' auf ' + to + ' min (oder ganz weglassen)' }]);
+  });
+  const sug = (v.day && v.day.sug) || {};
+  return { open: out.filter(x => !sug[x.id]), decided: RULE_IDS.filter(id => sug[id]).map(id => ({ id, d: sug[id].d, title: sug[id].title || (RULES.find(r => r.id === id) || {}).name, why: sug[id].why || [] })), facts: F, zone: z };
+}
+/* Schritte eines Vorschlags in den heutigen Tag übernehmen (nur Tagesdaten, nie die Vorlage) */
+function applyOps(day, ops) {
+  const d = cleanDay(day);
+  (ops || []).forEach(o => {
+    if (o.pick) { d.pick[o.pick.key] = o.pick.u; return }
+    const u = d.units[o.u] = d.units[o.u] || {};
+    if (o.min != null) { u.min = o.min; return }
+    u.ex = u.ex || {}; const e = u.ex[o.ex] = u.ex[o.ex] || {};
+    if (o.skip) e.skip = true; if (o.sets != null) e.sets = o.sets;
+  });
+  return cleanDay(d);
+}
+
+const api = { WD, WD_LONG, PRIO, KINDS, LIM, REASONS, RULES, RULE_DEF, cleanRules, facts, bedMin, clockOf, zone, slotMin, dayMin, trimOps, shortOps, suggest, applyOps, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff, nkey, slotKey, cleanDay, todayView, dayDoc };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PlanCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
