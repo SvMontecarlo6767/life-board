@@ -383,7 +383,26 @@ function bind() {
     } catch (er) { $('gSave').disabled = false; setMsg('Konnte nicht speichern: ' + er.message, true) }
   });
 }
-/* Übungen zu einer Whoop-Einheit eintragen (aus „Noch ergänzen“): dein Workout mit passendem Namen (sonst leer), Datum und Dauer vorbelegt */
-function start(o) { G.prs = null; G.msg = ''; const w = (G.ctx && G.ctx.workouts || []).find(x => x.name.toLowerCase() === String(o.plan || '').toLowerCase()); G.draft = newDraft(w ? w.name : (o.plan || ''), w ? w.ex : [], w ? w.id : null); G.draft.date = o.date; G.draft.min = o.min ? String(o.min) : ''; G.draft.start = null; G.draft.link = o.link || null; if (o.rpe) G.draft.rpe = o.rpe; saveDraft(); if (G.host) draw() }
+/* Übungen zu einer Whoop-Einheit eintragen (aus „Noch ergänzen“): dein Workout mit passendem Namen (sonst leer), Datum und Dauer vorbelegt.
+   Optional aus dem Trainingsplan: o.ex = [{n, sets, skip}] – fehlt ein Workout mit diesem Namen, wird es aus diesen Übungen angelegt (wie „Als Workout speichern“);
+   Sätze = Anzahl Zeilen für heute, skip = heute ausgelassen. Ohne o.ex alles wie bisher. */
+function start(o) {
+  G.prs = null; G.msg = '';
+  const ws = (G.ctx && G.ctx.workouts) || [], w = ws.find(x => x.name.toLowerCase() === String(o.plan || '').toLowerCase());
+  const plan = Array.isArray(o.ex) ? o.ex.filter(e => e && String(e.n || '').trim()) : null;
+  G.draft = newDraft(w ? w.name : (o.plan || ''), w ? w.ex : plan ? plan.map(e => e.n) : [], w ? w.id : null);
+  if (plan) {
+    const by = new Map(plan.map(e => [key(e.n), e]));
+    G.draft.ex.forEach(x => { const e = by.get(key(x.n)); if (!e) return; if (e.skip) x.skip = true; const n = Math.round(+e.sets); if (n > 0 && n <= 20) { while (x.s.length < n) x.s.push(Object.assign({}, x.s[x.s.length - 1] || { w: '', r: '' })); x.s.length = n } });
+    if (w) plan.forEach(e => { if (!G.draft.ex.some(x => key(x.n) === key(e.n))) { addEx(G.draft, e.n); const x = G.draft.ex[G.draft.ex.length - 1]; if (e.skip) x.skip = true } });
+  }
+  G.draft.date = o.date; G.draft.min = o.min ? String(o.min) : ''; G.draft.start = plan ? Date.now() : null; G.draft.link = o.link || null; if (o.rpe) G.draft.rpe = o.rpe;
+  if (!w && plan && plan.length && o.plan && G.ctx && G.ctx.setWorkouts) {
+    const id = 'w' + Date.now().toString(36); G.draft.wid = id; saveDraft();
+    saveWorkouts(ws.filter(x => x.name.toLowerCase() !== String(o.plan).toLowerCase()).concat([{ id, name: String(o.plan).trim().slice(0, 40), ex: plan.map(e => e.n) }]), 'Workout „' + o.plan + '“ angelegt – ab jetzt oben antippbar und unter ✎ Workouts änderbar wie Push und Pull.');
+    return;
+  }
+  saveDraft(); if (G.host) draw();
+}
 window.TrainingGym = { render, start, draw: () => { if (G.host && G.A) chart() }, core: Core };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -119,7 +119,34 @@ def run(p,w,h,tag,theme=None):
     ck(t+'Lesefehler: Meldung statt leerer Karte','Plan konnte nicht geladen werden' in pg.inner_text('#planCard') and not e2,e2[:2])
     ctx.close()
     monday(b,w,h,t,theme)
+    gymflow(b,w,h,t,theme)
     b.close()
+def gymflow(b,w,h,t,theme=None):
+    t=t[:-2]+'/Gym] '
+    ctx=ctx_for(b,w,h,{'users/u1/plan/v_2026-11-05':VER,'users/u1/training/settings':{'workouts':[{'id':'w1','name':'Pull','ex':['Klimmzüge']}]}},theme)
+    pg=ctx.new_page(); errs=[]
+    pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('dialog',lambda d:d.accept())
+    pg.clock.set_fixed_time('2026-11-09T18:00:00+01:00')
+    pg.goto(URL); pg.wait_for_function('window.__planReady===true',timeout=20000); pg.wait_for_function('window.__trainingReady===true',timeout=20000); pg.wait_for_timeout(300)
+    ck(t+'Knopf „Beine im Gym-Logbuch eintragen“',pg.locator('#planCard [data-a=gymgo][data-u=beine]').count()==1 and pg.locator('#planCard [data-a=gymgo][data-u=haltung]').count()==0)
+    pg.tap('#planCard [data-a=adj]'); pg.tap('#planCard [data-a=exskip][data-e=beine_3]'); pg.wait_for_timeout(700)   # Split Squat Jumps heute weglassen
+    pg.tap('#planCard [data-a=gymgo][data-u=beine]'); pg.wait_for_timeout(800)
+    wo=pg.evaluate("window.__store['users/u1/training/settings'].workouts")
+    ck(t+'Workout „Beine“ angelegt (7 Übungen, ohne Aufwärmen), Pull bleibt',[x['name'] for x in wo]==['Pull','Beine'] and wo[1]['ex']==['Pogo Jumps','Box Jumps','Split Squat Jumps','Bulgarian Split Squats','Nordic Curls','Reverse Nordics','Wadenheben'],wo)
+    rows=pg.evaluate("[...document.querySelectorAll('#gymBox .gx')].map(x=>[x.querySelector('b').textContent,x.querySelectorAll('.gs').length,x.classList.contains('skip')])")
+    ck(t+'Gym-Entwurf: je 2 Satz-Zeilen, Split Squat Jumps heute ausgelassen',len(rows)==7 and all(r[1]==2 for r in rows if not r[2]) and [r[0] for r in rows if r[2]]==['Split Squat Jumps'],rows)
+    ck(t+'Meldung im Gym-Logbuch','Workout „Beine“ angelegt' in pg.inner_text('#gymBox'))
+    pg.screenshot(path=f'{shots}/plan_{t.strip("[] ").replace("/","_")}_gym.png')
+    for i in range(2):
+        pg.fill(f'#gymBox .gx[data-i="4"] input[data-f="r"][data-j="{i}"]','5')   # Nordic Curls 2×5
+        pg.fill(f'#gymBox .gx[data-i="0"] input[data-f="r"][data-j="{i}"]','40')  # Pogo 2×40 Sprünge
+    pg.tap('#gSave'); pg.wait_for_timeout(2500)
+    st=pg.evaluate('window.__store'); gl=st.get('users/u1/training/gym_2026',{}).get('list',[])
+    ck(t+'Gym-Einheit gespeichert (Plan Beine, 2 Übungen, Rest ausgelassen)',len(gl)==1 and gl[0]['p']=='Beine' and len(gl[0]['e'])==2 and 'Split Squat Jumps' in gl[0].get('k',[]),gl)
+    d=st.get('users/u1/plan/t_2026-11-09',{})
+    ck(t+'Plan hat den Gym-Eintrag verknüpft, Beine erledigt',d.get('gym')==[gl[0]['i']] if gl else False,d.get('gym'))
+    ck(t+'Keine JS-Fehler',not errs,errs[:3])
+    ctx.close()
 VER=json.loads(subprocess.check_output(['node','-e',"const P=require('./plan-core.js');console.log(JSON.stringify(Object.assign(P.seed([]),{from:'2026-11-05',at:1})))"],cwd=root))
 def monday(b,w,h,t,theme=None):
     t=t[:-2]+'/Montag] '

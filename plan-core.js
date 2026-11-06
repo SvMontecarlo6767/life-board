@@ -35,7 +35,7 @@ const copy = o => JSON.parse(JSON.stringify(o));
 /* ---------- Bereinigen (alles, was gespeichert oder geladen wird, geht hier durch) ---------- */
 function cleanEx(e, i) {
   e = e || {};
-  return { id: txt(e.id, 24) || 'e' + i, n: txt(e.n, 60), sets: int(e.sets, 0, 20) == null ? 2 : int(e.sets, 0, 20), amt: txt(e.amt, 40), rest: int(e.rest, 0, 900), note: txt(e.note, 160), prio: PRIO_IDS.includes(e.prio) ? e.prio : 'norm' };
+  return { id: txt(e.id, 24) || 'e' + i, n: txt(e.n, 60), sets: int(e.sets, 0, 20) == null ? 2 : int(e.sets, 0, 20), amt: txt(e.amt, 40), rest: int(e.rest, 0, 900), note: txt(e.note, 160), prio: PRIO_IDS.includes(e.prio) ? e.prio : 'norm', gym: e.gym !== false };
 }
 function cleanUnit(u, i) {
   u = u || {};
@@ -75,11 +75,11 @@ function seed(workouts) {
   };
   const units = [
     { id: 'beine', name: 'Beine', kind: 'kraft', hard: true, legs: true, min: 60, ex: [
-      E('Mobilisieren und Aufwärmen', 1, 'mind. 5 min', 0, 'kern'),
-      E('Pogo Jumps', 2, '30–90 s', 90, 'norm'),
+      Object.assign(E('Mobilisieren und Aufwärmen', 1, 'mind. 5 min', 0, 'kern'), { gym: false }),
+      E('Pogo Jumps', 2, '30–90 s', 90, 'norm', 'im Gym-Log: Anzahl Sprünge'),
       E('Box Jumps', 2, '4 Wdh.', 120, 'norm'),
-      E('Split Squat Jumps', 2, '6 pro Bein', 90, 'weg'),
-      E('Bulgarian Split Squats', 2, '', 90, 'norm', 'Supersatz links/rechts'),
+      E('Split Squat Jumps', 2, '12 Sprünge', 90, 'weg', '6 pro Bein, Beinwechsel in der Luft'),
+      E('Bulgarian Split Squats', 2, 'pro Bein', 90, 'norm', 'Supersatz links/rechts'),
       E('Nordic Curls', 2, '4–5 Wdh.', 100, 'norm', 'so langsam wie möglich'),
       E('Reverse Nordics', 2, '', 90, 'norm'),
       E('Wadenheben', 2, 'pro Bein', 60, 'kurz', '2–3 Sätze pro Bein')

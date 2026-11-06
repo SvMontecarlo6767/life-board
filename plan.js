@@ -140,6 +140,7 @@ function todayBox(tw) {
       return '<li class="' + (x.skip ? 'pn-off' : '') + '"><span class="pn-n">' + esc(x.e.n) + '</span><span class="pn-d">' + (x.skip ? 'heute weggelassen' : (ch ? '<s>' + x.e.sets + '</s> ' : '') + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') + (x.e.amt ? ' · ' + esc(x.e.amt) : '') + (x.gym != null ? ' · Gym: ' + x.gym : '')) + '</span>' +
         (A ? '<span class="pn-tact">' + (x.skip ? '' : '<button type="button" data-a="tsets" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '" data-d="-1" aria-label="ein Satz weniger">−</button><button type="button" data-a="tsets" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '" data-d="1" aria-label="ein Satz mehr">+</button>') + '<button type="button" data-a="exskip" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '">' + (x.skip ? 'doch machen' : 'weglassen') + '</button></span>' : (x.e.prio !== 'norm' ? '<span class="pn-p ' + x.e.prio + '">' + esc(prioName(x.e.prio)) + '</span>' : '')) + '</li>';
     }).join('') + '</ul>';
+    if (!s.skip && window.TrainingGym && s.ex.some(x => x.e.gym)) h += '<div class="pn-row"><button type="button" data-a="gymgo" data-u="' + esc(u.id) + '">🏋️ ' + esc(u.name) + ' im Gym-Logbuch eintragen</button></div>';
     if (A && !s.skip) h += '<div class="pn-row"><button type="button" data-a="uskip" data-u="' + esc(u.id) + '">' + esc(u.name) + ' heute weglassen</button></div>';
     h += '</div>';
   });
@@ -195,6 +196,7 @@ function unitEditor(p, u) {
     '<div><label>Wdh. oder Dauer</label><input type="text" maxlength="40" data-ef="amt" data-i="' + i + '" value="' + esc(e.amt) + '" placeholder="z. B. 8 Wdh. / 30 s"></div>' +
     '<div><label>Pause (s)</label><input type="number" inputmode="numeric" min="0" max="900" data-ef="rest" data-i="' + i + '" value="' + (e.rest == null ? '' : e.rest) + '"></div></div>' +
     '<label>Notiz</label><input type="text" maxlength="160" data-ef="note" data-i="' + i + '" value="' + esc(e.note) + '">' +
+    '<div class="pn-row"><button type="button" class="chip' + (e.gym !== false ? ' on' : '') + '" data-a="exgym" data-i="' + i + '" aria-pressed="' + (e.gym !== false) + '">im Gym-Logbuch</button></div>' +
     '<label>Priorität</label><div class="seg pn-prio" role="group" aria-label="Priorität">' + P.PRIO.map(pr => '<button type="button" data-a="prio" data-i="' + i + '" data-p="' + pr.id + '" aria-pressed="' + (e.prio === pr.id) + '" title="' + esc(pr.hint) + '">' + esc(pr.name) + '</button>').join('') + '</div></div>').join('');
   h += '<div class="btns"><button type="button" data-a="exadd">+ Übung</button><button type="button" class="txt" data-a="udel" style="margin-left:auto">Einheit löschen</button></div>';
   return h;
@@ -252,6 +254,10 @@ function act(a, b) {
   switch (a) {
     case 'day': S.day = S.day === d ? null : d; break;
     case 'adj': S.adj = !S.adj; break;
+    case 'gymgo': {   // Gym-Logbuch mit den heutigen Übungen öffnen (Sätze = heute geplant, weggelassen = ausgelassen)
+      const sl = view().slots.find(x => x.unit && x.unit.id === b.dataset.u); if (!sl || !window.TrainingGym) return;
+      window.TrainingGym.start({ plan: sl.unit.name, date: todayKey(), ex: sl.ex.filter(x => x.e.gym).map(x => ({ n: x.e.n, sets: x.sets, skip: x.skip || !x.sets })) });
+      const g = $('m-gym') || $('gymBox'); if (g) g.scrollIntoView({ block: 'start' }); return }
     case 'short': case 'sugok': case 'sugno': case 'sugundo': {
       let t = S.tday = P.cleanDay(S.tday || {}), id = b.dataset.r;
       if (a === 'short') t.short = !t.short;
@@ -286,11 +292,12 @@ function act(a, b) {
     case 'unew': { const id = P.uid('u'); p.units.push({ id, name: 'Neue Einheit', kind: 'kraft', hard: false, legs: false, min: null, ex: [] }); S.unit = id; S.dirty = true; break }
     case 'udel': if (!u || !confirm('Einheit „' + u.name + '“ löschen? Sie verschwindet auch aus der Woche (ab der nächsten Version).')) return; p.units = p.units.filter(x => x.id !== u.id); p.week.forEach(w => { w.slots.forEach(s => { s.alts = s.alts.filter(x => x !== u.id) }); w.slots = w.slots.filter(s => s.alts.length && !(s.alts.length === 1 && s.alts[0] === '')) }); S.unit = null; S.dirty = true; break;
     case 'utog': u[b.dataset.k] = !u[b.dataset.k]; S.dirty = true; break;
-    case 'exadd': u.ex.push({ id: P.uid('e'), n: '', sets: 2, amt: '', rest: 60, note: '', prio: 'norm' }); S.dirty = true; draw(); { const f = document.querySelector('#planCard [data-ef=n][data-i="' + (u.ex.length - 1) + '"]'); if (f) { f.focus(); f.scrollIntoView({ block: 'center' }) } } return;
+    case 'exadd': u.ex.push({ id: P.uid('e'), n: '', sets: 2, amt: '', rest: 60, note: '', prio: 'norm', gym: true }); S.dirty = true; draw(); { const f = document.querySelector('#planCard [data-ef=n][data-i="' + (u.ex.length - 1) + '"]'); if (f) { f.focus(); f.scrollIntoView({ block: 'center' }) } } return;
     case 'exdel': if (!confirm('Übung „' + (u.ex[i].n || 'ohne Namen') + '“ löschen?')) return; u.ex.splice(i, 1); S.dirty = true; break;
     case 'exmv': { const j = i + d; if (j < 0 || j >= u.ex.length) return; [u.ex[i], u.ex[j]] = [u.ex[j], u.ex[i]]; S.dirty = true; break }
     case 'sets': u.ex[i].sets = Math.max(0, Math.min(20, (u.ex[i].sets || 0) + d)); S.dirty = true; break;
     case 'prio': u.ex[i].prio = b.dataset.p; S.dirty = true; break;
+    case 'exgym': u.ex[i].gym = u.ex[i].gym === false; S.dirty = true; break;
     case 'setsave': S.set = P.cleanSettings(S.set); saveSettings(); return;
     case 'vview': S.viewV = S.viewV === b.dataset.v ? null : b.dataset.v; break;
     case 'vload': { const v = S.versions.find(x => x.from === b.dataset.v); if (!v || (S.dirty && !confirm('Dein ungespeicherter Entwurf wird ersetzt. Weiter?'))) return; S.draft = P.copy({ units: v.units, week: v.week }); S.dirty = true; S.tab = 'week'; say('Version vom ' + fmtD(v.from) + ' ist jetzt dein Entwurf. Speichern macht sie ab heute gültig.'); break }
