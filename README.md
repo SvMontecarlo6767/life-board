@@ -23,7 +23,11 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 - Wetter und Ortssuche: einziger externer Abruf der Seite (Open-Meteo, nur Ort und Rennen-Datum).
 - Tests: `node tools/test-training.mjs`, `node worker/test.mjs`, Browser: `node tools/browser/gen_training_seed.mjs seed.json` und `python3 tools/browser/test_training.py <Ordner> seed.json`.
 
-## Trainingsplan (oben im Reiter „Training“)
+## Trainingsplan (oben im Reiter „Training“ und ganz oben im Check-in)
+- **Wochenliste:** immer 7 Tage ab heute, pro Tag nur die Einheiten (✓ erledigt, ✕ weggelassen, „A / B“ noch offen). Ein Tag ist aufgeklappt (tagsüber heute, ab 18 Uhr Berliner Zeit morgen); Einheit antippen zeigt Übungen und Sätze. Jeder der 7 Tage lässt sich vorab anpassen (Alternative, Übung weglassen, Sätze, Einheit weglassen) – gespeichert in `plan/t_JJJJ-MM-TT`, die Vorlage bleibt.
+- **Abhaken** (heute): „erledigt?“, danach optional Anstrengung 1–10 und Notiz (z. B. „Long Run 12 km“). **Whoop-Einheiten** des Tages erscheinen zum Antippen („→ Spinning“) und haken die Einheit ab (Dauer und Strain kommen mit).
+- **Check-in:** dieselbe Karte im kompakten Modus (`data-mode="compact"`): ansehen, anpassen, abhaken; Bearbeiten der Vorlage nur im Training. Whoop bekommt die Karte dort erst nach dem Morgen-Check vom Check-in (`LBPlan.setWhoop`). „📋 Trainingsplan für morgen“ im Abend-Teil öffnet morgen (`LBPlan.openDay`).
+- **Eigene Einheiten:** Name und Art frei; „Schnell anlegen“ mit Spinning, Long Run, Intervalle, Tempolauf, Verletzungsprävention, Haltungstraining, Fußballtraining. Styles in `plan.css` (Training und Check-in).
 - Eigenes Modul (`plan-core.js` rechnen, `plan.js` Oberfläche). Liest `training/settings.workouts` nur (Push/Pull im Startplan), schreibt ausschließlich in `users/{uid}/plan/` – in der Sicherung enthalten.
 - **Wochenvorlage:** pro Tag Blöcke; ein Block mit mehreren Einträgen heißt „A oder B“, „nichts“ macht ihn optional. **Einheiten** mit Übungen (Name, Sätze, Wdh./Dauer, Pause, Notiz, Priorität Kern / Normal / kürzbar / zuerst weglassen), Art, „hart“, „belastet die Beine“, Minuten; Zeitschätzung aus den Übungen.
 - **Versionen:** Speichern legt `plan/v_JJJJ-MM-TT` an, gilt ab diesem Tag bis zur nächsten Version (mehrere Änderungen am selben Tag = eine Version). Einstellungen (Zeitbudget, Zone-2-Puls) in `plan/settings`.
@@ -72,7 +76,7 @@ Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gle
 ## Check-in (Reiter „Check-in“, fürs iPhone gebaut)
 - **Morgens, vor Whoop:** Stimmung, Energie, gefühlter Schlaf (je 1–5) und ein Gefühlswort. Erst nach dem Speichern lädt die Seite die Whoop-Recovery und zeigt beides nebeneinander („Dein Gefühl trifft die Whoop-Zone an X von Y Tagen“).
 - **Über den Tag:** Stimmung und Gedanken jederzeit festhalten. **Eigene Tracker** (Kaffee, Wasser, Handyzeit, Zeit mit Freunden … oder frei angelegt) – Definition in `settings/main.trackers`.
-- **Abends:** 3 gute Dinge (mit „weil …“), Stress 1–5, ein Satz zum Tag.
+- **Abends:** nur noch Stress 1–5 (ein Tipp speichert), dazu „Ziele für morgen“ und der Knopf zum Trainingsplan für morgen. Ältere Einträge mit 3 guten Dingen und Satz bleiben gespeichert und erscheinen weiter in Muster/Rückblick.
 - **Ziele:** Tagesziele mit Uhrzeit (abends „Ziele für morgen“ oder direkt), Wochen- und Monatsziele; erscheinen im Morgen-Check und im Hub. Daten: `journal/{Tag}.g` und `goals/W{Montag}` / `goals/M{JJJJ-MM}`.
 - **Körper heute:** Alkohol (nein/ja), letzte große Mahlzeit (Uhrzeit) und „Krank“ – für den Schlaf-Hebel und die Muster (`journal/{Tag}.alc`, `.meal`, `.sick`).
 - Daten: Firestore `users/{uid}/journal/{Tag}` (in der Sicherung). Logik: `journal-core.js`.

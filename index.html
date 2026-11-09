@@ -49,7 +49,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 </section>
 <section id="hub" hidden>
   <div class="top"><div><h1>Life Board</h1><p class="sub" id="who"></p></div><button id="logoutBtn">Abmelden</button></div>
-  <a class="tile" href="checkin.html?v=1" id="ck" style="margin-bottom:12px"><b>☀️ Check-in</b><span id="ckTxt">Stimmung, Gedanken, 3 gute Dinge</span></a>
+  <a class="tile" href="checkin.html?v=2" id="ck" style="margin-bottom:12px"><b>☀️ Check-in</b><span id="ckTxt">Stimmung, Gedanken, Trainingsplan</span></a>
   <div class="grid">
     <a class="tile" href="news.html?v=1"><div style="font-size:28px">📰</div><b>Überblick</b><span>Das Wichtigste aus Deutschland & Welt, Technik und Wissen – in ein paar Minuten</span></a>
     <a class="tile" href="muster.html?v=1"><div style="font-size:28px">📈</div><b>Muster</b><span>Was dir guttut, was dich bremst, Verläufe und Rückblick</span></a>
@@ -268,8 +268,8 @@ async function ckStatus(u){
     const k=LBDay.dayKey(new Date(),'Europe/Berlin',4),s=await fs.doc('users/'+u.uid+'/journal/'+k).get(),d=s.exists?s.data():null,J=LBJournal;
     const h=new Date().getHours(),t=$('ckTxt');
     if(!d||!d.m)t.innerHTML='<b style="color:var(--ac)">Morgen-Check offen</b> · Wie fühlst du dich heute?';
-    else if(J.goodCount(d)<3&&h>=18)t.innerHTML=J.EMO[d.m.mood-1]+' Morgen erledigt · <b style="color:var(--ac)">Abend offen</b>: 3 gute Dinge';
-    else t.innerHTML=J.EMO[d.m.mood-1]+' Stimmung '+d.m.mood+'/5 · Energie '+d.m.energy+'/5'+(J.goodCount(d)>=3?' · Abend ✓':'')+((d.notes||[]).length?' · '+d.notes.length+' Notiz'+(d.notes.length>1?'en':''):'');
+    else if(!(d.e&&d.e.stress)&&J.goodCount(d)<3&&h>=18)t.innerHTML=J.EMO[d.m.mood-1]+' Morgen erledigt · <b style="color:var(--ac)">Abend offen</b>: Wie stressig war der Tag?';
+    else t.innerHTML=J.EMO[d.m.mood-1]+' Stimmung '+d.m.mood+'/5 · Energie '+d.m.energy+'/5'+((d.e&&d.e.stress)||J.goodCount(d)>=3?' · Abend ✓':'')+((d.notes||[]).length?' · '+d.notes.length+' Notiz'+(d.notes.length>1?'en':''):'');
     const g=(d&&d.g)||[];if(g.length)t.innerHTML+='<br>🎯 Ziele heute: '+g.filter(x=>x.done).length+'/'+g.length+(g.find(x=>!x.done)?' · als Nächstes: '+(()=>{const n=g.filter(x=>!x.done).sort((a,b)=>(a.at||'99').localeCompare(b.at||'99'))[0];return (n.at?n.at+' ':'')+n.t.replace(/[<>&]/g,'')})():' ✓');
   }catch(e){}
 }
