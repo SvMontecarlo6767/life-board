@@ -99,3 +99,8 @@ a.pn-link{color:rgb(var(--acc));font-size:13.5px;font-weight:600;text-decoration
 #planCard[data-mode=compact] .msg{font-size:13px;color:var(--pn-ink2);min-height:0}#planCard[data-mode=compact] .msg.err{color:#ff8a7c}
 #planCard[data-mode=compact] button.txt{background:none;border:0;color:rgb(var(--acc));padding:4px 0;min-height:36px}
 #planCard[data-mode=compact] .pn-tact button,#planCard[data-mode=compact] .pn-urow>button{padding:0 12px}
+/* Einheit dazu (nicht im Plan) */
+.pn-addrow{margin:8px 0 2px}
+#planCard select.pn-add{flex:1;min-width:0;max-width:100%;min-height:44px;border-radius:12px;border:1px dashed rgb(var(--acc)/.6);padding:0 10px;font:inherit;font-size:15px;color:var(--pn-ink);background:rgb(var(--acc)/.06)}
+html[data-hud] #planCard select.pn-add option{color:#000}
+.pn-xtra{font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid rgb(var(--acc)/.6);color:rgb(var(--acc))}

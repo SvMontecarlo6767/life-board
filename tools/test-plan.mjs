@@ -111,4 +111,11 @@ ok(tv.devs.some(d => d.text === 'Zone-2-Spin 45 → 25 min'), 'f) Übernommen = 
 r = sug(Object.assign({}, days, { [MO]: W(50) }), { sug: { a: { d: 'no', at: 1, title: 'x' } } });
 ok(r.open.length === 0 && r.decided.length === 1 && r.decided[0].d === 'no', 'Entschiedene Vorschläge erscheinen nicht erneut');
 ok(P.cleanRules({ a: { red: 200, yellowMax: 10 }, c: { strain: '15,5' } }).a.red === 98 && P.cleanRules({ a: { red: 200 } }).a.yellowMax === 99 && P.cleanRules({ c: { strain: '15,5' } }).c.strain === 15.5, 'Regel-Einstellungen begrenzt');
+// Zusätzlich gemacht (nicht im Plan)
+let vx = P.todayView(s, MO, { extra: ['z2', 'beine', 'quatsch'], units: { z2: { done: true, rpe: 5 } } }, []);
+ok(vx.slots.length === 3 && vx.slots[2].unit.id === 'z2' && vx.slots[2].extra && vx.slots[2].done && !vx.devs.length, 'Zusätzliche Einheit: angehängt, erledigt, keine Abweichung (schon geplante/unbekannte ignoriert)', vx.slots.map(x => x.unit && x.unit.id));
+const dx = P.dayDoc(vx, '2026-11-05');
+ok(dx.extra.join() === 'z2' && dx.planned.length === 2 && dx.done.some(x => x.u === 'z2' && x.rpe === 5) && dx.extraUnits[0].kind === 'z2', 'Tagesdokument: zusätzlich getrennt von geplant, aber bei gemacht', dx.extra);
+ok(P.todayView(s, MO, { extra: ['z2'], units: { z2: { skip: true } } }, []).devs.length === 0, 'Weggelassene Zusatzeinheit ist keine Abweichung');
+ok(P.cleanDay({ extra: ['a', 'a', '', 'b'] }).extra.join() === 'a,b', 'Zusatzliste bereinigt');
 console.log(fail ? fail + ' FEHLER' : 'alle Tests ok'); process.exit(fail ? 1 : 0);

@@ -193,7 +193,8 @@ const REASONS = [{ id: 'zeit', name: 'Zeit' }, { id: 'recovery', name: 'Recovery
 const nkey = s => String(s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
 const slotKey = s => s.alts.join('|');
 function cleanDay(d) {
-  d = d || {}; const o = { pick: {}, units: {}, reason: '', gym: [], short: !!d.short, sug: {} };
+  d = d || {}; const o = { pick: {}, units: {}, reason: '', gym: [], short: !!d.short, sug: {}, extra: [] };
+  if (Array.isArray(d.extra)) o.extra = [...new Set(d.extra.map(x => txt(x, 24)).filter(Boolean))].slice(0, 6);   // zusätzlich gemacht (nicht im Plan)
   if (d.pick && typeof d.pick === 'object') Object.keys(d.pick).slice(0, 12).forEach(k => { o.pick[txt(k, 120)] = txt(d.pick[k], 24) });
   if (d.units && typeof d.units === 'object') Object.keys(d.units).slice(0, 12).forEach(u => {
     const x = d.units[u] || {}, ex = {};
@@ -211,7 +212,9 @@ function cleanDay(d) {
 function todayView(plan, key, day, gym, wk) {
   day = cleanDay(day); const wd = wdOf(key), slots = [], devs = [];
   const gToday = (gym || []).filter(s => s && s.date === key);
-  (plan.week[wd] || { slots: [] }).slots.forEach(s => {
+  const planned = (plan.week[wd] || { slots: [] }).slots, onDay = new Set(); planned.forEach(s => s.alts.forEach(a => onDay.add(a)));
+  const extra = day.extra.filter(id => unitById(plan, id) && !onDay.has(id)).map(id => ({ alts: [id], extra: true }));
+  planned.concat(extra).forEach(s => {
     const k = slotKey(s), want = day.pick[k], pick = want !== undefined && s.alts.includes(want) ? want : s.alts[0];
     const unit = pick === '' ? null : unitById(plan, pick);
     if (!unit) { slots.push({ key: k, alts: s.alts, pick, unit: null }); return }
@@ -224,13 +227,13 @@ function todayView(plan, key, day, gym, wk) {
     });
     const wo = o.whoop ? (wk || []).find(w => w.id === o.whoop) || { id: o.whoop, sport: 'Whoop', min: null, strain: null } : null;
     const skip = !!o.skip, done = !skip && (!!o.done || g.length > 0 || !!wo);
-    if (skip) devs.push({ t: 'unit', u: unit.id, text: unit.name + ' heute weggelassen' });
+    if (skip && !s.extra) devs.push({ t: 'unit', u: unit.id, text: unit.name + ' heute weggelassen' });
     else ex.forEach(x => {
       if (x.skip) devs.push({ t: 'ex', u: unit.id, ex: x.e.id, text: x.e.n + ' weggelassen' });
       else if (x.sets !== x.e.sets) devs.push({ t: 'sets', u: unit.id, ex: x.e.id, from: x.e.sets, to: x.sets, text: x.e.n + ' ' + x.e.sets + ' → ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
       if (!x.skip && x.gym != null && x.gym < x.sets) devs.push({ t: 'gym', u: unit.id, ex: x.e.id, from: x.sets, to: x.gym, text: 'laut Gym-Log: ' + x.e.n + ' ' + x.gym + ' statt ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
     });
-    slots.push({ key: k, alts: s.alts, pick, unit, skip, done, ex, gym: g, min: o.min == null ? null : o.min, rpe: o.rpe || null, note: o.note || '', whoop: wo });
+    slots.push({ key: k, alts: s.alts, pick, unit, extra: !!s.extra, skip, done, ex, gym: g, min: o.min == null ? null : o.min, rpe: o.rpe || null, note: o.note || '', whoop: wo });
     if (!skip && o.min != null && o.min !== unit.min) devs.push({ t: 'min', u: unit.id, from: unit.min, to: o.min, text: unit.name + ' ' + (unit.min || '?') + ' → ' + o.min + ' min' });
   });
   const used = new Set(slots.filter(s => s.whoop).map(s => s.whoop.id));
@@ -238,12 +241,13 @@ function todayView(plan, key, day, gym, wk) {
 }
 /* Was gespeichert wird: Abweichungen + Schnappschuss geplant/gemacht */
 function dayDoc(view, ver) {
-  const d = view.day, units = view.slots.filter(s => s.unit);
+  const d = view.day, units = view.slots.filter(s => s.unit && !s.extra), all = view.slots.filter(s => s.unit);
   const exDone = s => s.ex.filter(x => !x.skip && x.sets > 0).map(x => ({ n: x.e.n, sets: x.gym != null ? Math.min(x.gym, x.sets) : x.sets }));
   return Object.assign({}, d, {
     date: view.key, ver: ver || null, at: Date.now(), gym: [...new Set(d.gym.concat(view.gym.map(g => g.id)))].slice(0, 10),
     planned: units.map(s => ({ u: s.unit.id, name: s.unit.name, kind: s.unit.kind, hard: s.unit.hard, legs: s.unit.legs, min: s.unit.min, ex: s.unit.ex.map(e => ({ n: e.n, sets: e.sets, prio: e.prio })) })),
-    done: units.filter(s => s.done).map(s => Object.assign({ u: s.unit.id, name: s.unit.name, ex: exDone(s), gym: s.gym.map(g => g.id) }, s.rpe ? { rpe: s.rpe } : {}, s.note ? { note: s.note } : {}, s.whoop ? { whoop: { id: s.whoop.id, sport: s.whoop.sport, min: s.whoop.min, strain: s.whoop.strain } } : {})),
+    extra: all.filter(s => s.extra).map(s => s.unit.id), extraUnits: all.filter(s => s.extra).map(s => ({ u: s.unit.id, name: s.unit.name, kind: s.unit.kind, hard: s.unit.hard, legs: s.unit.legs, min: s.unit.min })),
+    done: all.filter(s => s.done).map(s => Object.assign({ u: s.unit.id, name: s.unit.name, ex: exDone(s), gym: s.gym.map(g => g.id) }, s.rpe ? { rpe: s.rpe } : {}, s.note ? { note: s.note } : {}, s.whoop ? { whoop: { id: s.whoop.id, sport: s.whoop.sport, min: s.whoop.min, strain: s.whoop.strain } } : {})),
     skipped: units.filter(s => s.skip).map(s => s.unit.id),
     dev: view.devs.map(x => x.text).slice(0, 40)
   });

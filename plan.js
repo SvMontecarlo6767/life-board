@@ -123,7 +123,7 @@ function daySum(v) {
 function unitPanel(v, s, A, past) {
   const u = s.unit, k = v.key, id = esc(u.id), open = A || S.ux.has(k + '|' + u.id), word = dayWord(k);
   const nEx = s.ex.filter(x => !x.skip && x.sets > 0).length;
-  let h = '<div class="pn-urow"><button type="button" class="pn-uname" data-a="uex" data-k="' + k + '" data-u="' + id + '" aria-expanded="' + open + '"><b' + (s.skip ? ' class="pn-strike"' : '') + '>' + esc(u.name) + '</b><span class="mu pn-meta">' + esc([u.ex.length ? nEx + '/' + u.ex.length + ' Übungen' : '', s.min != null ? s.min + ' min' : u.min ? u.min + ' min' : ''].filter(Boolean).join(' · ')) + (u.ex.length ? (open ? ' ▾' : ' ▸') : '') + '</span></button>' +
+  let h = '<div class="pn-urow"><button type="button" class="pn-uname" data-a="uex" data-k="' + k + '" data-u="' + id + '" aria-expanded="' + open + '"><b' + (s.skip ? ' class="pn-strike"' : '') + '>' + esc(u.name) + '</b>' + (s.extra ? '<span class="pn-xtra">zusätzlich</span>' : '') + '<span class="mu pn-meta">' + esc([u.ex.length ? nEx + '/' + u.ex.length + ' Übungen' : '', s.min != null ? s.min + ' min' : u.min ? u.min + ' min' : ''].filter(Boolean).join(' · ')) + (u.ex.length ? (open ? ' ▾' : ' ▸') : '') + '</span></button>' +
     (s.skip ? '<button type="button" data-a="uskip" data-k="' + k + '" data-u="' + id + '">Doch machen</button>' : past ? '<button type="button" class="pn-done' + (s.done ? ' on' : '') + '" data-a="udone" data-k="' + k + '" data-u="' + id + '" aria-pressed="' + s.done + '"' + (s.gym.length || s.whoop ? ' disabled title="aus Gym-Log bzw. Whoop"' : '') + '>' + (s.done ? '✓ erledigt' : 'erledigt?') + '</button>' : '') + '</div>';
   if (u.kind === 'z2' && (S.set.z2lo || S.set.z2hi)) h += '<div class="pn-d">Puls ' + (S.set.z2lo || '?') + '–' + (S.set.z2hi || '?') + ' bpm</div>';
   if (s.gym.length) h += '<div class="pn-d">🔗 Gym-Eintrag: ' + esc(s.gym.map(g => (g.plan || 'Gym') + ' · ' + g.ex.reduce((n, e) => n + e.s.length, 0) + ' Sätze').join(', ')) + '</div>';
@@ -133,10 +133,11 @@ function unitPanel(v, s, A, past) {
     return '<li class="' + (x.skip ? 'pn-off' : '') + '"><span class="pn-n">' + esc(x.e.n) + '</span><span class="pn-d">' + (x.skip ? word + ' weggelassen' : (ch ? '<s>' + x.e.sets + '</s> ' : '') + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') + (x.e.amt ? ' · ' + esc(x.e.amt) : '') + (x.gym != null ? ' · Gym: ' + x.gym : '') + (x.e.note ? ' · <i>' + esc(x.e.note) + '</i>' : '')) + '</span>' +
       (A ? '<span class="pn-tact">' + (x.skip ? '' : '<button type="button" data-a="tsets"' + ea + ' data-d="-1" aria-label="ein Satz weniger">−</button><button type="button" data-a="tsets"' + ea + ' data-d="1" aria-label="ein Satz mehr">+</button>') + '<button type="button" data-a="exskip"' + ea + '>' + (x.skip ? 'doch machen' : 'weglassen') + '</button></span>' : (x.e.prio !== 'norm' ? '<span class="pn-p ' + x.e.prio + '">' + esc(prioName(x.e.prio)) + '</span>' : '')) + '</li>';
   }).join('') + '</ul>';
-  if (open && !s.skip && k === todayKey() && window.TrainingGym && s.ex.some(x => x.e.gym)) h += '<div class="pn-row"><button type="button" data-a="gymgo" data-u="' + id + '">🏋️ ' + esc(u.name) + ' im Gym-Logbuch eintragen</button></div>';
+  if (open && !s.skip && k === todayKey() && window.TrainingGym && ['kraft', 'iso'].includes(u.kind) && s.ex.some(x => x.e.gym)) h += '<div class="pn-row"><button type="button" data-a="gymgo" data-u="' + id + '">🏋️ ' + esc(u.name) + ' im Gym-Logbuch eintragen</button></div>';
   if (s.done && !s.gym.length) h += '<div class="pn-rate"><div class="mu" style="font-size:12.5px">Wie anstrengend? <small>optional</small></div><div class="seg pn-rpe" role="group" aria-label="Anstrengung 1 bis 10">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => '<button type="button" data-a="urpe" data-k="' + k + '" data-u="' + id + '" data-v="' + n + '" aria-pressed="' + (s.rpe === n) + '">' + n + '</button>').join('') + '</div>' +
     '<input type="text" class="pn-note" maxlength="160" data-un="' + id + '" data-k="' + k + '" value="' + esc(s.note) + '" placeholder="Notiz, z. B. Long Run 12 km, Intervalle 6 × 800 m" aria-label="Notiz zu ' + esc(u.name) + '"></div>';
-  if (A && !s.skip) h += '<div class="pn-row"><button type="button" data-a="uskip" data-k="' + k + '" data-u="' + id + '">' + esc(u.name) + ' ' + word + ' weglassen</button></div>';
+  if (s.extra) h += '<div class="pn-row"><button type="button" class="txt" data-a="xdel" data-k="' + k + '" data-u="' + id + '">„' + esc(u.name) + '“ wieder entfernen</button></div>';
+  else if (A && !s.skip) h += '<div class="pn-row"><button type="button" data-a="uskip" data-k="' + k + '" data-u="' + id + '">' + esc(u.name) + ' ' + word + ' weglassen</button></div>';
   return h;
 }
 function dayPanel(k) {
@@ -145,7 +146,8 @@ function dayPanel(k) {
   let h = '<div class="pn-dbody">';
   if (any) h += '<div class="pn-row pn-tools">' + (isToday ? '<button type="button" class="chip' + (v.day.short ? ' on' : '') + '" data-a="short" data-k="' + k + '" aria-pressed="' + !!v.day.short + '">⏱ heute kurz</button>' : '') + '<button type="button" data-a="adj" data-k="' + k + '" aria-pressed="' + A + '">' + (A ? '✓ Fertig' : '✎ ' + dayWord(k, true) + ' anpassen') + '</button></div>';
   if (any && isToday) h += sugBox(v);
-  if (!v.slots.length) return h + '<div class="mu">Kein Training geplant.</div></div>';
+  if (!v.slots.length && S.seeded) return h + '<div class="mu">Kein Training geplant.</div></div>';
+  if (!v.slots.length) h += '<div class="mu">Kein Training geplant.</div>';
   if (S.seeded) return h + '<div class="mu pn-d">Anpassen und Abhaken geht, sobald der Plan übernommen ist' + (compact() ? ' (im Training).' : '.') + '</div>' + v.slots.map(s => '<div class="pn-slot">' + s.alts.map(a => esc(a === '' ? 'nichts' : (P.unitById(p, a) || {}).name || '?')).join(' <span class="pn-or2">oder</span> ') + '</div>').join('') + '</div>';
   v.slots.forEach(s => {
     h += '<div class="pn-slot">';
@@ -153,6 +155,10 @@ function dayPanel(k) {
     h += s.unit ? unitPanel(v, s, A, past) : '<div class="mu pn-none">' + (s.alts.length > 1 ? dayWord(k) + ' nichts' : '') + '</div>';
     h += '</div>';
   });
+  // Einheit dazu, die nicht im Plan stand (z. B. spontan Zone 2 gemacht)
+  const onDay = new Set(); v.slots.forEach(s => s.alts.forEach(a => onDay.add(a)));
+  const addable = p.units.filter(u => !onDay.has(u.id));
+  if (addable.length) h += '<div class="pn-row pn-addrow"><select class="pn-add" data-a="xadd" data-k="' + k + '" aria-label="Einheit hinzufügen, die nicht im Plan steht"><option value="__">+ Zusätzliche Einheit …</option>' + addable.map(u => '<option value="' + esc(u.id) + '">' + esc(u.name) + '</option>').join('') + '</select></div>';
   // Whoop-Einheiten des Tages einer Plan-Einheit zuordnen
   const cand = v.slots.filter(s => s.unit && !s.skip && !s.whoop);
   if (past && v.wkFree.length) h += '<div class="pn-wkbox"><div class="mu" style="font-size:12.5px">Whoop-Einheiten ' + dayWord(k) + ' – antippen, wozu sie gehören:</div>' + v.wkFree.map(w => '<div class="pn-wkrow"><span>⌚ ' + esc(wkText(w)) + '</span>' + (cand.length ? '<div class="chips">' + cand.map(s => '<button type="button" class="chip" data-a="wset" data-k="' + k + '" data-w="' + esc(w.id) + '" data-u="' + esc(s.unit.id) + '">→ ' + esc(s.unit.name) + '</button>').join('') + '</div>' : '<span class="mu" style="font-size:12.5px">keine offene Einheit</span>') + '</div>').join('') + '</div>';
@@ -264,7 +270,7 @@ function markDirty() { S.dirty = true; const d = $('pnDirty'); if (d) d.textCont
 function updEst() { const u = S.unit && P.unitById(S.draft, S.unit), el = $('pnEst'); if (!u || !el) return; const v = P.cleanUnit(u), est = P.estMin(v); el.textContent = v.ex.length ? '≈ ' + est + ' min laut Übungen' + (est > S.set.budget ? ' · über deinem Zeitbudget von ' + S.set.budget + ' min' : '') : '' }
 
 /* ---------- Bedienung ---------- */
-const DAY_ACTS = ['pick', 'udone', 'uskip', 'exskip', 'tsets', 'reason', 'treset', 'urpe', 'wset', 'wdel', 'short', 'sugok', 'sugno', 'sugundo'];
+const DAY_ACTS = ['xdel', 'pick', 'udone', 'uskip', 'exskip', 'tsets', 'reason', 'treset', 'urpe', 'wset', 'wdel', 'short', 'sugok', 'sugno', 'sugundo'];
 function dayAct(a, b) {
   const k = b.dataset.k || todayKey(), uid = b.dataset.u, d = +b.dataset.d;
   if (S.seeded) return;
@@ -279,6 +285,7 @@ function dayAct(a, b) {
   else if (a === 'urpe') { const n = +b.dataset.v; ue().rpe = ue().rpe === n ? null : n }
   else if (a === 'wset') { Object.keys(t.units).forEach(x => { if (t.units[x].whoop === b.dataset.w) delete t.units[x].whoop }); ue().whoop = b.dataset.w; ue().done = true }
   else if (a === 'wdel') { delete ue().whoop }
+  else if (a === 'xdel') { if (!confirm('„' + ((P.unitById(planAt(k), uid) || {}).name || 'Einheit') + '“ wieder aus diesem Tag entfernen?')) return; t.extra = t.extra.filter(x => x !== uid); delete t.units[uid] }
   else if (a === 'treset') { if (!confirm('Alle Anpassungen für ' + dayWord(k) + ' verwerfen? Erledigt-Haken, Anstrengung, Notizen und Whoop-Zuordnung bleiben.')) return; Object.keys(t.units).forEach(x => { const o = t.units[x], n = {}; ['done', 'rpe', 'note', 'whoop'].forEach(f => { if (o[f]) n[f] = o[f] }); t.units[x] = n }); t.pick = {}; t.reason = ''; t.short = false }
   else if (a === 'short') t.short = !t.short;
   else if (a === 'sugundo') { if (!confirm('Entscheidung zurücknehmen? Schon übernommene Änderungen bleiben – die kannst du unter „Anpassen“ ändern.')) return; delete t.sug[b.dataset.r] }
@@ -333,6 +340,11 @@ function bind() {
   host.addEventListener('click', e => { const b = e.target.closest('button[data-a]'); if (!b || b.disabled || !host.contains(b)) return; act(b.dataset.a, b) });
   host.addEventListener('change', e => {
     const t = e.target, a = t.dataset.a; if (t.tagName !== 'SELECT' || !a || t.value === '__') return;
+    if (a === 'xadd') {   // zusätzlich gemacht/geplant – heute und früher gleich als erledigt
+      if (S.seeded) return; const k = t.dataset.k, d = P.cleanDay(S.days[k] || {}), id = t.value;
+      if (!d.extra.includes(id)) d.extra.push(id); if (k <= todayKey()) (d.units[id] = d.units[id] || {}).done = true;
+      S.days[k] = P.cleanDay(d); S.ux.add(k + '|' + id); saveDay(k); draw(); return;
+    }
     const p = S.draft, d = +t.dataset.d, si = +t.dataset.s;
     if (a === 'altadd') { const s = p.week[d].slots[si]; if (!s.alts.includes(t.value)) s.alts.push(t.value); S.dirty = true; draw() }
     else if (a === 'slotadd') { p.week[d].slots.push({ alts: [t.value] }); S.dirty = true; draw() }

@@ -172,8 +172,20 @@ def week2(b,w,h,t,theme=None):
     hd=[x for x in d.get('done',[]) if x['u']=='haltung']
     ck(t+'Whoop zugeordnet → erledigt, Anstrengung und Notiz gespeichert',hd and hd[0].get('whoop',{}).get('id')=='777' and hd[0].get('rpe')==6 and hd[0].get('note')=='Wand-Engel, Face Pulls',hd)
     ck(t+'Zusammenfassung mit Haken','✓ Haltungsübungen' in pg.inner_text('#planCard [data-day="2026-11-09"] .pn-sum'))
+    # Zusätzlich gemacht: Zone-2-Spin stand heute nicht im Plan
+    pg.select_option('#planCard select[data-a=xadd][data-k="2026-11-09"]','z2'); pg.wait_for_timeout(900)
+    d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-09',{})
+    ck(t+'Einheit dazu: Zone-2-Spin zusätzlich, erledigt, keine Abweichung',d.get('extra')==['z2'] and any(x['u']=='z2' for x in d.get('done',[])) and not any('Zone' in x for x in d.get('dev',[])) and 'zusätzlich' in pg.inner_text('#planCard'),d.get('extra'))
+    ck(t+'Zusammenfassung zeigt die Zusatzeinheit','✓ Zone-2-Spin' in pg.inner_text('#planCard [data-day="2026-11-09"] .pn-sum'))
+    pg.tap('#planCard [data-a=wdel][data-u=haltung]'); pg.wait_for_timeout(200)
+    pg.tap('#planCard [data-a=wset][data-u=z2]'); pg.wait_for_timeout(900)
+    d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-09',{})
+    ck(t+'Whoop-Spinning der Zusatzeinheit zugeordnet',[x.get('whoop',{}).get('id') for x in d['done'] if x['u']=='z2']==['777'],d['done'])
     sm=small_targets(pg); ck(t+'Touch-Ziele groß genug',not sm,sm[:3]); ck(t+'Kein seitliches Scrollen',noscroll(pg))
     pg.screenshot(path=f'{shots}/plan_{t.strip("[] ").replace("/","_")}.png')
+    pg.tap('#planCard [data-a=xdel][data-u=z2]'); pg.wait_for_timeout(900)
+    d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-09',{})
+    ck(t+'Zusatzeinheit wieder entfernen',d.get('extra')==[] and not any(x['u']=='z2' for x in d['done']),d.get('extra'))
     ck(t+'Keine JS-Fehler',not errs,errs[:3])
     # Check-in: Plan ganz oben, abends nur Stress, Plan für morgen
     pg.goto(URL.replace('training.html','checkin.html')); pg.wait_for_function('window.__planReady===true',timeout=20000); pg.wait_for_timeout(1200)
