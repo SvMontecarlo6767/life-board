@@ -1,7 +1,7 @@
 /* Life Board – Service Worker. Zweck: App-Start auch bei schlechtem Netz.
    Strategie: Netz zuerst (damit Änderungen sofort ankommen), nur bei Fehler/Offline der zuletzt gespeicherte Stand.
    Gecacht wird nur die eigene Seite (HTML, Skripte, Styles, Icons) – nie Firebase, den Worker oder andere Anbieter. */
-const CACHE = 'lb-shell-v20';
+const CACHE = 'lb-shell-v21';
 const SHELL = ['index.html', 'recovery.html', 'training.html', 'calendar.html', 'checkin.html', 'muster.html', 'news.html', 'journal-core.js', 'insights-core.js', 'theme.css', 'theme.js', 'fb.js', 'day.js', 'heute-labels.json', 'bg3d.js', 'hud-viz.js', 'whoop-row.js', 'whoop-cache.js', 'push-client.js', 'sleep-lever.js', 'graph-stats.js', 'graph-full.js', 'sleep-card.js', 'calendar-core.js', 'calendar-store.js', 'training-core.js', 'training-text.js', 'training-viz.js', 'training-gym.js', 'training-multi.js', 'training.js', 'plan-core.js', 'plan.js', 'plan.css', 'vendor/three.min.js', 'vendor/chart.umd.min.js', 'lb-chart.js', 'lb-spark.js', 'lb-bg.js', 'vendor/tsparticles.slim.bundle.min.js', 'vendor/vanta.net.min.js', 'vendor/three.r134.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 const SDK = /^https:\/\/www\.gstatic\.com\/firebasejs\//; // Firebase-Bibliothek: nötig, damit die Seiten offline überhaupt starten
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(SHELL.map(u => c.add(new Request(u, { cache: 'reload' }))))).then(() => self.skipWaiting())) });
@@ -14,7 +14,8 @@ self.addEventListener('fetch', e => {
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
     try {
-      const res = await fetch(r);
+      // eigene Seiten/Skripte immer beim Server nachfragen (304 = unverändert), damit neue Versionen sofort ankommen
+      const res = await fetch(u.origin === location.origin ? new Request(r.url, { cache: 'no-cache', credentials: 'same-origin' }) : r);
       if (res && res.ok) c.put(r, res.clone()).catch(() => {});
       return res;
     } catch (err) {

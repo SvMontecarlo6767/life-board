@@ -15,10 +15,10 @@ const ICON={
 };
 const TABS=[
   {id:'hub',name:'Hub',file:'index.html',href:'index.html',rgb:[58,215,255],rgb2:[120,150,255]},
-  {id:'checkin',name:'Check-in',file:'checkin.html',href:'checkin.html?v=2',rgb:[255,190,90],rgb2:[255,120,160]},
+  {id:'checkin',name:'Check-in',file:'checkin.html',href:'checkin.html?v=3',rgb:[255,190,90],rgb2:[255,120,160]},
   {id:'kalender',name:'Kalender',file:'calendar.html',href:'calendar.html?v=3',rgb:[255,200,70],rgb2:[255,120,90]},
   {id:'recovery',name:'Recovery',file:'recovery.html',href:'recovery.html?v=6',rgb:[52,235,170],rgb2:[58,215,255]},
-  {id:'training',name:'Training',file:'training.html',href:'training.html?v=4',rgb:[255,84,96],rgb2:[255,154,92]},
+  {id:'training',name:'Training',file:'training.html',href:'training.html?v=5',rgb:[255,84,96],rgb2:[255,154,92]},
   {id:'muster',name:'Muster',file:'muster.html',href:'muster.html?v=2',rgb:[120,230,255],rgb2:[180,120,255]}
 ];
 const fileOf=()=>{const f=location.pathname.split('/').pop();return f||'index.html'};

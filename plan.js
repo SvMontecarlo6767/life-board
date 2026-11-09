@@ -172,7 +172,7 @@ function dayPanel(k) {
 }
 function overview() {
   const t = todayKey(), open = S.open === undefined ? defaultOpen() : S.open;
-  let h = '<div class="pn-top"><h2 style="margin:0">📋 Trainingsplan</h2>' + (compact() ? '<a class="pn-link" href="training.html?v=4">✎ Plan bearbeiten</a>' : '<button type="button" data-a="edit">✎ Bearbeiten</button>') + '</div>';
+  let h = '<div class="pn-top"><h2 style="margin:0">📋 Trainingsplan</h2>' + (compact() ? '<a class="pn-link" href="training.html?v=5">✎ Plan bearbeiten</a>' : '<button type="button" data-a="edit">✎ Bearbeiten</button>') + '</div>';
   if (S.seeded) h += compact() ? '<div class="pn-info">Dein Startplan ist noch nicht übernommen. Im Training prüfen und übernehmen.</div>' : '<div class="pn-info">Das ist dein Startplan aus deinen Angaben. Noch nicht gespeichert. Prüf ihn kurz und übernimm ihn, dann gilt er ab heute.<div class="btns"><button type="button" class="primary" data-a="adopt">Startplan übernehmen</button><button type="button" data-a="edit">Erst anpassen</button></div></div>';
   h += '<div class="pn-days">';
   for (let i = 0; i < 7; i++) {
