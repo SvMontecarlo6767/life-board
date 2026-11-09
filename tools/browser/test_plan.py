@@ -49,11 +49,11 @@ def run(p,w,h,tag,theme=None):
     ck(t+'Plan steht oben im Training (vor den Abschnitten)',pg.evaluate("document.getElementById('planCard').compareDocumentPosition(document.getElementById('mcontent'))&4")>0)
     ck(t+'Bestehende Allround-Ansicht läuft weiter',pg.is_visible('#mcontent') and pg.is_visible('#mSave'))
     ck(t+'Startplan-Hinweis, nichts gespeichert','Startplan übernehmen' in txt and not any('/plan/' in k for k in pg.evaluate('window.__store')))
-    ck(t+'Heute = Donnerstag mit Haltung, evtl. Zone 2','Heute · Donnerstag' in txt and 'Haltungsübungen + (Zone-2-Spin oder nichts)' in txt and 'Anpassen und Abhaken geht, sobald' in txt,txt[:300])
+    ck(t+'Woche: 7 Tage ab heute, heute offen',pg.locator('#planCard .pn-day').count()==7 and pg.get_attribute('#planCard .pn-day.open','data-day')=='2026-11-05')
+    ck(t+'Heute = Donnerstag mit Haltung, evtl. Zone 2','Haltungsübungen + Zone-2-Spin / nichts' in txt and 'Anpassen und Abhaken geht, sobald' in txt,txt[:300])
     ck(t+'Pull aus deinem Gym-Workout vorbelegt (nur gelesen)',pg.evaluate("LBPlan.state.cur.units.find(u=>u.id==='pull').ex.map(e=>e.n).join()")=='Klimmzüge,Face Pulls,Hanging Leg Raise' and pg.evaluate("JSON.stringify(window.__store['users/u1/training/settings'].workouts)")==json.dumps(SEED['users/u1/training/settings']['workouts'],separators=(',',':'),ensure_ascii=False))
     ck(t+'Kein seitliches Scrollen',noscroll(pg))
-    pg.tap('#planCard [data-a=day][data-d="0"]'); pg.wait_for_timeout(100); d=pg.inner_text('#planCard')
-    ck(t+'Montag antippen zeigt Beintag mit Übungen','Nordic Curls' in d and 'so langsam wie möglich' in d and 'zuerst weglassen' in d and 'Kern' in d)
+    ck(t+'Montag in der Wochenliste: Beine + Haltung','Beine + Haltungsübungen' in pg.inner_text('#planCard [data-day="2026-11-09"]'))
     pg.screenshot(path=f'{shots}/plan_{tag}{"_"+theme if theme else ""}_uebersicht.png',full_page=False)
     # übernehmen
     pg.tap('#planCard [data-a=adopt]'); pg.wait_for_timeout(300)
@@ -61,7 +61,7 @@ def run(p,w,h,tag,theme=None):
     ck(t+'Startplan übernommen → Version ab heute',v is not None and v['from']=='2026-11-05' and len(v['units'])==9 and len(v['week'])==7)
     pg.tap('#planCard [data-a=pick][data-u=""]'); pg.wait_for_timeout(800)
     td=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-05') or {}
-    ck(t+'Heute: Alternative „nichts“ gewählt und gespeichert (keine Abweichung)',td.get('pick',{}).get('z2|')=='' and td.get('dev')==[] and 'für heute gespeichert' in pg.inner_text('#pnTMsg'),td)
+    ck(t+'Heute: Alternative „nichts“ gewählt und gespeichert (keine Abweichung)',td.get('pick',{}).get('z2|')=='' and td.get('dev')==[] and 'für heute gespeichert' in pg.inner_text('#planCard [data-tmsg="2026-11-05"]'),td)
     ck(t+'Hinweis weg, Fußzeile mit Version','Startplan übernehmen' not in pg.inner_text('#planCard') and 'Plan gilt seit 05.11.2026 · 1 Version' in pg.inner_text('#planCard'))
     # bearbeiten: Einheit Beine
     pg.tap('#planCard [data-a=edit]'); pg.tap('#planCard [data-a=tab][data-t=units]'); pg.tap('#planCard [data-a=uopen][data-u=beine]'); pg.wait_for_timeout(100)
@@ -91,7 +91,8 @@ def run(p,w,h,tag,theme=None):
     be=[u for u in v['units'] if u['id']=='beine'][0]
     ck(t+'Gespeichert (gleicher Tag = eine Version)',len([k for k in st if '/plan/v_' in k])==1 and len(be['ex'])==8 and be['ex'][4]['sets']==3 and v['week'][4]['slots'][1]['alts']==['iso'])
     ck(t+'Meldung „gilt ab heute“','gilt ab heute (Do, 05.11.2026)' in pg.inner_text('#planCard'))
-    ck(t+'Freitag zeigt Isometrie',(pg.tap('#planCard [data-a=day][data-d="4"]') or True) and 'Hip Flexor Drive' in pg.inner_text('#planCard'))
+    pg.tap('#planCard [data-a=dopen][data-k="2026-11-06"]'); pg.tap('#planCard [data-a=uex][data-k="2026-11-06"][data-u=iso]')
+    ck(t+'Freitag: Isometrie, Übungen erst nach Antippen sichtbar','Hip Flexor Drive' in pg.inner_text('#planCard') and pg.locator('#planCard [data-day="2026-11-06"] .pn-tex').count()==1)
     # Einstellungen
     pg.tap('#planCard [data-a=edit]'); pg.tap('#planCard [data-a=tab][data-t=set]'); pg.fill('#pnZ2lo','125'); pg.fill('#pnZ2hi','140'); pg.fill('#pnBudget','55'); pg.locator('#pnBudget').dispatch_event('change'); pg.locator('#pnZ2hi').dispatch_event('change'); pg.locator('#pnZ2lo').dispatch_event('change')
     pg.tap('#planCard [data-a=setsave]'); pg.wait_for_timeout(200)
@@ -103,7 +104,7 @@ def run(p,w,h,tag,theme=None):
     pg.tap('#planCard [data-a=cancel]')
     # Neu laden: alles da, Zone-2-Puls angezeigt
     pg.reload(); pg.wait_for_function('window.__planReady===true',timeout=20000)
-    pg.tap('#planCard [data-a=day][data-d="1"]')
+    pg.tap('#planCard [data-a=dopen][data-k="2026-11-10"]'); pg.tap('#planCard [data-a=pick][data-k="2026-11-10"][data-u=z2]'); pg.wait_for_timeout(200)
     ck(t+'Nach Neuladen: Plan + Puls 125–140','Puls 125–140 bpm' in pg.inner_text('#planCard') and 'Startplan' not in pg.inner_text('#planCard'))
     # Schreibfehler
     pg.evaluate('window.__failWrites=true'); pg.tap('#planCard [data-a=edit]'); pg.tap('#planCard [data-a=tab][data-t=units]'); pg.tap('#planCard [data-a=uopen][data-u=push]'); pg.tap('#planCard [data-a=sets][data-i="0"][data-d="1"]'); pg.tap('#planCard [data-a=save]'); pg.wait_for_timeout(200)
@@ -120,6 +121,7 @@ def run(p,w,h,tag,theme=None):
     ctx.close()
     monday(b,w,h,t,theme)
     gymflow(b,w,h,t,theme)
+    week2(b,w,h,t,theme)
     b.close()
 def gymflow(b,w,h,t,theme=None):
     t=t[:-2]+'/Gym] '
@@ -128,6 +130,7 @@ def gymflow(b,w,h,t,theme=None):
     pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('dialog',lambda d:d.accept())
     pg.clock.set_fixed_time('2026-11-09T18:00:00+01:00')
     pg.goto(URL); pg.wait_for_function('window.__planReady===true',timeout=20000); pg.wait_for_function('window.__trainingReady===true',timeout=20000); pg.wait_for_timeout(300)
+    pg.tap('#planCard [data-a=dopen][data-k="2026-11-09"]'); pg.tap('#planCard [data-a=uex][data-k="2026-11-09"][data-u=beine]')
     ck(t+'Knopf „Beine im Gym-Logbuch eintragen“',pg.locator('#planCard [data-a=gymgo][data-u=beine]').count()==1 and pg.locator('#planCard [data-a=gymgo][data-u=haltung]').count()==0)
     pg.tap('#planCard [data-a=adj]'); pg.tap('#planCard [data-a=exskip][data-e=beine_3]'); pg.wait_for_timeout(700)   # Split Squat Jumps heute weglassen
     pg.tap('#planCard [data-a=gymgo][data-u=beine]'); pg.wait_for_timeout(800)
@@ -147,6 +150,50 @@ def gymflow(b,w,h,t,theme=None):
     ck(t+'Plan hat den Gym-Eintrag verknüpft, Beine erledigt',d.get('gym')==[gl[0]['i']] if gl else False,d.get('gym'))
     ck(t+'Keine JS-Fehler',not errs,errs[:3])
     ctx.close()
+def week2(b,w,h,t,theme=None):
+    t=t[:-2]+'/Woche] '
+    WH={'2026-11-09':{'recovery':{'score':{'recovery_score':80}},'workouts':[{'id':777,'sport':'Spinning','start':'2026-11-09T07:00:00.000Z','end':'2026-11-09T07:45:00.000Z','score':{'strain':8.5,'average_heart_rate':128}}]}}
+    ctx=ctx_for(b,w,h,{'users/u1/plan/v_2026-11-05':VER},theme,whoop=WH)
+    pg=ctx.new_page(); errs=[]
+    pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('dialog',lambda d:d.accept())
+    pg.clock.set_fixed_time('2026-11-09T18:30:00+01:00')
+    pg.goto(URL); pg.wait_for_function('window.__planReady===true',timeout=20000); pg.wait_for_timeout(300)
+    ck(t+'Morgen (Di) offen, ohne Erledigt-Knopf',pg.get_attribute('#planCard .pn-day.open','data-day')=='2026-11-10' and pg.locator('#planCard [data-day="2026-11-10"] [data-a=udone]').count()==0)
+    pg.tap('#planCard [data-a=pick][data-k="2026-11-10"][data-u=z2]')
+    pg.tap('#planCard [data-a=adj][data-k="2026-11-10"]'); pg.tap('#planCard [data-a=exskip][data-k="2026-11-10"][data-e=pull_0]'); pg.wait_for_timeout(800)
+    d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-10',{})
+    ck(t+'Morgen anpassen: Alternative + Übung weglassen gespeichert',d.get('pick',{}).get('fussball|z2')=='z2' and d['units']['pull']['ex']['pull_0']=={'skip':True} and 'Klimmzüge weggelassen' in d.get('dev',[]),d.get('dev'))
+    ck(t+'Morgen-Zusammenfassung','Pull + Zone-2-Spin' in pg.inner_text('#planCard [data-day="2026-11-10"] .pn-sum'))
+    pg.tap('#planCard [data-a=dopen][data-k="2026-11-09"]'); tx=pg.inner_text('#planCard')
+    ck(t+'Whoop-Einheit von heute zum Zuordnen','Spinning · 45 min · Strain 8,5' in tx and pg.locator('#planCard [data-a=wset]').count()==2)
+    pg.tap('#planCard [data-a=wset][data-u=haltung]'); pg.wait_for_timeout(200)
+    pg.tap('#planCard [data-a=urpe][data-u=haltung][data-v="6"]'); pg.fill('#planCard input[data-un=haltung]','Wand-Engel, Face Pulls'); pg.wait_for_timeout(900)
+    d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-09',{})
+    hd=[x for x in d.get('done',[]) if x['u']=='haltung']
+    ck(t+'Whoop zugeordnet → erledigt, Anstrengung und Notiz gespeichert',hd and hd[0].get('whoop',{}).get('id')=='777' and hd[0].get('rpe')==6 and hd[0].get('note')=='Wand-Engel, Face Pulls',hd)
+    ck(t+'Zusammenfassung mit Haken','✓ Haltungsübungen' in pg.inner_text('#planCard [data-day="2026-11-09"] .pn-sum'))
+    sm=small_targets(pg); ck(t+'Touch-Ziele groß genug',not sm,sm[:3]); ck(t+'Kein seitliches Scrollen',noscroll(pg))
+    pg.screenshot(path=f'{shots}/plan_{t.strip("[] ").replace("/","_")}.png')
+    ck(t+'Keine JS-Fehler',not errs,errs[:3])
+    # Check-in: Plan ganz oben, abends nur Stress, Plan für morgen
+    pg.goto(URL.replace('training.html','checkin.html')); pg.wait_for_function('window.__planReady===true',timeout=20000); pg.wait_for_timeout(1200)
+    ck(t+'Check-in: Plan-Karte ganz oben (kompakt, Link zum Bearbeiten)',pg.evaluate("document.getElementById('planCard').compareDocumentPosition(document.getElementById('main'))&4")>0 and pg.locator('#planCard a.pn-link').count()==1 and pg.locator('#planCard [data-a=edit]').count()==0 and pg.locator('#planCard .pn-day').count()==7)
+    ck(t+'Check-in: Plan lädt Whoop nicht vor dem Morgen-Check',pg.evaluate('LBPlan.state.whoopWait') is True and pg.evaluate('Object.keys(LBPlan.state.whoop).length')==0)
+    ck(t+'Check-in: Anpassungen von morgen sichtbar','Pull + Zone-2-Spin' in pg.inner_text('#planCard'))
+    ev=pg.inner_text('#evening')
+    ck(t+'Abend: keine 3 guten Dinge, kein Satz, Stress da','gute' not in ev and 'Satz zum Tag' not in ev and 'Wie stressig' in ev and pg.locator('#evening [data-g]').count()==0,ev[:200])
+    pg.tap('#evening .scale button[data-v="2"]'); pg.wait_for_timeout(800)
+    j=pg.evaluate('window.__store').get('users/u1/journal/2026-11-09',{})
+    ck(t+'Abend: Stress mit einem Tipp gespeichert',(j.get('e') or {}).get('stress')==2,j.get('e'))
+    pg.tap('#ePlan'); pg.wait_for_timeout(300)
+    ck(t+'„Trainingsplan für morgen“ öffnet morgen',pg.get_attribute('#planCard .pn-day.open','data-day')=='2026-11-10')
+    pg.tap('#planCard [data-a=adj][data-k="2026-11-10"]'); pg.tap('#planCard [data-a=tsets][data-k="2026-11-10"][data-e=pull_1][data-d="-1"]'); pg.wait_for_timeout(800)
+    d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-10',{})
+    ck(t+'Check-in: morgen anpassen speichert',d['units']['pull']['ex'].get('pull_1')=={'sets':1},d['units'])
+    sm=small_targets(pg); ck(t+'Check-in: Touch-Ziele',not sm,sm[:3]); ck(t+'Check-in: kein seitliches Scrollen',noscroll(pg))
+    pg.screenshot(path=f'{shots}/checkin_{t.strip("[] ").replace("/","_")}.png',full_page=False)
+    ck(t+'Check-in: keine JS-Fehler',not errs,errs[:3])
+    ctx.close()
 VER=json.loads(subprocess.check_output(['node','-e',"const P=require('./plan-core.js');console.log(JSON.stringify(Object.assign(P.seed([]),{from:'2026-11-05',at:1})))"],cwd=root))
 def monday(b,w,h,t,theme=None):
     t=t[:-2]+'/Montag] '
@@ -156,12 +203,14 @@ def monday(b,w,h,t,theme=None):
     pg.on('pageerror',lambda e:errs.append(str(e))); pg.on('dialog',lambda d:d.accept())
     pg.clock.set_fixed_time('2026-11-09T18:00:00+01:00')
     pg.goto(URL); pg.wait_for_function('window.__planReady===true',timeout=20000); pg.wait_for_timeout(300)
+    ck(t+'Abends ist morgen aufgeklappt',pg.get_attribute('#planCard .pn-day.open','data-day')=='2026-11-10')
+    pg.tap('#planCard [data-a=dopen][data-k="2026-11-09"]'); pg.tap('#planCard [data-a=uex][data-k="2026-11-09"][data-u=beine]')
     tx=pg.inner_text('#planCard')
-    ck(t+'Heute-Karte: Beine + Haltung, Übungen sichtbar','Heute · Montag' in tx and 'Nordic Curls' in tx and 'erledigt?' in tx)
+    ck(t+'Heute: Beine + Haltung, Übungen nach Antippen sichtbar','Beine + Haltungsübungen' in tx and 'Nordic Curls' in tx and 'erledigt?' in tx)
     # Phase 3: Vorschlag a) Recovery rot + Beintag
     ck(t+'Whoop-Werte und Vorschlagskarte mit Grund','Recovery 22 % (rot)' in tx and pg.locator('#planCard .pn-sug[data-sug=a]').count()==1 and 'Split Squat Jumps weglassen · Wadenheben auf 1 Satz' in tx,tx[:400])
     pg.screenshot(path=f'{shots}/plan_{t.strip("[] ").replace("/","_")}_vorschlag.png')
-    pg.tap('#planCard [data-a=sugok][data-r=a]'); pg.wait_for_timeout(800)
+    pg.tap('#planCard [data-a=sugok][data-r=a]'); pg.wait_for_function("(window.__store['users/u1/plan/t_2026-11-09']||{}).sug",timeout=5000)
     d=pg.evaluate('window.__store').get('users/u1/plan/t_2026-11-09',{})
     ck(t+'Übernehmen: nur heute geändert, Entscheidung gespeichert',d.get('sug',{}).get('a',{}).get('d')=='ok' and d['units']['beine']['ex']=={'beine_3':{'skip':True},'beine_7':{'sets':1}} and pg.evaluate('window.__store')['users/u1/plan/v_2026-11-05']==VER,d)
     ck(t+'Karte weg, Status sichtbar',pg.locator('#planCard .pn-sug').count()==0 and '✓ übernommen' in pg.inner_text('#planCard'))
@@ -199,6 +248,7 @@ def monday(b,w,h,t,theme=None):
     ck(t+'Gym-Eintrag verknüpft, Beine erledigt',d.get('gym')==['xg1'] and sorted(x['u'] for x in d['done'])==['beine','haltung'] and '🔗 Gym-Eintrag: Beine' in pg.inner_text('#planCard'),d.get('done'))
     ck(t+'Gym-Eintrag selbst unberührt',st['users/u1/training/gym_2026']==gymdoc)
     pg.reload(); pg.wait_for_function('window.__planReady===true',timeout=20000)
+    pg.tap('#planCard [data-a=dopen][data-k="2026-11-09"]'); pg.tap('#planCard [data-a=uex][data-k="2026-11-09"][data-u=beine]')
     ck(t+'Nach Neuladen alles noch da','heute weggelassen' in pg.inner_text('#planCard') and '✓ erledigt' in pg.inner_text('#planCard'))
     pg.tap('#planCard [data-a=adj]'); pg.tap('#planCard [data-a=uskip][data-u=haltung]'); pg.wait_for_timeout(800)
     d=pg.evaluate('window.__store')['users/u1/plan/t_2026-11-09']

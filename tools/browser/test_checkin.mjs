@@ -39,11 +39,11 @@ await pg.click('[data-p=kaffee]');await pg.click('[data-p=kaffee]');await pg.cli
 await pg.waitForTimeout(200);j=await st();
 ck('Tracker gespeichert',j.t.kaffee===2&&j.t.freunde===1,JSON.stringify(j.t));
 ck('Tracker-Definition in Einstellungen',(await pg.evaluate(()=>window.__store['users/u1/settings/main'].trackers.map(x=>x.id).join(',')))==='kaffee,freunde');
-await pg.fill('[data-g="0"]','Training geschafft, weil ich früh los bin');await pg.fill('[data-g="1"]','Gutes Gespräch mit Tom');await pg.fill('[data-g="2"]','Sonne beim Spaziergang');
-await pg.click('#evening [data-s=stress] [data-v="3"]');
+ck('Abend ohne 3 gute Dinge und Satz',(await pg.locator('#evening [data-g]').count())===0&&(await pg.locator('#eLine').count())===0);
 await pg.fill('[data-tg="0"]','Kraft Unterkörper');await pg.fill('[data-ta="0"]','18:00');
-await pg.click('#eSave');await pg.waitForTimeout(300);
-j=await st();ck('Abend gespeichert',j.e.good.filter(Boolean).length===3&&j.e.stress===3);
+await pg.click('#evening [data-s=stress] [data-v="3"]');await pg.waitForTimeout(300);
+j=await st();ck('Abend: Stress mit einem Tipp gespeichert',j.e.stress===3);
+await pg.click('#eGoals');await pg.waitForTimeout(300);
 const tm=await pg.evaluate(()=>window.__store['users/u1/journal/2026-10-26']);
 ck('Ziel für morgen gespeichert',tm&&tm.g&&tm.g[0].t==='Kraft Unterkörper'&&tm.g[0].at==='18:00',JSON.stringify(tm&&tm.g));
 await pg.fill('#gdT','10 Min lesen');await pg.fill('#gdA','21:00');await pg.click('#gdAdd');await pg.waitForTimeout(200);

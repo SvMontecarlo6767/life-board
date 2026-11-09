@@ -94,7 +94,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 .days{display:flex;gap:4px}.days button{min-height:36px;min-width:36px;padding:0 6px;font-size:13px}.days button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
 .gh{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}.gh small{color:var(--mu)}
 .presets button{min-height:36px;padding:4px 12px;font-size:14px;border-radius:99px}
-</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
+</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10"><link rel="stylesheet" href="plan.css?v=1">
 </head><body><div class="wrap">
 <div class="top">
   <div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>☀️ Check-in</h1></div>
@@ -102,6 +102,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 </div>
 <div id="msg"></div>
 <div class="save" id="save"></div>
+<section class="card" id="planCard" data-mode="compact" aria-label="Trainingsplan"></section>
 <div id="main" hidden>
   <section class="card" id="morning"></section>
   <section class="card" id="goals"></section>
@@ -145,6 +146,8 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 <script src="day.js"></script>
 <script src="journal-core.js"></script>
 <script src="whoop-cache.js"></script>
+<script src="plan-core.js?v=5"></script>
+<script src="plan.js?v=5"></script>
 <script src="push-client.js"></script>
 <script>
 (async function(){
@@ -355,33 +358,24 @@ function renderBody(){
 
 /* ---------- Abend ---------- */
 function renderEvening(){
-  const d=day(cur),e=d.e,el=$('evening');
-  el.classList.toggle('now',cur===today&&new Date().getHours()>=18&&J.goodCount(d)<3);
-  if(e&&!draftE&&J.goodCount(d)){
-    el.innerHTML='<h3>Abend'+(e.at?' · '+hm(e.at):'')+'</h3><div class="mu">3 gute Dinge</div><ol style="margin:6px 0 0;padding-left:20px">'+e.good.filter(Boolean).map(g=>'<li>'+esc(g)+'</li>').join('')+'</ol>'
-      +(e.stress?'<div style="margin-top:8px">Stress: <b>'+e.stress+'</b>/5 · '+esc(J.SCALE.stress[e.stress-1])+'</div>':'')+(e.line?'<div class="mu" style="margin-top:6px">„'+esc(e.line)+'“</div>':'')
-      +'<div class="act"><button id="eEdit">Ändern</button></div>';
-    $('eEdit').onclick=()=>{draftE=JSON.parse(JSON.stringify(e));renderEvening()};return;
-  }
-  const de=draftE||(draftE={good:['','',''],stress:null,line:''});
-  el.innerHTML='<h3>Abend</h3><div class="mu">Drei Dinge, die heute gut waren – auch kleine. Und warum sie passiert sind.</div>'
-    +[0,1,2].map(i=>'<input data-g="'+i+'" style="margin-top:8px" placeholder="'+(i+1)+'. … weil …" value="'+esc(de.good[i]||'')+'">').join('')
-    +'<div class="q">Stress heute</div>'+scale('stress','stress',de.stress,false)
-    +'<div class="q">Ein Satz zum Tag <small>optional</small></div><textarea id="eLine" placeholder="Was nimmst du mit?">'+esc(de.line||'')+'</textarea>'
-    +'<div class="q">Ziele für morgen <small>siehst du beim Morgen-Check</small></div>'+((day(E.addDays(cur,1)).g||[]).length?'<div class="mu">Schon geplant: '+day(E.addDays(cur,1)).g.map(x=>(x.at?x.at+' ':'')+esc(x.t)).join(' · ')+'</div>':'')
-    +[0,1,2].map(i=>'<div class="gadd"><input type="text" data-tg="'+i+'" maxlength="140" placeholder="'+['z. B. Kraft Unterkörper','z. B. 30 Min lernen','optional'][i]+'" value="'+esc((de.tg||[])[i]&&de.tg[i].t||'')+'"><input type="time" data-ta="'+i+'" aria-label="Uhrzeit" value="'+esc((de.tg||[])[i]&&de.tg[i].at||'')+'"></div>').join('')
-    +'<div class="act">'+(e?'<button id="eCancel">Abbrechen</button>':'')+'<button class="primary" id="eSave">Speichern</button></div>';
-  el.querySelectorAll('[data-g]').forEach(i=>i.oninput=()=>{de.good[+i.dataset.g]=i.value});
-  $('eLine').oninput=()=>{de.line=$('eLine').value};
-  de.tg=de.tg||[{},{},{}];
+  /* Abends nur noch Stress 1–5 (ein Tipp speichert). Ältere Einträge mit 3 guten Dingen und Satz bleiben gespeichert und in den Mustern. */
+  const d=day(cur),e=d.e,el=$('evening'),st=e&&e.stress||null,nk=E.addDays(cur,1),planned=day(nk).g||[];
+  el.classList.toggle('now',cur===today&&new Date().getHours()>=18&&!st);
+  const de=draftE||(draftE={tg:[{},{},{}]});
+  el.innerHTML='<h3>Abend'+(e&&e.at&&st?' · '+hm(e.at):'')+'</h3><div class="q">Wie stressig war der Tag?</div>'+scale('stress','stress',st,false)
+    +(st?'<div class="mu" style="margin-top:6px">'+esc(J.SCALE.stress[st-1])+' · gespeichert ✓</div>':'')
+    +(cur===today&&window.LBPlan?'<div class="act"><button id="ePlan">📋 Trainingsplan für morgen ansehen und anpassen</button></div>':'')
+    +'<div class="q">Ziele für morgen <small>siehst du beim Morgen-Check</small></div>'+(planned.length?'<div class="mu">Schon geplant: '+planned.map(x=>(x.at?x.at+' ':'')+esc(x.t)).join(' · ')+'</div>':'')
+    +[0,1,2].map(i=>'<div class="gadd"><input type="text" data-tg="'+i+'" maxlength="140" placeholder="'+['z. B. Kraft Unterkörper','z. B. 30 Min lernen','optional'][i]+'" value="'+esc(de.tg[i]&&de.tg[i].t||'')+'"><input type="time" data-ta="'+i+'" aria-label="Uhrzeit" value="'+esc(de.tg[i]&&de.tg[i].at||'')+'"></div>').join('')
+    +'<div class="act"><button class="primary" id="eGoals">Ziele für morgen speichern</button></div>';
   el.querySelectorAll('[data-tg]').forEach(i=>i.oninput=()=>{de.tg[+i.dataset.tg].t=i.value});
   el.querySelectorAll('[data-ta]').forEach(i=>i.oninput=()=>{de.tg[+i.dataset.ta].at=i.value});
-  bindScale(el,(k,v)=>{de[k]=de[k]===v?null:v;renderEvening()});
-  if($('eCancel'))$('eCancel').onclick=()=>{draftE=null;renderEvening()};
-  $('eSave').onclick=async()=>{const d=day(cur);d.e={good:de.good,stress:de.stress,line:de.line,at:(d.e&&d.e.at)||Date.now()};
-    const nk=E.addDays(cur,1),add=(de.tg||[]).filter(x=>x&&x.t&&x.t.trim()).map(x=>({t:x.t.trim(),at:x.at||'',done:false,r:!!(x.at&&PUSH.on)}));
-    if(add.length){const nd=day(nk);nd.g=(nd.g||[]).concat(add.filter(a=>!(nd.g||[]).some(b=>b.t===a.t)));await save(nk);syncPush()}
-    draftE=null;await save(cur);renderEvening();renderWeek()};
+  bindScale(el,async(k,v)=>{const dd=day(cur),old=dd.e||{good:['','',''],line:''},ns=old.stress===v?null:v;
+    dd.e={good:old.good||['','',''],stress:ns,line:old.line||'',at:old.at||Date.now()};renderEvening();await save(cur);renderWeek()});
+  if($('ePlan'))$('ePlan').onclick=()=>window.LBPlan.openDay(E.addDays(today,1));
+  $('eGoals').onclick=async()=>{const add=(de.tg||[]).filter(x=>x&&x.t&&x.t.trim()).map(x=>({t:x.t.trim(),at:x.at||'',done:false,r:!!(x.at&&PUSH.on)}));
+    if(!add.length)return showMsg('Trag zuerst ein Ziel ein.',true);
+    const nd=day(nk);nd.g=(nd.g||[]).concat(add.filter(a=>!(nd.g||[]).some(b=>b.t===a.t)));await save(nk);syncPush();draftE=null;renderEvening()};
 }
 
 /* ---------- Woche ---------- */
@@ -406,6 +400,7 @@ async function loadWhoop(){
   if(WH)return;
   const wget=async(f,t)=>{const tk=await user.getIdToken();const r=await tmo(fetch(WORKER+'/data?from='+f+'&to='+t,{headers:{Authorization:'Bearer '+tk}}),15000,'Whoop');const d=await r.json();if(!r.ok)throw new Error(d.error||r.status);return d};
   try{WH=await LBWhoop.load({uid:user.uid,from:E.addDays(today,-365),to:today,fetch:wget})}catch(e){WH={}}
+  if(window.LBPlan)LBPlan.setWhoop(WH);   // Trainingsplan-Karte: Recovery erst jetzt
   renderMorning();
 }
 

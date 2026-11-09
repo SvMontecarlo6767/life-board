@@ -1,12 +1,15 @@
-/* Life Board – Trainingsplan (oben im Reiter Training). Eigenes Modul: liest training/settings nur (Gym-Workouts für den Startplan),
-   schreibt ausschließlich in users/{uid}/plan/ (v_JJJJ-MM-TT = Planversionen, settings = Einstellungen). Rechnen: plan-core.js. */
+/* Life Board – Trainingsplan-Karte (oben im Training und im Check-in). Eigenes Modul: liest training/settings und training/gym_* nur,
+   schreibt ausschließlich in users/{uid}/plan/ (v_JJJJ-MM-TT = Planversionen, t_JJJJ-MM-TT = Tage, settings = Einstellungen). Rechnen: plan-core.js.
+   <section id="planCard" data-mode="compact"> (Check-in): Woche ansehen, Tage anpassen und abhaken – Bearbeiten der Vorlage nur im Training. */
 (function () {
 'use strict';
 const P = window.PlanCore, $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const S = { base: '', versions: [], cur: null, draft: null, dirty: false, edit: false, tab: 'week', unit: null, day: null, set: P.cleanSettings({}), seeded: false, viewV: null, msg: '', err: false, busy: false, loaded: false, tday: null, gym: [], adj: false, tmsg: '', whoop: {}, hist: {}, whoopOk: false };
+const S = { base: '', versions: [], cur: null, draft: null, dirty: false, edit: false, tab: 'week', unit: null, set: P.cleanSettings({}), seeded: false, viewV: null, msg: '', err: false, busy: false, loaded: false,
+  days: {}, hist: {}, gym: [], adj: null, open: undefined, ux: new Set(), tmsg: {}, whoop: {}, whoopOk: false, whoopWait: null };
 const WORKER = 'https://life-board-whoop.momo-haskamp.workers.dev';   // derselbe Worker wie im Training (nur lesen: /data)
-const todayKey = () => (window.TrainingCore ? window.TrainingCore.local(Date.now()).key : new Date().toISOString().slice(0, 10));
+const todayKey = () => P.berlinKey(Date.now());
+const compact = () => { const h = $('planCard'); return !!(h && h.dataset.mode === 'compact') };
 const fmtD = k => k ? k.slice(8, 10) + '.' + k.slice(5, 7) + '.' + k.slice(0, 4) : '';
 const kindName = id => (P.KINDS.find(k => k.id === id) || {}).name || '';
 const prioName = id => (P.PRIO.find(p => p.id === id) || {}).name || '';
@@ -14,13 +17,19 @@ const errText = e => (e && (e.code === 'permission-denied' || /permission|insuff
   'Firestore lässt den Zugriff auf „plan“ nicht zu. In der Firebase-Konsole → Firestore → Regeln prüfen, ob unter users/{uid} alle Sammlungen erlaubt sind, z. B. match /users/{uid}/{document=**} { allow read, write: if request.auth != null && request.auth.uid == uid; }' :
   ((e && (e.code || e.message)) || 'unbekannter Fehler');
 const plan = () => S.edit ? S.draft : S.cur;
+const planAt = k => S.seeded ? S.cur : (P.versionAt(S.versions, k) || S.cur);
+const viewAt = k => P.todayView(planAt(k), k, S.days[k] || null, S.gym, P.whoopWorkouts(S.whoop, k));
+const view = () => viewAt(todayKey());
+/* „heute“, „morgen“, sonst Wochentag */
+function dayWord(k, cap) { const t = todayKey(), w = k === t ? 'heute' : k === P.addDays(t, 1) ? 'morgen' : 'am ' + P.WD[P.wdOf(k)]; return cap ? w.charAt(0).toUpperCase() + w.slice(1) : w }
+const defaultOpen = () => P.berlinHour(Date.now()) >= 18 ? P.addDays(todayKey(), 1) : todayKey();   // abends: morgen
 
 /* ---------- Laden / Speichern ---------- */
 async function load() {
   const u = await requireUser(); S.base = 'users/' + u.uid;
   try {
     const q = await fs.collection(S.base + '/plan').get();
-    const vs = []; q.docs.forEach(d => { const x = d.data() || {}; if (/^v_\d{4}-\d{2}-\d{2}$/.test(d.id)) vs.push(Object.assign(P.clean(x), { from: d.id.slice(2), at: x.at || 0 })); else if (d.id === 'settings') S.set = P.cleanSettings(x); else if (/^t_\d{4}-\d{2}-\d{2}$/.test(d.id)) { S.hist[d.id.slice(2)] = x; if (d.id === 't_' + todayKey()) S.tday = P.cleanDay(x) } });
+    const vs = []; q.docs.forEach(d => { const x = d.data() || {}; if (/^v_\d{4}-\d{2}-\d{2}$/.test(d.id)) vs.push(Object.assign(P.clean(x), { from: d.id.slice(2), at: x.at || 0 })); else if (d.id === 'settings') S.set = P.cleanSettings(x); else if (/^t_\d{4}-\d{2}-\d{2}$/.test(d.id)) { S.hist[d.id.slice(2)] = x; S.days[d.id.slice(2)] = P.cleanDay(x) } });
     S.versions = P.sortVersions(vs);
     S.cur = P.versionAt(S.versions, todayKey()) || S.versions[S.versions.length - 1] || null;
     if (!S.cur) {   // noch kein Plan: Startplan vorschlagen (nicht gespeichert, bis du ihn übernimmst)
@@ -30,7 +39,9 @@ async function load() {
   } catch (e) { S.msg = 'Plan konnte nicht geladen werden: ' + errText(e); S.err = true; S.cur = P.seed([]); S.seeded = true }
   await loadGym();
   S.loaded = true; draw(); autoLink();
-  await loadWhoop(u); draw(); window.__planReady = true;
+  if (compact()) { if (S.whoopWait === null) S.whoopWait = true }   // Check-in: Whoop erst nach dem Morgen-Check (kommt über setWhoop)
+  else await loadWhoop(u);
+  draw(); window.__planReady = true;
 }
 /* Whoop der letzten 30 Tage aus dem Gerätespeicher (whoop-cache.js), frische Tage vom Worker – nur lesen */
 async function loadWhoop(u) {
@@ -45,28 +56,27 @@ async function loadGym() {
 }
 /* Neuer Gym-Eintrag passt zu einer geplanten Einheit: Verknüpfung im Tagesdokument festhalten (nur plan/, der Gym-Eintrag bleibt unberührt) */
 function autoLink() {
-  if (S.seeded || !S.gym.length) return; const v = view(), known = new Set((S.tday && S.tday.gym) || []);
-  if (v.slots.some(s => s.unit && s.gym && s.gym.some(g => !known.has(g.id)))) saveDay(true);
+  if (S.seeded || !S.gym.length) return; const k = todayKey(), v = view(), known = new Set((S.days[k] && S.days[k].gym) || []);
+  if (v.slots.some(s => s.unit && s.gym && s.gym.some(g => !known.has(g.id)))) saveDay(k, true);
 }
 let gymT = 0;
 function watchGym() {   // nach dem Speichern im Gym-Logbuch (gleiche Seite) und beim Zurückkehren in die App neu lesen
   const again = () => { clearTimeout(gymT); gymT = setTimeout(async () => { if (!S.loaded) return; const n = JSON.stringify(S.gym); await loadGym(); if (JSON.stringify(S.gym) !== n) { if (!S.edit) draw(); autoLink() } }, 1200) };
   document.addEventListener('visibilitychange', () => { if (!document.hidden) again() });
-  const tryObs = () => { const m = $('mcontent'); if (!m) return setTimeout(tryObs, 1000); new MutationObserver(again).observe(m, { childList: true }) };
+  let tries = 0; const tryObs = () => { const m = $('mcontent'); if (!m) { if (++tries < 15) setTimeout(tryObs, 1000); return } new MutationObserver(again).observe(m, { childList: true }) };
   tryObs();
 }
-const view = () => P.todayView(S.cur, todayKey(), S.tday, S.gym);
-let dayT = 0;
-function saveDay(now) {
-  clearTimeout(dayT); S.tmsg = 'speichert …'; tsay();
-  dayT = setTimeout(async () => {
-    const k = todayKey(), doc = P.dayDoc(view(), S.cur.from || null);
-    try { await fs.doc(S.base + '/plan/t_' + k).set(JSON.parse(JSON.stringify(doc))); S.tday = P.cleanDay(doc); S.tmsg = 'für heute gespeichert ✓' }
-    catch (e) { S.tmsg = 'Nicht gespeichert: ' + errText(e) }
-    tsay();
+const dayT = {};
+function saveDay(k, now) {
+  clearTimeout(dayT[k]); S.tmsg[k] = 'speichert …'; tsay(k);
+  dayT[k] = setTimeout(async () => {
+    const doc = P.dayDoc(viewAt(k), planAt(k).from || null);
+    try { await fs.doc(S.base + '/plan/t_' + k).set(JSON.parse(JSON.stringify(doc))); S.days[k] = P.cleanDay(doc); S.hist[k] = doc; S.tmsg[k] = 'für ' + dayWord(k) + ' gespeichert ✓' }
+    catch (e) { S.tmsg[k] = 'Nicht gespeichert: ' + errText(e) }
+    tsay(k);
   }, now ? 0 : 500);
 }
-function tsay() { const m = $('pnTMsg'); if (m) { m.textContent = S.tmsg; m.className = 'mu pn-tmsg' + (/^Nicht/.test(S.tmsg) ? ' err' : '') } }
+function tsay(k) { const m = document.querySelector('#planCard [data-tmsg="' + k + '"]'); if (m) { m.textContent = S.tmsg[k] || ''; m.className = 'mu pn-tmsg' + (/^Nicht/.test(S.tmsg[k] || '') ? ' err' : '') } }
 async function savePlan() {
   if (S.busy) return; const k = todayKey(), src = S.edit ? S.draft : S.cur;
   const empty = src.units.reduce((n, u) => n + u.ex.filter(e => !String(e.n || '').trim()).length, 0);
@@ -86,80 +96,85 @@ async function saveSettings() {
 function say(t, err) { S.msg = t || ''; S.err = !!err; const m = $('pnMsg'); if (m) { m.textContent = S.msg; m.className = 'msg' + (S.err ? ' err' : '') } }
 
 /* ---------- Anzeige ---------- */
-function exLine(e) {
-  const bits = [e.sets ? e.sets + ' ' + (e.sets === 1 ? 'Satz' : 'Sätze') : '', e.amt, e.rest ? e.rest + ' s Pause' : ''].filter(Boolean).join(' · ');
-  return '<li><span class="pn-n">' + esc(e.n) + '</span><span class="pn-d">' + esc(bits) + (e.note ? ' · <i>' + esc(e.note) + '</i>' : '') + '</span>' + (e.prio !== 'norm' ? '<span class="pn-p ' + e.prio + '">' + esc(prioName(e.prio)) + '</span>' : '') + '</li>';
-}
-function unitBlock(p, id) {
-  if (id === '') return '<div class="pn-unit pn-none">nichts / Pause</div>';
-  const u = P.unitById(p, id); if (!u) return '';
-  const est = P.estMin(u), meta = [kindName(u.kind), u.min ? u.min + ' min' : '', u.ex.length && est ? '≈ ' + est + ' min laut Übungen' : '', u.hard ? 'hart' : '', u.legs ? 'Beine' : ''].filter(Boolean).join(' · ');
-  const hr = u.kind === 'z2' && (S.set.z2lo || S.set.z2hi) ? '<div class="pn-d">Puls ' + (S.set.z2lo || '?') + '–' + (S.set.z2hi || '?') + ' bpm</div>' : '';
-  return '<div class="pn-unit"><b>' + esc(u.name) + '</b> <span class="mu pn-meta">' + esc(meta) + '</span>' + hr + (u.ex.length ? '<ul class="pn-ex">' + u.ex.map(exLine).join('') + '</ul>' : '<div class="mu pn-d">Noch keine Übungen eingetragen.</div>') + '</div>';
-}
-function dayDetail(p, wd) {
-  const d = p.week[wd];
-  if (!d.slots.length) return '<div class="mu">Kein Training geplant.</div>';
-  return d.slots.map(s => '<div class="pn-slot">' + s.alts.map(a => unitBlock(p, a)).join('<div class="pn-or">oder</div>') + '</div>').join('');
-}
-function shortDay(p, wd) {
-  const d = p.week[wd]; if (!d.slots.length) return 'Pause';
-  const s = d.slots[0], u = s.alts[0] === '' ? null : P.unitById(p, s.alts[0]);
-  return (u ? u.name.split(/[ (]/)[0] : 'Pause') + (d.slots.length > 1 || s.alts.length > 1 ? ' +' : '');
-}
-/* Heute: gewählte Alternative, Anpassungen nur für heute, erledigt, Grund */
+const r1 = v => String(Math.round(v * 10) / 10).replace('.', ',');
+const wkText = w => [w.sport, w.min ? w.min + ' min' : '', w.strain != null ? 'Strain ' + r1(w.strain) : ''].filter(Boolean).join(' · ');
 function sugBox(v) {
-  const r = P.suggest({ plan: S.cur, view: v, days: S.whoop, set: S.set, hist: S.hist }), F = r.facts;
-  const vals = [F.rec != null ? 'Recovery ' + Math.round(F.rec) + ' %' + (r.zone ? ' (' + r.zone + ')' : '') : '', F.perf != null ? 'Schlaf ' + Math.round(F.perf) + ' %' : '', F.bed != null ? 'eingeschlafen ' + P.clockOf(F.bed) : '', F.strainY != null ? 'Strain gestern ' + String(Math.round(F.strainY * 10) / 10).replace('.', ',') : ''].filter(Boolean);
-  let h = '<div class="mu pn-facts">' + (vals.length ? esc(vals.join(' · ')) : S.whoopOk ? 'Whoop-Werte von heute fehlen noch – Vorschläge, die Recovery oder Schlaf brauchen, warten darauf.' : 'Keine Whoop-Daten – nur „heute kurz“ und Hinweise aus deinem Plan.') + '</div>';
+  const r = P.suggest({ plan: planAt(v.key), view: v, days: S.whoop, set: S.set, hist: S.hist }), F = r.facts;
+  const vals = [F.rec != null ? 'Recovery ' + Math.round(F.rec) + ' %' + (r.zone ? ' (' + r.zone + ')' : '') : '', F.perf != null ? 'Schlaf ' + Math.round(F.perf) + ' %' : '', F.bed != null ? 'eingeschlafen ' + P.clockOf(F.bed) : '', F.strainY != null ? 'Strain gestern ' + r1(F.strainY) : ''].filter(Boolean);
+  let h = '<div class="mu pn-facts">' + (vals.length ? esc(vals.join(' · ')) : S.whoopWait ? 'Recovery und Vorschläge dazu erscheinen nach deinem Morgen-Check.' : S.whoopOk ? 'Whoop-Werte von heute fehlen noch – Vorschläge, die Recovery oder Schlaf brauchen, warten darauf.' : 'Keine Whoop-Daten – nur „heute kurz“ und Hinweise aus deinem Plan.') + '</div>';
   r.open.forEach(x => {
     h += '<div class="pn-sug" data-sug="' + x.id + '"><b>' + esc(x.title) + '</b><div class="pn-why">Grund: ' + esc(x.why.join(' · ')) + '</div>' +
       (x.ops.length ? '<div class="pn-d">Vorschlag: ' + esc(x.ops.map(o => o.text).join(' · ')) + '</div>' : '') +
-      '<div class="btns"><button type="button" class="primary" data-a="sugok" data-r="' + x.id + '">Übernehmen</button><button type="button" data-a="sugno" data-r="' + x.id + '">Ignorieren</button></div></div>';
+      '<div class="btns"><button type="button" class="primary" data-a="sugok" data-k="' + v.key + '" data-r="' + x.id + '">Übernehmen</button><button type="button" data-a="sugno" data-k="' + v.key + '" data-r="' + x.id + '">Ignorieren</button></div></div>';
   });
-  r.decided.forEach(x => { h += '<div class="mu pn-sugd">' + (x.d === 'ok' ? '✓ übernommen: ' : '✕ ignoriert: ') + esc(x.title) + ' <button type="button" class="txt" data-a="sugundo" data-r="' + x.id + '">Entscheidung zurücknehmen</button></div>' });
+  r.decided.forEach(x => { h += '<div class="mu pn-sugd">' + (x.d === 'ok' ? '✓ übernommen: ' : '✕ ignoriert: ') + esc(x.title) + ' <button type="button" class="txt" data-a="sugundo" data-k="' + v.key + '" data-r="' + x.id + '">Entscheidung zurücknehmen</button></div>' });
   return h;
 }
-function todayBox(tw) {
-  const v = view(), A = S.adj && !S.seeded;
+/* Kurzfassung eines Tages für die Wochenliste */
+function daySum(v) {
+  if (!v.slots.length) return 'Pause';
+  return v.slots.map(s => {
+    const chosen = s.alts.length < 2 || (v.day.pick && v.day.pick[s.key] !== undefined);
+    if (!chosen) return s.alts.map(a => a === '' ? 'nichts' : (P.unitById(planAt(v.key), a) || {}).name || '?').join(' / ');
+    if (!s.unit) return 'Pause';
+    return (s.skip ? '✕ ' : s.done ? '✓ ' : '') + s.unit.name;
+  }).join(' + ');
+}
+function unitPanel(v, s, A, past) {
+  const u = s.unit, k = v.key, id = esc(u.id), open = A || S.ux.has(k + '|' + u.id), word = dayWord(k);
+  const nEx = s.ex.filter(x => !x.skip && x.sets > 0).length;
+  let h = '<div class="pn-urow"><button type="button" class="pn-uname" data-a="uex" data-k="' + k + '" data-u="' + id + '" aria-expanded="' + open + '"><b' + (s.skip ? ' class="pn-strike"' : '') + '>' + esc(u.name) + '</b><span class="mu pn-meta">' + esc([u.ex.length ? nEx + '/' + u.ex.length + ' Übungen' : '', s.min != null ? s.min + ' min' : u.min ? u.min + ' min' : ''].filter(Boolean).join(' · ')) + (u.ex.length ? (open ? ' ▾' : ' ▸') : '') + '</span></button>' +
+    (s.skip ? '<button type="button" data-a="uskip" data-k="' + k + '" data-u="' + id + '">Doch machen</button>' : past ? '<button type="button" class="pn-done' + (s.done ? ' on' : '') + '" data-a="udone" data-k="' + k + '" data-u="' + id + '" aria-pressed="' + s.done + '"' + (s.gym.length || s.whoop ? ' disabled title="aus Gym-Log bzw. Whoop"' : '') + '>' + (s.done ? '✓ erledigt' : 'erledigt?') + '</button>' : '') + '</div>';
+  if (u.kind === 'z2' && (S.set.z2lo || S.set.z2hi)) h += '<div class="pn-d">Puls ' + (S.set.z2lo || '?') + '–' + (S.set.z2hi || '?') + ' bpm</div>';
+  if (s.gym.length) h += '<div class="pn-d">🔗 Gym-Eintrag: ' + esc(s.gym.map(g => (g.plan || 'Gym') + ' · ' + g.ex.reduce((n, e) => n + e.s.length, 0) + ' Sätze').join(', ')) + '</div>';
+  if (s.whoop) h += '<div class="pn-row pn-wk"><span class="pn-d">⌚ Whoop: ' + esc(wkText(s.whoop)) + '</span><button type="button" class="txt" data-a="wdel" data-k="' + k + '" data-u="' + id + '">Zuordnung lösen</button></div>';
+  if (open && !s.skip && s.ex.length) h += '<ul class="pn-ex pn-tex">' + s.ex.map(x => {
+    const ch = x.sets !== x.e.sets, ea = ' data-k="' + k + '" data-u="' + id + '" data-e="' + esc(x.e.id) + '"';
+    return '<li class="' + (x.skip ? 'pn-off' : '') + '"><span class="pn-n">' + esc(x.e.n) + '</span><span class="pn-d">' + (x.skip ? word + ' weggelassen' : (ch ? '<s>' + x.e.sets + '</s> ' : '') + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') + (x.e.amt ? ' · ' + esc(x.e.amt) : '') + (x.gym != null ? ' · Gym: ' + x.gym : '') + (x.e.note ? ' · <i>' + esc(x.e.note) + '</i>' : '')) + '</span>' +
+      (A ? '<span class="pn-tact">' + (x.skip ? '' : '<button type="button" data-a="tsets"' + ea + ' data-d="-1" aria-label="ein Satz weniger">−</button><button type="button" data-a="tsets"' + ea + ' data-d="1" aria-label="ein Satz mehr">+</button>') + '<button type="button" data-a="exskip"' + ea + '>' + (x.skip ? 'doch machen' : 'weglassen') + '</button></span>' : (x.e.prio !== 'norm' ? '<span class="pn-p ' + x.e.prio + '">' + esc(prioName(x.e.prio)) + '</span>' : '')) + '</li>';
+  }).join('') + '</ul>';
+  if (open && !s.skip && k === todayKey() && window.TrainingGym && s.ex.some(x => x.e.gym)) h += '<div class="pn-row"><button type="button" data-a="gymgo" data-u="' + id + '">🏋️ ' + esc(u.name) + ' im Gym-Logbuch eintragen</button></div>';
+  if (s.done && !s.gym.length) h += '<div class="pn-rate"><div class="mu" style="font-size:12.5px">Wie anstrengend? <small>optional</small></div><div class="seg pn-rpe" role="group" aria-label="Anstrengung 1 bis 10">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => '<button type="button" data-a="urpe" data-k="' + k + '" data-u="' + id + '" data-v="' + n + '" aria-pressed="' + (s.rpe === n) + '">' + n + '</button>').join('') + '</div>' +
+    '<input type="text" class="pn-note" maxlength="160" data-un="' + id + '" data-k="' + k + '" value="' + esc(s.note) + '" placeholder="Notiz, z. B. Long Run 12 km, Intervalle 6 × 800 m" aria-label="Notiz zu ' + esc(u.name) + '"></div>';
+  if (A && !s.skip) h += '<div class="pn-row"><button type="button" data-a="uskip" data-k="' + k + '" data-u="' + id + '">' + esc(u.name) + ' ' + word + ' weglassen</button></div>';
+  return h;
+}
+function dayPanel(k) {
+  const v = viewAt(k), p = planAt(k), A = S.adj === k && !S.seeded, isToday = k === todayKey(), past = k <= todayKey();
   const any = !S.seeded && v.slots.some(s => s.unit);
-  let h = '<div class="pn-tbox"><div class="pn-top"><b class="pn-th">Heute · ' + P.WD_LONG[tw] + '</b>' + (any ? '<span class="pn-row" style="margin:0"><button type="button" class="chip' + (v.day.short ? ' on' : '') + '" data-a="short" aria-pressed="' + !!v.day.short + '">⏱ heute kurz</button><button type="button" data-a="adj" aria-pressed="' + A + '">' + (A ? '✓ Fertig' : '✎ Heute anpassen') + '</button></span>' : '') + '</div>';
-  if (any) h += sugBox(v);
-  if (!v.slots.length) return h + '<div class="mu">Heute ist kein Training geplant.</div></div>';
-  if (S.seeded) return h + '<div><b>' + esc(P.dayText(S.cur, tw)) + '</b></div><div class="mu pn-d">Anpassen und Abhaken geht, sobald der Plan übernommen ist.</div></div>';
+  let h = '<div class="pn-dbody">';
+  if (any) h += '<div class="pn-row pn-tools">' + (isToday ? '<button type="button" class="chip' + (v.day.short ? ' on' : '') + '" data-a="short" data-k="' + k + '" aria-pressed="' + !!v.day.short + '">⏱ heute kurz</button>' : '') + '<button type="button" data-a="adj" data-k="' + k + '" aria-pressed="' + A + '">' + (A ? '✓ Fertig' : '✎ ' + dayWord(k, true) + ' anpassen') + '</button></div>';
+  if (any && isToday) h += sugBox(v);
+  if (!v.slots.length) return h + '<div class="mu">Kein Training geplant.</div></div>';
+  if (S.seeded) return h + '<div class="mu pn-d">Anpassen und Abhaken geht, sobald der Plan übernommen ist' + (compact() ? ' (im Training).' : '.') + '</div>' + v.slots.map(s => '<div class="pn-slot">' + s.alts.map(a => esc(a === '' ? 'nichts' : (P.unitById(p, a) || {}).name || '?')).join(' <span class="pn-or2">oder</span> ') + '</div>').join('') + '</div>';
   v.slots.forEach(s => {
     h += '<div class="pn-slot">';
-    if (s.alts.length > 1) h += '<div class="chips pn-pick" role="group" aria-label="Alternative wählen">' + s.alts.map(a => '<button type="button" class="chip' + (a === s.pick ? ' on' : '') + '" aria-pressed="' + (a === s.pick) + '" data-a="pick" data-k="' + esc(s.key) + '" data-u="' + esc(a) + '">' + esc(a === '' ? 'nichts' : (P.unitById(S.cur, a) || {}).name || '?') + '</button>').join('') + '</div>';
-    if (!s.unit) { h += '<div class="mu pn-none">' + (s.alts.length > 1 ? 'heute nichts' : '') + '</div></div>'; return }
-    const u = s.unit;
-    h += '<div class="pn-urow"><div><b' + (s.skip ? ' class="pn-strike"' : '') + '>' + esc(u.name) + '</b> <span class="mu pn-meta">' + esc([u.min ? u.min + ' min' : '', u.ex.length ? s.ex.filter(x => !x.skip && x.sets > 0).length + '/' + u.ex.length + ' Übungen' : ''].filter(Boolean).join(' · ')) + '</span>' +
-      (s.gym.length ? '<div class="pn-d">🔗 Gym-Eintrag: ' + esc(s.gym.map(g => (g.plan || 'Gym') + ' · ' + g.ex.reduce((n, e) => n + e.s.length, 0) + ' Sätze').join(', ')) + '</div>' : '') + '</div>' +
-      (s.skip ? '<button type="button" data-a="uskip" data-u="' + esc(u.id) + '">Doch machen</button>' : '<button type="button" class="pn-done' + (s.done ? ' on' : '') + '" data-a="udone" data-u="' + esc(u.id) + '" aria-pressed="' + s.done + '"' + (s.gym.length ? ' disabled title="aus dem Gym-Log"' : '') + '>' + (s.done ? '✓ erledigt' : 'erledigt?') + '</button>') + '</div>';
-    if (!s.skip && s.ex.length) h += '<ul class="pn-ex pn-tex">' + s.ex.map(x => {
-      const ch = x.sets !== x.e.sets;
-      return '<li class="' + (x.skip ? 'pn-off' : '') + '"><span class="pn-n">' + esc(x.e.n) + '</span><span class="pn-d">' + (x.skip ? 'heute weggelassen' : (ch ? '<s>' + x.e.sets + '</s> ' : '') + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') + (x.e.amt ? ' · ' + esc(x.e.amt) : '') + (x.gym != null ? ' · Gym: ' + x.gym : '')) + '</span>' +
-        (A ? '<span class="pn-tact">' + (x.skip ? '' : '<button type="button" data-a="tsets" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '" data-d="-1" aria-label="ein Satz weniger">−</button><button type="button" data-a="tsets" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '" data-d="1" aria-label="ein Satz mehr">+</button>') + '<button type="button" data-a="exskip" data-u="' + esc(u.id) + '" data-e="' + esc(x.e.id) + '">' + (x.skip ? 'doch machen' : 'weglassen') + '</button></span>' : (x.e.prio !== 'norm' ? '<span class="pn-p ' + x.e.prio + '">' + esc(prioName(x.e.prio)) + '</span>' : '')) + '</li>';
-    }).join('') + '</ul>';
-    if (!s.skip && window.TrainingGym && s.ex.some(x => x.e.gym)) h += '<div class="pn-row"><button type="button" data-a="gymgo" data-u="' + esc(u.id) + '">🏋️ ' + esc(u.name) + ' im Gym-Logbuch eintragen</button></div>';
-    if (A && !s.skip) h += '<div class="pn-row"><button type="button" data-a="uskip" data-u="' + esc(u.id) + '">' + esc(u.name) + ' heute weglassen</button></div>';
+    if (s.alts.length > 1) h += '<div class="chips pn-pick" role="group" aria-label="Alternative wählen">' + s.alts.map(a => '<button type="button" class="chip' + (a === s.pick ? ' on' : '') + '" aria-pressed="' + (a === s.pick) + '" data-a="pick" data-k="' + k + '" data-s="' + esc(s.key) + '" data-u="' + esc(a) + '">' + esc(a === '' ? 'nichts' : (P.unitById(p, a) || {}).name || '?') + '</button>').join('') + '</div>';
+    h += s.unit ? unitPanel(v, s, A, past) : '<div class="mu pn-none">' + (s.alts.length > 1 ? dayWord(k) + ' nichts' : '') + '</div>';
     h += '</div>';
   });
+  // Whoop-Einheiten des Tages einer Plan-Einheit zuordnen
+  const cand = v.slots.filter(s => s.unit && !s.skip && !s.whoop);
+  if (past && v.wkFree.length) h += '<div class="pn-wkbox"><div class="mu" style="font-size:12.5px">Whoop-Einheiten ' + dayWord(k) + ' – antippen, wozu sie gehören:</div>' + v.wkFree.map(w => '<div class="pn-wkrow"><span>⌚ ' + esc(wkText(w)) + '</span>' + (cand.length ? '<div class="chips">' + cand.map(s => '<button type="button" class="chip" data-a="wset" data-k="' + k + '" data-w="' + esc(w.id) + '" data-u="' + esc(s.unit.id) + '">→ ' + esc(s.unit.name) + '</button>').join('') + '</div>' : '<span class="mu" style="font-size:12.5px">keine offene Einheit</span>') + '</div>').join('') + '</div>';
   if (v.devs.length) {
-    h += '<div class="pn-dev"><b>Abweichung heute:</b> ' + esc(v.devs.map(d => d.text).join(' · ')) + '</div>';
-    h += '<div class="pn-row"><span class="mu" style="font-size:13px">Grund (optional):</span>' + P.REASONS.map(r => '<button type="button" class="chip' + (v.reason === r.id ? ' on' : '') + '" aria-pressed="' + (v.reason === r.id) + '" data-a="reason" data-r="' + r.id + '">' + r.name + '</button>').join('') + '</div>';
+    h += '<div class="pn-dev"><b>Abweichung ' + dayWord(k) + ':</b> ' + esc(v.devs.map(d => d.text).join(' · ')) + '</div>';
+    h += '<div class="pn-row"><span class="mu" style="font-size:13px">Grund (optional):</span>' + P.REASONS.map(r => '<button type="button" class="chip' + (v.reason === r.id ? ' on' : '') + '" aria-pressed="' + (v.reason === r.id) + '" data-a="reason" data-k="' + k + '" data-r="' + r.id + '">' + r.name + '</button>').join('') + '</div>';
   }
-  if (A && S.tday && (Object.keys(S.tday.units).length || Object.keys(S.tday.pick).length)) h += '<div class="pn-row"><button type="button" class="txt" data-a="treset">Heute zurück auf den Plan</button></div>';
-  return h + '<div class="mu pn-tmsg" id="pnTMsg" aria-live="polite">' + esc(S.tmsg) + '</div></div>';
+  const dd = S.days[k];
+  if (A && dd && (Object.keys(dd.units).length || Object.keys(dd.pick).length)) h += '<div class="pn-row"><button type="button" class="txt" data-a="treset" data-k="' + k + '">' + dayWord(k, true) + ' zurück auf den Plan</button></div>';
+  return h + '<div class="mu pn-tmsg" data-tmsg="' + k + '" aria-live="polite">' + esc(S.tmsg[k] || '') + '</div></div>';
 }
 function overview() {
-  const p = S.cur, k = todayKey(), tw = P.wdOf(k), sel = S.day == null ? -1 : S.day;
-  let h = '<div class="pn-top"><h2 style="margin:0">📋 Trainingsplan</h2><button type="button" data-a="edit">✎ Bearbeiten</button></div>';
-  if (S.seeded) h += '<div class="pn-info">Das ist dein Startplan aus deinen Angaben. Noch nicht gespeichert. Prüf ihn kurz und übernimm ihn, dann gilt er ab heute.<div class="btns"><button type="button" class="primary" data-a="adopt">Startplan übernehmen</button><button type="button" data-a="edit">Erst anpassen</button></div></div>';
-  h += todayBox(tw);
-  h += '<div class="pn-week" role="group" aria-label="Wochentage">' + P.WD.map((w, i) => '<button type="button" data-a="day" data-d="' + i + '" aria-pressed="' + (i === sel) + '"' + (i === tw ? ' class="today"' : '') + '><b>' + w + '</b><small>' + esc(shortDay(p, i)) + '</small></button>').join('') + '</div>';
-  if (S.day != null) h += '<div class="pn-dayh">' + P.WD_LONG[sel] + (sel === tw ? ' (heute, laut Vorlage)' : '') + ': ' + esc(P.dayText(p, sel)) + '</div>' + dayDetail(p, sel);
-  else h += '<div class="mu pn-foot">Tag antippen zeigt die Vorlage für diesen Tag.</div>';
-  if (!S.seeded && S.cur.from) h += '<div class="mu pn-foot">Plan gilt seit ' + fmtD(S.cur.from) + ' · ' + S.versions.length + ' ' + (S.versions.length === 1 ? 'Version' : 'Versionen') + '</div>';
+  const t = todayKey(), open = S.open === undefined ? defaultOpen() : S.open;
+  let h = '<div class="pn-top"><h2 style="margin:0">📋 Trainingsplan</h2>' + (compact() ? '<a class="pn-link" href="training.html?v=4">✎ Plan bearbeiten</a>' : '<button type="button" data-a="edit">✎ Bearbeiten</button>') + '</div>';
+  if (S.seeded) h += compact() ? '<div class="pn-info">Dein Startplan ist noch nicht übernommen. Im Training prüfen und übernehmen.</div>' : '<div class="pn-info">Das ist dein Startplan aus deinen Angaben. Noch nicht gespeichert. Prüf ihn kurz und übernimm ihn, dann gilt er ab heute.<div class="btns"><button type="button" class="primary" data-a="adopt">Startplan übernehmen</button><button type="button" data-a="edit">Erst anpassen</button></div></div>';
+  h += '<div class="pn-days">';
+  for (let i = 0; i < 7; i++) {
+    const k = P.addDays(t, i), v = viewAt(k), isOpen = open === k;
+    h += '<div class="pn-day' + (isOpen ? ' open' : '') + (i === 0 ? ' today' : '') + '" data-day="' + k + '"><button type="button" class="pn-dh" data-a="dopen" data-k="' + k + '" aria-expanded="' + isOpen + '"><span class="pn-dw"><b>' + (i === 0 ? 'Heute' : i === 1 ? 'Morgen' : P.WD[P.wdOf(k)]) + '</b><small>' + (i < 2 ? P.WD[P.wdOf(k)] + ' ' : '') + k.slice(8, 10) + '.' + k.slice(5, 7) + '.</small></span><span class="pn-sum">' + esc(daySum(v)) + '</span><span class="pn-chev" aria-hidden="true">' + (isOpen ? '▾' : '▸') + '</span></button>' + (isOpen ? dayPanel(k) : '') + '</div>';
+  }
+  h += '</div>';
+  if (!S.seeded && S.cur.from) h += '<div class="mu pn-foot">Plan gilt seit ' + fmtD(S.cur.from) + ' · ' + S.versions.length + ' ' + (S.versions.length === 1 ? 'Version' : 'Versionen') + ' · Einheit antippen zeigt die Übungen</div>';
   return h;
 }
 
@@ -176,7 +191,7 @@ function weekEditor(p) {
   }).join('');
 }
 function unitList(p) {
-  return '<div class="sub">Tippe eine Einheit an, um Übungen, Sätze und Prioritäten zu ändern.</div><div class="pn-ulist">' + p.units.map(u => {
+  return '<div class="sub">Tippe eine Einheit an, um Übungen, Sätze und Prioritäten zu ändern. Name und Art sind frei – leg an, was du machst.</div><div class="pn-row" style="margin-bottom:10px"><span class="mu" style="font-size:13px">Schnell anlegen:</span>' + P.TEMPLATES.map((t, i) => '<button type="button" class="chip" data-a="utpl" data-i="' + i + '">+ ' + esc(t.name) + '</button>').join('') + '</div><div class="pn-ulist">' + p.units.map(u => {
     const est = P.estMin(u);
     return '<button type="button" data-a="uopen" data-u="' + esc(u.id) + '"><b>' + esc(u.name) + '</b><small>' + esc([kindName(u.kind), u.ex.length + ' Übungen', u.ex.length && est ? '≈ ' + est + ' min' : (u.min ? u.min + ' min' : '')].filter(Boolean).join(' · ')) + '</small></button>';
   }).join('') + '</div><div class="btns"><button type="button" data-a="unew">+ Neue Einheit</button></div>';
@@ -242,44 +257,51 @@ function draw() {
   const host = $('planCard'); if (!host) return;
   if (!S.loaded) { host.innerHTML = '<h2>📋 Trainingsplan</h2><div class="mu">Lade Plan …</div>'; return }
   const y = window.scrollY;
-  host.innerHTML = (S.edit ? editor() : overview()) + '<div class="msg' + (S.err ? ' err' : '') + '" id="pnMsg" aria-live="polite">' + esc(S.msg) + '</div>';
+  host.innerHTML = (S.edit && !compact() ? editor() : overview()) + '<div class="msg' + (S.err ? ' err' : '') + '" id="pnMsg" aria-live="polite">' + esc(S.msg) + '</div>';
   if (Math.abs(window.scrollY - y) > 2) window.scrollTo(0, y);
 }
 function markDirty() { S.dirty = true; const d = $('pnDirty'); if (d) d.textContent = 'Ungespeicherte Änderungen'; const b = document.querySelector('#planCard [data-a=save]'); if (b) b.disabled = false; const c = document.querySelector('#planCard [data-a=cancel]'); if (c) c.textContent = 'Verwerfen' }
 function updEst() { const u = S.unit && P.unitById(S.draft, S.unit), el = $('pnEst'); if (!u || !el) return; const v = P.cleanUnit(u), est = P.estMin(v); el.textContent = v.ex.length ? '≈ ' + est + ' min laut Übungen' + (est > S.set.budget ? ' · über deinem Zeitbudget von ' + S.set.budget + ' min' : '') : '' }
 
 /* ---------- Bedienung ---------- */
+const DAY_ACTS = ['pick', 'udone', 'uskip', 'exskip', 'tsets', 'reason', 'treset', 'urpe', 'wset', 'wdel', 'short', 'sugok', 'sugno', 'sugundo'];
+function dayAct(a, b) {
+  const k = b.dataset.k || todayKey(), uid = b.dataset.u, d = +b.dataset.d;
+  if (S.seeded) return;
+  let t = S.days[k] = P.cleanDay(S.days[k] || {});
+  const ue = () => (t.units[uid] = t.units[uid] || {}), ee = () => { const x = ue(); x.ex = x.ex || {}; return (x.ex[b.dataset.e] = x.ex[b.dataset.e] || {}) };
+  if (a === 'pick') t.pick[b.dataset.s] = uid;
+  else if (a === 'udone') { ue().done = !ue().done; if (ue().done) S.ux.add(k + '|' + uid) }
+  else if (a === 'uskip') { ue().skip = !ue().skip; if (ue().skip) { ue().done = false; delete ue().whoop } }
+  else if (a === 'exskip') { const x = ee(); x.skip = !x.skip }
+  else if (a === 'tsets') { const ex = (P.unitById(planAt(k), uid) || { ex: [] }).ex.find(e => e.id === b.dataset.e); if (!ex) return; const x = ee(), cur = x.sets == null ? ex.sets : x.sets; x.sets = Math.max(0, Math.min(20, cur + d)); if (x.sets === ex.sets) delete x.sets }
+  else if (a === 'reason') t.reason = t.reason === b.dataset.r ? '' : b.dataset.r;
+  else if (a === 'urpe') { const n = +b.dataset.v; ue().rpe = ue().rpe === n ? null : n }
+  else if (a === 'wset') { Object.keys(t.units).forEach(x => { if (t.units[x].whoop === b.dataset.w) delete t.units[x].whoop }); ue().whoop = b.dataset.w; ue().done = true }
+  else if (a === 'wdel') { delete ue().whoop }
+  else if (a === 'treset') { if (!confirm('Alle Anpassungen für ' + dayWord(k) + ' verwerfen? Erledigt-Haken, Anstrengung, Notizen und Whoop-Zuordnung bleiben.')) return; Object.keys(t.units).forEach(x => { const o = t.units[x], n = {}; ['done', 'rpe', 'note', 'whoop'].forEach(f => { if (o[f]) n[f] = o[f] }); t.units[x] = n }); t.pick = {}; t.reason = ''; t.short = false }
+  else if (a === 'short') t.short = !t.short;
+  else if (a === 'sugundo') { if (!confirm('Entscheidung zurücknehmen? Schon übernommene Änderungen bleiben – die kannst du unter „Anpassen“ ändern.')) return; delete t.sug[b.dataset.r] }
+  else if (a === 'sugok' || a === 'sugno') {
+    const x = P.suggest({ plan: planAt(k), view: viewAt(k), days: S.whoop, set: S.set, hist: S.hist }).open.find(y => y.id === b.dataset.r); if (!x) return;
+    if (a === 'sugok') t = P.applyOps(t, x.ops);
+    t.sug[x.id] = { d: a === 'sugok' ? 'ok' : 'no', at: Date.now(), title: x.title, why: x.why, ops: x.ops.map(o => o.text) };
+  }
+  S.days[k] = P.cleanDay(t); saveDay(k); draw();
+}
 function act(a, b) {
+  if (DAY_ACTS.includes(a)) return dayAct(a, b);
   const p = S.draft, d = +b.dataset.d, si = +b.dataset.s, i = +b.dataset.i, u = S.unit && p && P.unitById(p, S.unit);
   switch (a) {
-    case 'day': S.day = S.day === d ? null : d; break;
-    case 'adj': S.adj = !S.adj; break;
+    case 'dopen': { const cur = S.open === undefined ? defaultOpen() : S.open; S.open = cur === b.dataset.k ? null : b.dataset.k; if (S.adj && S.adj !== S.open) S.adj = null; break }
+    case 'uex': { const key = b.dataset.k + '|' + b.dataset.u; if (S.ux.has(key)) S.ux.delete(key); else S.ux.add(key); break }
+    case 'adj': S.adj = S.adj === b.dataset.k ? null : b.dataset.k; break;
     case 'gymgo': {   // Gym-Logbuch mit den heutigen Übungen öffnen (Sätze = heute geplant, weggelassen = ausgelassen)
       const sl = view().slots.find(x => x.unit && x.unit.id === b.dataset.u); if (!sl || !window.TrainingGym) return;
       window.TrainingGym.start({ plan: sl.unit.name, date: todayKey(), ex: sl.ex.filter(x => x.e.gym).map(x => ({ n: x.e.n, sets: x.sets, skip: x.skip || !x.sets })) });
       const g = $('m-gym') || $('gymBox'); if (g) g.scrollIntoView({ block: 'start' }); return }
-    case 'short': case 'sugok': case 'sugno': case 'sugundo': {
-      let t = S.tday = P.cleanDay(S.tday || {}), id = b.dataset.r;
-      if (a === 'short') t.short = !t.short;
-      else if (a === 'sugundo') { if (!confirm('Entscheidung zurücknehmen? Schon übernommene Änderungen bleiben – die kannst du unter „Heute anpassen“ ändern.')) return; delete t.sug[id] }
-      else {
-        const x = P.suggest({ plan: S.cur, view: view(), days: S.whoop, set: S.set, hist: S.hist }).open.find(y => y.id === id); if (!x) return;
-        if (a === 'sugok') t = P.applyOps(t, x.ops);
-        t.sug[id] = { d: a === 'sugok' ? 'ok' : 'no', at: Date.now(), title: x.title, why: x.why, ops: x.ops.map(o => o.text) };
-      }
-      S.tday = P.cleanDay(t); saveDay(); break }
     case 'rtog': { const R = S.set.rules[b.dataset.r]; R[b.dataset.k] = !R[b.dataset.k]; break }
-    case 'pick': case 'udone': case 'uskip': case 'exskip': case 'tsets': case 'reason': case 'treset': {
-      const t = S.tday = S.tday || P.cleanDay({}), uid = b.dataset.u, ue = () => (t.units[uid] = t.units[uid] || {}), ee = () => { const x = ue(); x.ex = x.ex || {}; return (x.ex[b.dataset.e] = x.ex[b.dataset.e] || {}) };
-      if (a === 'pick') t.pick[b.dataset.k] = uid;
-      else if (a === 'udone') ue().done = !ue().done;
-      else if (a === 'uskip') { ue().skip = !ue().skip; if (ue().skip) ue().done = false }
-      else if (a === 'exskip') { const x = ee(); x.skip = !x.skip }
-      else if (a === 'tsets') { const ex = (P.unitById(S.cur, uid) || { ex: [] }).ex.find(e => e.id === b.dataset.e); if (!ex) return; const x = ee(), cur = x.sets == null ? ex.sets : x.sets; x.sets = Math.max(0, Math.min(20, cur + d)); if (x.sets === ex.sets) delete x.sets }
-      else if (a === 'reason') t.reason = t.reason === b.dataset.r ? '' : b.dataset.r;
-      else if (a === 'treset') { if (!confirm('Alle Anpassungen von heute verwerfen? Erledigt-Haken bleiben.')) return; Object.keys(t.units).forEach(k => { t.units[k] = t.units[k].done ? { done: true } : {} }); t.pick = {}; t.reason = ''; t.short = false }
-      S.tday = P.cleanDay(t); saveDay(); break }
-    case 'edit': S.edit = true; S.draft = P.copy(S.cur); S.dirty = false; S.tab = 'week'; S.unit = null; say(''); break;
+    case 'edit': if (compact()) return; S.edit = true; S.draft = P.copy(S.cur); S.dirty = false; S.tab = 'week'; S.unit = null; say(''); break;
     case 'adopt': savePlan(); return;
     case 'save': savePlan(); return;
     case 'cancel': if (S.dirty && !confirm('Änderungen verwerfen?')) return; S.edit = false; S.draft = null; S.dirty = false; S.unit = null; say(''); break;
@@ -290,6 +312,7 @@ function act(a, b) {
     case 'uopen': S.unit = b.dataset.u; break;
     case 'uback': S.unit = null; break;
     case 'unew': { const id = P.uid('u'); p.units.push({ id, name: 'Neue Einheit', kind: 'kraft', hard: false, legs: false, min: null, ex: [] }); S.unit = id; S.dirty = true; break }
+    case 'utpl': { const tp = P.TEMPLATES[i]; if (!tp) return; const id = P.uid('u'); p.units.push({ id, name: tp.name, kind: tp.kind, hard: !!tp.hard, legs: !!tp.legs, min: tp.min || null, ex: [] }); S.unit = id; S.dirty = true; break }
     case 'udel': if (!u || !confirm('Einheit „' + u.name + '“ löschen? Sie verschwindet auch aus der Woche (ab der nächsten Version).')) return; p.units = p.units.filter(x => x.id !== u.id); p.week.forEach(w => { w.slots.forEach(s => { s.alts = s.alts.filter(x => x !== u.id) }); w.slots = w.slots.filter(s => s.alts.length && !(s.alts.length === 1 && s.alts[0] === '')) }); S.unit = null; S.dirty = true; break;
     case 'utog': u[b.dataset.k] = !u[b.dataset.k]; S.dirty = true; break;
     case 'exadd': u.ex.push({ id: P.uid('e'), n: '', sets: 2, amt: '', rest: 60, note: '', prio: 'norm', gym: true }); S.dirty = true; draw(); { const f = document.querySelector('#planCard [data-ef=n][data-i="' + (u.ex.length - 1) + '"]'); if (f) { f.focus(); f.scrollIntoView({ block: 'center' }) } } return;
@@ -315,7 +338,11 @@ function bind() {
     else if (a === 'slotadd') { p.week[d].slots.push({ alts: [t.value] }); S.dirty = true; draw() }
   });
   host.addEventListener('input', e => {
-    const t = e.target, p = S.draft; if (!p && !t.dataset.sf) return;
+    const t = e.target;
+    if (t.dataset.un) {   // Notiz zu einer erledigten Einheit
+      const k = t.dataset.k, d = P.cleanDay(S.days[k] || {}); (d.units[t.dataset.un] = d.units[t.dataset.un] || {}).note = t.value; S.days[k] = d; saveDay(k); return;
+    }
+    const p = S.draft; if (!p && !t.dataset.sf && !t.dataset.rf) return;
     const u = S.unit && p && P.unitById(p, S.unit);
     if (t.dataset.uf && u) { const f = t.dataset.uf; u[f] = f === 'min' ? (t.value === '' ? null : Math.max(0, Math.min(600, Math.round(+t.value) || 0))) : t.value; markDirty(); updEst() }
     else if (t.dataset.ef && u) { const ex = u.ex[+t.dataset.i], f = t.dataset.ef; if (!ex) return; ex[f] = f === 'rest' ? (t.value === '' ? null : Math.max(0, Math.min(900, Math.round(+t.value) || 0))) : t.value; markDirty(); updEst() }
@@ -325,7 +352,11 @@ function bind() {
   host.addEventListener('change', e => { const t = e.target; if (t.dataset.rf) S.set.rules = P.cleanRules(S.set.rules); if (t.dataset.sf) S.set = P.cleanSettings(Object.assign({}, S.set, { [t.dataset.sf]: t.value === '' ? null : +t.value })) });
   window.addEventListener('beforeunload', e => { if (S.edit && S.dirty) { e.preventDefault(); e.returnValue = '' } });
 }
-window.LBPlan = { state: S };
+/* Von außen (Abend-Check-in): einen Tag öffnen und hinscrollen */
+function openDay(k) { S.open = k || P.addDays(todayKey(), 1); draw(); const el = document.querySelector('#planCard [data-day="' + S.open + '"]') || $('planCard'); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }) }
+/* Check-in reicht seine Whoop-Daten weiter, sobald es sie nach dem Morgen-Check geladen hat (keine eigene Abfrage) */
+function setWhoop(days) { S.whoop = days || {}; S.whoopOk = !!(days && Object.keys(days).length); S.whoopWait = false; if (S.loaded) draw() }
+window.LBPlan = { state: S, openDay, setWhoop };
 const go = () => { bind(); draw(); load(); watchGym() };
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();

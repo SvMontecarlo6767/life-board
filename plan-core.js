@@ -17,7 +17,7 @@ const PRIO = [
 ];
 const KINDS = [
   { id: 'kraft', name: 'Kraft' }, { id: 'iso', name: 'Isometrie' }, { id: 'z2', name: 'Zone 2' }, { id: 'lauf', name: 'Lauf' },
-  { id: 'sport', name: 'Mannschaftssport' }, { id: 'mobil', name: 'Haltung / Mobility' }, { id: 'sonst', name: 'Sonstiges' }
+  { id: 'sport', name: 'Mannschaftssport' }, { id: 'mobil', name: 'Haltung / Mobility' }, { id: 'prae', name: 'Verletzungsprävention' }, { id: 'sonst', name: 'Sonstiges' }
 ];
 const PRIO_IDS = PRIO.map(p => p.id), KIND_IDS = KINDS.map(k => k.id);
 const LIM = { units: 40, ex: 30, slots: 4, alts: 4 };
@@ -167,6 +167,28 @@ function diff(a, b) {
    { pick:{Blockschlüssel: unitId|''}, units:{unitId:{skip, done, ex:{exId:{skip, sets}}}}, reason, gym:[Gym-IDs] }
    Beim Speichern kommen geplant (Schnappschuss), gemacht, ausgelassen und die Abweichungstexte dazu – für Muster und MCP. */
 const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f'];
+/* Vorlagen zum schnellen Anlegen (Name und Art frei änderbar) */
+const TEMPLATES = [
+  { name: 'Spinning', kind: 'z2', min: 45 }, { name: 'Long Run', kind: 'lauf', hard: true, legs: true, min: 75 },
+  { name: 'Intervalle', kind: 'lauf', hard: true, legs: true, min: 45 }, { name: 'Tempolauf', kind: 'lauf', hard: true, legs: true, min: 40 },
+  { name: 'Verletzungsprävention', kind: 'prae', min: 20 }, { name: 'Haltungstraining', kind: 'mobil', min: 15 },
+  { name: 'Fußballtraining', kind: 'sport', hard: true, legs: true, min: 90 }
+];
+/* Kalendertag in Berlin (wie im Training: Tageswechsel um Mitternacht) */
+let _bf = null;
+let _bh = null;
+function berlinHour(ms) { if (!_bh) _bh = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', hour: '2-digit', hourCycle: 'h23' }); return +_bh.format(new Date(ms)) }
+function berlinKey(ms) { if (!_bf) _bf = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Berlin', year: 'numeric', month: '2-digit', day: '2-digit' }); return _bf.format(new Date(ms)) }
+/* Whoop-Workouts, die an diesem Tag (Berlin) begonnen haben – aus den Whoop-Tagen des Board-Speichers */
+function whoopWorkouts(days, key) {
+  const out = [], seen = new Set();
+  [addDays(key, -1), key, addDays(key, 1)].forEach(k => ((days && days[k] && days[k].workouts) || []).forEach(w => {
+    const t = Date.parse(w && w.start); if (!w || isNaN(t) || berlinKey(t) !== key) return; const id = String(w.id || t); if (seen.has(id)) return; seen.add(id);
+    const e = Date.parse(w.end), sc = w.score || {};
+    out.push({ id, sport: String(w.sport || 'Workout'), t, min: isNaN(e) ? null : Math.round((e - t) / 60000), strain: num(sc.strain), hr: num(sc.average_heart_rate) });
+  }));
+  return out.sort((a, b) => a.t - b.t);
+}
 const REASONS = [{ id: 'zeit', name: 'Zeit' }, { id: 'recovery', name: 'Recovery' }, { id: 'schmerz', name: 'Schmerz' }, { id: 'lust', name: 'Lust' }, { id: 'sonst', name: 'Sonstiges' }];
 const nkey = s => String(s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
 const slotKey = s => s.alts.join('|');
@@ -177,6 +199,7 @@ function cleanDay(d) {
     const x = d.units[u] || {}, ex = {};
     if (x.ex && typeof x.ex === 'object') Object.keys(x.ex).slice(0, 40).forEach(e => { const y = x.ex[e] || {}, z = {}; if (y.skip) z.skip = true; const s = int(y.sets, 0, 20); if (s != null) z.sets = s; if (Object.keys(z).length) ex[txt(e, 24)] = z });
     const v = {}; if (x.skip) v.skip = true; if (x.done) v.done = true; const mn = int(x.min, 0, 600); if (mn != null) v.min = mn; if (Object.keys(ex).length) v.ex = ex;
+    const rp = int(x.rpe, 1, 10); if (rp != null) v.rpe = rp; const nt = txt(x.note, 160); if (nt) v.note = nt; const wh = txt(x.whoop, 40); if (wh) v.whoop = wh;
     if (Object.keys(v).length) o.units[txt(u, 24)] = v;
   });
   if (REASONS.some(r => r.id === d.reason)) o.reason = d.reason;
@@ -185,7 +208,7 @@ function cleanDay(d) {
   return o;
 }
 /* gym: Gym-Einheiten (aus training/gym_JJJJ, nur gelesen) – Felder {id, date, plan, ex:[{n, s:[{w,r}]}], skip:[Namen]} */
-function todayView(plan, key, day, gym) {
+function todayView(plan, key, day, gym, wk) {
   day = cleanDay(day); const wd = wdOf(key), slots = [], devs = [];
   const gToday = (gym || []).filter(s => s && s.date === key);
   (plan.week[wd] || { slots: [] }).slots.forEach(s => {
@@ -199,17 +222,19 @@ function todayView(plan, key, day, gym) {
       const v = uex[e.id] || {}, sets = v.sets == null ? e.sets : v.sets, gk = nkey(e.n);
       return { e, skip: !!v.skip, sets, gym: g.length ? (gEx.has(gk) ? gEx.get(gk) : gSkip.has(gk) ? 0 : null) : null };
     });
-    const skip = !!o.skip, done = !skip && (!!o.done || g.length > 0);
+    const wo = o.whoop ? (wk || []).find(w => w.id === o.whoop) || { id: o.whoop, sport: 'Whoop', min: null, strain: null } : null;
+    const skip = !!o.skip, done = !skip && (!!o.done || g.length > 0 || !!wo);
     if (skip) devs.push({ t: 'unit', u: unit.id, text: unit.name + ' heute weggelassen' });
     else ex.forEach(x => {
       if (x.skip) devs.push({ t: 'ex', u: unit.id, ex: x.e.id, text: x.e.n + ' weggelassen' });
       else if (x.sets !== x.e.sets) devs.push({ t: 'sets', u: unit.id, ex: x.e.id, from: x.e.sets, to: x.sets, text: x.e.n + ' ' + x.e.sets + ' → ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
       if (!x.skip && x.gym != null && x.gym < x.sets) devs.push({ t: 'gym', u: unit.id, ex: x.e.id, from: x.sets, to: x.gym, text: 'laut Gym-Log: ' + x.e.n + ' ' + x.gym + ' statt ' + x.sets + ' ' + (x.sets === 1 ? 'Satz' : 'Sätze') });
     });
-    slots.push({ key: k, alts: s.alts, pick, unit, skip, done, ex, gym: g, min: o.min == null ? null : o.min });
+    slots.push({ key: k, alts: s.alts, pick, unit, skip, done, ex, gym: g, min: o.min == null ? null : o.min, rpe: o.rpe || null, note: o.note || '', whoop: wo });
     if (!skip && o.min != null && o.min !== unit.min) devs.push({ t: 'min', u: unit.id, from: unit.min, to: o.min, text: unit.name + ' ' + (unit.min || '?') + ' → ' + o.min + ' min' });
   });
-  return { key, wd, slots, devs, gym: gToday, reason: day.reason, day };
+  const used = new Set(slots.filter(s => s.whoop).map(s => s.whoop.id));
+  return { key, wd, slots, devs, gym: gToday, reason: day.reason, day, wk: wk || [], wkFree: (wk || []).filter(w => !used.has(w.id)) };
 }
 /* Was gespeichert wird: Abweichungen + Schnappschuss geplant/gemacht */
 function dayDoc(view, ver) {
@@ -218,7 +243,7 @@ function dayDoc(view, ver) {
   return Object.assign({}, d, {
     date: view.key, ver: ver || null, at: Date.now(), gym: [...new Set(d.gym.concat(view.gym.map(g => g.id)))].slice(0, 10),
     planned: units.map(s => ({ u: s.unit.id, name: s.unit.name, kind: s.unit.kind, hard: s.unit.hard, legs: s.unit.legs, min: s.unit.min, ex: s.unit.ex.map(e => ({ n: e.n, sets: e.sets, prio: e.prio })) })),
-    done: units.filter(s => s.done).map(s => ({ u: s.unit.id, name: s.unit.name, ex: exDone(s), gym: s.gym.map(g => g.id) })),
+    done: units.filter(s => s.done).map(s => Object.assign({ u: s.unit.id, name: s.unit.name, ex: exDone(s), gym: s.gym.map(g => g.id) }, s.rpe ? { rpe: s.rpe } : {}, s.note ? { note: s.note } : {}, s.whoop ? { whoop: { id: s.whoop.id, sport: s.whoop.sport, min: s.whoop.min, strain: s.whoop.strain } } : {})),
     skipped: units.filter(s => s.skip).map(s => s.unit.id),
     dev: view.devs.map(x => x.text).slice(0, 40)
   });
@@ -363,6 +388,6 @@ function applyOps(day, ops) {
   return cleanDay(d);
 }
 
-const api = { WD, WD_LONG, PRIO, KINDS, LIM, REASONS, RULES, RULE_DEF, cleanRules, facts, bedMin, clockOf, zone, slotMin, dayMin, trimOps, shortOps, suggest, applyOps, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff, nkey, slotKey, cleanDay, todayView, dayDoc };
+const api = { TEMPLATES, berlinKey, berlinHour, whoopWorkouts, WD, WD_LONG, PRIO, KINDS, LIM, REASONS, RULES, RULE_DEF, cleanRules, facts, bedMin, clockOf, zone, slotMin, dayMin, trimOps, shortOps, suggest, applyOps, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff, nkey, slotKey, cleanDay, todayView, dayDoc };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PlanCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);
