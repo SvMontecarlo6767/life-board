@@ -97,6 +97,29 @@ function say(t, err) { S.msg = t || ''; S.err = !!err; const m = $('pnMsg'); if 
 
 /* ---------- Anzeige ---------- */
 const r1 = v => String(Math.round(v * 10) / 10).replace('.', ',');
+/* Aussehen je Art: Farbe als „R G B“ und Symbol */
+const KSTY = { kraft: ['255 154 92', '🏋️'], iso: ['127 227 255', '🧱'], z2: ['79 209 197', '🚴'], lauf: ['94 230 168', '🏃'], sport: ['232 220 80', '⚽'], mobil: ['111 168 255', '🧘'], prae: ['181 140 255', '🛡️'], sonst: ['143 166 189', '✨'] };
+const kst = kind => KSTY[kind] || KSTY.sonst;
+const ZONE_RGB = { 'grün': '31 191 133', gelb: '255 196 60', rot: '255 90 80' };
+/* Ø Whoop-Strain je Einheit aus früheren Zuordnungen (ab 2 Mal) */
+function unitStrain(id) { const v = []; Object.keys(S.hist).forEach(k => ((S.hist[k] || {}).done || []).forEach(x => { if (x.u === id && x.whoop && typeof x.whoop.strain === 'number') v.push(x.whoop.strain) })); return v.length >= 2 ? { avg: v.reduce((a, b) => a + b, 0) / v.length, n: v.length } : null }
+const strainOn = k => { const c = (S.whoop[k] || {}).cycle; return c && c.score && typeof c.score.strain === 'number' ? c.score.strain : null };
+/* Wochenfortschritt Mo–So: geplant (ohne weggelassene) und erledigt, je Tag ein Zustand */
+function weekStats() {
+  const t = todayKey(), mon = P.addDays(t, -P.wdOf(t)), days = []; let plan = 0, done = 0;
+  for (let i = 0; i < 7; i++) {
+    const k = P.addDays(mon, i), v = viewAt(k), live = v.slots.filter(x => x.unit && !x.skip), hd = new Set(((S.hist[k] || {}).done || []).map(x => x.u));
+    const n = live.length, d = live.filter(x => x.done || hd.has(x.unit.id)).length; plan += n; done += d;
+    days.push({ k, n, d, st: !n ? 'rest' : d >= n ? 'done' : d ? 'part' : k < t ? 'miss' : 'plan' });
+  }
+  return { plan, done, days };
+}
+function weekBar() {
+  if (S.seeded) return '';
+  const w = weekStats(), C = 2 * Math.PI * 20, f = w.plan ? Math.min(1, w.done / w.plan) : 0, tip = { done: 'erledigt', part: 'teilweise', miss: 'verpasst', plan: 'geplant', rest: 'Pause' };
+  return '<div class="pn-wkprog"><svg viewBox="0 0 50 50" width="54" height="54" aria-hidden="true"><circle cx="25" cy="25" r="20" class="pn-ring0"/><circle cx="25" cy="25" r="20" class="pn-ring1" stroke-dasharray="' + (C * f).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 25 25)"/><text x="25" y="29" text-anchor="middle">' + w.done + '/' + w.plan + '</text></svg>' +
+    '<div class="pn-wkt"><b>' + w.done + ' von ' + w.plan + ' ' + (w.plan === 1 ? 'Einheit' : 'Einheiten') + '</b><small>diese Woche (Mo–So)</small><div class="pn-dots">' + w.days.map(d => '<span class="pn-dot ' + d.st + (d.k === todayKey() ? ' now' : '') + '" title="' + P.WD[P.wdOf(d.k)] + ': ' + tip[d.st] + '"><i></i><small>' + P.WD[P.wdOf(d.k)].charAt(0) + '</small></span>').join('') + '</div></div></div>';
+}
 const wkText = w => [w.sport, w.min ? w.min + ' min' : '', w.strain != null ? 'Strain ' + r1(w.strain) : ''].filter(Boolean).join(' · ');
 function sugBox(v) {
   const r = P.suggest({ plan: planAt(v.key), view: v, days: S.whoop, set: S.set, hist: S.hist }), F = r.facts;
@@ -115,16 +138,16 @@ function daySum(v) {
   if (!v.slots.length) return 'Pause';
   return v.slots.map(s => {
     const chosen = s.alts.length < 2 || (v.day.pick && v.day.pick[s.key] !== undefined);
-    if (!chosen) return s.alts.map(a => a === '' ? 'nichts' : (P.unitById(planAt(v.key), a) || {}).name || '?').join(' / ');
+    if (!chosen) return s.alts.map(a => { const u = a === '' ? null : P.unitById(planAt(v.key), a); return u ? kst(u.kind)[1] + ' ' + esc(u.name) : 'nichts' }).join(' / ');
     if (!s.unit) return 'Pause';
-    return (s.skip ? '✕ ' : s.done ? '✓ ' : '') + s.unit.name;
+    return '<span class="' + (s.skip ? 'pn-s-skip' : s.done ? 'pn-s-done' : '') + '">' + (s.skip ? '✕ ' : s.done ? '✓ ' : '') + kst(s.unit.kind)[1] + ' ' + esc(s.unit.name) + '</span>';
   }).join(' + ');
 }
 function unitPanel(v, s, A, past) {
   const u = s.unit, k = v.key, id = esc(u.id), open = A || S.ux.has(k + '|' + u.id), word = dayWord(k);
   const nEx = s.ex.filter(x => !x.skip && x.sets > 0).length;
-  let h = '<div class="pn-urow"><button type="button" class="pn-uname" data-a="uex" data-k="' + k + '" data-u="' + id + '" aria-expanded="' + open + '"><b' + (s.skip ? ' class="pn-strike"' : '') + '>' + esc(u.name) + '</b>' + (s.extra ? '<span class="pn-xtra">zusätzlich</span>' : '') + '<span class="mu pn-meta">' + esc([u.ex.length ? nEx + '/' + u.ex.length + ' Übungen' : '', s.min != null ? s.min + ' min' : u.min ? u.min + ' min' : ''].filter(Boolean).join(' · ')) + (u.ex.length ? (open ? ' ▾' : ' ▸') : '') + '</span></button>' +
-    (s.skip ? '<button type="button" data-a="uskip" data-k="' + k + '" data-u="' + id + '">Doch machen</button>' : past ? '<button type="button" class="pn-done' + (s.done ? ' on' : '') + '" data-a="udone" data-k="' + k + '" data-u="' + id + '" aria-pressed="' + s.done + '"' + (s.gym.length || s.whoop ? ' disabled title="aus Gym-Log bzw. Whoop"' : '') + '>' + (s.done ? '✓ erledigt' : 'erledigt?') + '</button>' : '') + '</div>';
+  let h = '<div class="pn-urow"><button type="button" class="pn-uname" data-a="uex" data-k="' + k + '" data-u="' + id + '" aria-expanded="' + open + '"><b' + (s.skip ? ' class="pn-strike"' : '') + '><span class="pn-ico" aria-hidden="true">' + kst(u.kind)[1] + '</span> ' + esc(u.name) + '</b>' + (s.extra ? '<span class="pn-xtra">zusätzlich</span>' : '') + '<span class="mu pn-meta">' + esc([u.ex.length ? nEx + '/' + u.ex.length + ' Übungen' : '', s.min != null ? s.min + ' min' : u.min ? u.min + ' min' : '', (us => us ? 'Ø Strain ' + r1(us.avg) + ' (' + us.n + '×)' : '')(unitStrain(u.id))].filter(Boolean).join(' · ')) + (u.ex.length ? (open ? ' ▾' : ' ▸') : '') + '</span></button>' +
+    (s.skip ? '<button type="button" data-a="uskip" data-k="' + k + '" data-u="' + id + '">Doch machen</button>' : past ? '<button type="button" class="pn-done' + (s.done ? ' on' : '') + (S.pop === k + '|' + u.id && s.done ? ' pn-pop' : '') + '" data-a="udone" data-k="' + k + '" data-u="' + id + '" aria-pressed="' + s.done + '"' + (s.gym.length || s.whoop ? ' disabled title="aus Gym-Log bzw. Whoop"' : '') + '>' + (s.done ? '✓ erledigt' : 'erledigt?') + '</button>' : '') + '</div>';
   if (u.kind === 'z2' && (S.set.z2lo || S.set.z2hi)) h += '<div class="pn-d">Puls ' + (S.set.z2lo || '?') + '–' + (S.set.z2hi || '?') + ' bpm</div>';
   if (s.gym.length) h += '<div class="pn-d">🔗 Gym-Eintrag: ' + esc(s.gym.map(g => (g.plan || 'Gym') + ' · ' + g.ex.reduce((n, e) => n + e.s.length, 0) + ' Sätze').join(', ')) + '</div>';
   if (s.whoop) h += '<div class="pn-row pn-wk"><span class="pn-d">⌚ Whoop: ' + esc(wkText(s.whoop)) + '</span><button type="button" class="txt" data-a="wdel" data-k="' + k + '" data-u="' + id + '">Zuordnung lösen</button></div>';
@@ -150,7 +173,7 @@ function dayPanel(k) {
   if (!v.slots.length) h += '<div class="mu">Kein Training geplant.</div>';
   if (S.seeded) return h + '<div class="mu pn-d">Anpassen und Abhaken geht, sobald der Plan übernommen ist' + (compact() ? ' (im Training).' : '.') + '</div>' + v.slots.map(s => '<div class="pn-slot">' + s.alts.map(a => esc(a === '' ? 'nichts' : (P.unitById(p, a) || {}).name || '?')).join(' <span class="pn-or2">oder</span> ') + '</div>').join('') + '</div>';
   v.slots.forEach(s => {
-    h += '<div class="pn-slot">';
+    h += '<div class="pn-slot"' + (s.unit ? ' style="--k:' + kst(s.unit.kind)[0] + '"' : '') + '>';
     if (s.alts.length > 1) h += '<div class="chips pn-pick" role="group" aria-label="Alternative wählen">' + s.alts.map(a => '<button type="button" class="chip' + (a === s.pick ? ' on' : '') + '" aria-pressed="' + (a === s.pick) + '" data-a="pick" data-k="' + k + '" data-s="' + esc(s.key) + '" data-u="' + esc(a) + '">' + esc(a === '' ? 'nichts' : (P.unitById(p, a) || {}).name || '?') + '</button>').join('') + '</div>';
     h += s.unit ? unitPanel(v, s, A, past) : '<div class="mu pn-none">' + (s.alts.length > 1 ? dayWord(k) + ' nichts' : '') + '</div>';
     h += '</div>';
@@ -174,10 +197,17 @@ function overview() {
   const t = todayKey(), open = S.open === undefined ? defaultOpen() : S.open;
   let h = '<div class="pn-top"><h2 style="margin:0">📋 Trainingsplan</h2>' + (compact() ? '<a class="pn-link" href="training.html?v=5">✎ Plan bearbeiten</a>' : '<button type="button" data-a="edit">✎ Bearbeiten</button>') + '</div>';
   if (S.seeded) h += compact() ? '<div class="pn-info">Dein Startplan ist noch nicht übernommen. Im Training prüfen und übernehmen.</div>' : '<div class="pn-info">Das ist dein Startplan aus deinen Angaben. Noch nicht gespeichert. Prüf ihn kurz und übernimm ihn, dann gilt er ab heute.<div class="btns"><button type="button" class="primary" data-a="adopt">Startplan übernehmen</button><button type="button" data-a="edit">Erst anpassen</button></div></div>';
+  h += weekBar();
+  const F = S.whoopWait ? null : P.facts(S.whoop, t), zn = F && F.rec != null ? P.zone(F.rec, S.set.rules.a) : null;
+  const vs = [], mins = []; for (let i = 0; i < 7; i++) { const v = viewAt(P.addDays(t, i)); vs.push(v); mins.push(v.slots.reduce((n, x) => n + (x.unit && !x.skip ? (x.min != null ? x.min : x.unit.min || P.slotMin(x)) : 0), 0)) }
+  const maxMin = Math.max(60, ...mins);
   h += '<div class="pn-days">';
   for (let i = 0; i < 7; i++) {
-    const k = P.addDays(t, i), v = viewAt(k), isOpen = open === k;
-    h += '<div class="pn-day' + (isOpen ? ' open' : '') + (i === 0 ? ' today' : '') + '" data-day="' + k + '"><button type="button" class="pn-dh" data-a="dopen" data-k="' + k + '" aria-expanded="' + isOpen + '"><span class="pn-dw"><b>' + (i === 0 ? 'Heute' : i === 1 ? 'Morgen' : P.WD[P.wdOf(k)]) + '</b><small>' + (i < 2 ? P.WD[P.wdOf(k)] + ' ' : '') + k.slice(8, 10) + '.' + k.slice(5, 7) + '.</small></span><span class="pn-sum">' + esc(daySum(v)) + '</span><span class="pn-chev" aria-hidden="true">' + (isOpen ? '▾' : '▸') + '</span></button>' + (isOpen ? dayPanel(k) : '') + '</div>';
+    const k = P.addDays(t, i), v = vs[i], isOpen = open === k, live = v.slots.filter(x => x.unit && !x.skip);
+    const cols = live.map(x => 'rgb(' + kst(x.unit.kind)[0] + ')'), stripe = cols.length ? (cols.length === 1 ? cols[0] : 'linear-gradient(' + cols.map((c, j) => c + ' ' + (j * 100 / cols.length) + '% ' + ((j + 1) * 100 / cols.length) + '%').join(',') + ')') : 'transparent';
+    const hard = live.some(x => x.unit.hard), st = i === 0 && !S.whoopWait ? strainOn(k) : null;
+    const load = mins[i] ? '<span class="pn-load" title="Belastung"><i style="width:' + Math.round(mins[i] / maxMin * 100) + '%" class="' + (hard ? 'hard' : 'easy') + '"></i></span><small class="pn-lt">' + (st != null ? 'Strain ' + r1(st) + ' · ' : '') + '≈ ' + mins[i] + ' min' + (hard ? ' · hart' : '') + '</small>' : (st != null ? '<small class="pn-lt">Strain ' + r1(st) + '</small>' : '');
+    h += '<div class="pn-day' + (isOpen ? ' open' : '') + (i === 0 ? ' today' : '') + (i === 0 && zn ? ' zoned' : '') + '" data-day="' + k + '" style="--stripe:' + stripe + (i === 0 && zn ? ';--zone:' + ZONE_RGB[zn] : '') + '"><button type="button" class="pn-dh" data-a="dopen" data-k="' + k + '" aria-expanded="' + isOpen + '"><span class="pn-dw"><b>' + (i === 0 ? 'Heute' : i === 1 ? 'Morgen' : P.WD[P.wdOf(k)]) + '</b><small>' + (i < 2 ? P.WD[P.wdOf(k)] + ' ' : '') + k.slice(8, 10) + '.' + k.slice(5, 7) + '.</small></span><span class="pn-mid"><span class="pn-sum">' + daySum(v) + '</span>' + load + '</span><span class="pn-chev" aria-hidden="true">' + (isOpen ? '▾' : '▸') + '</span></button>' + (isOpen ? dayPanel(k) : '') + '</div>';
   }
   h += '</div>';
   if (!S.seeded && S.cur.from) h += '<div class="mu pn-foot">Plan gilt seit ' + fmtD(S.cur.from) + ' · ' + S.versions.length + ' ' + (S.versions.length === 1 ? 'Version' : 'Versionen') + ' · Einheit antippen zeigt die Übungen</div>';
@@ -294,7 +324,8 @@ function dayAct(a, b) {
     if (a === 'sugok') t = P.applyOps(t, x.ops);
     t.sug[x.id] = { d: a === 'sugok' ? 'ok' : 'no', at: Date.now(), title: x.title, why: x.why, ops: x.ops.map(o => o.text) };
   }
-  S.days[k] = P.cleanDay(t); saveDay(k); draw();
+  if ((a === 'udone' && t.units[uid] && t.units[uid].done) || a === 'wset') S.pop = k + '|' + uid;
+  S.days[k] = P.cleanDay(t); saveDay(k); draw(); S.pop = null;
 }
 function act(a, b) {
   if (DAY_ACTS.includes(a)) return dayAct(a, b);

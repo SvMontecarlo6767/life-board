@@ -104,3 +104,39 @@ a.pn-link{color:rgb(var(--acc));font-size:13.5px;font-weight:600;text-decoration
 #planCard select.pn-add{flex:1;min-width:0;max-width:100%;min-height:44px;border-radius:12px;border:1px dashed rgb(var(--acc)/.6);padding:0 10px;font:inherit;font-size:15px;color:var(--pn-ink);background:rgb(var(--acc)/.06)}
 html[data-hud] #planCard select.pn-add option{color:#000}
 .pn-xtra{font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid rgb(var(--acc)/.6);color:rgb(var(--acc))}
+/* ---------- Aufgepeppt: Farben je Art, Wochenfortschritt, Belastung, Recovery-Glühen, Abhaken ---------- */
+.pn-day{position:relative}
+.pn-day::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--stripe,transparent);opacity:.9}
+#planCard button.pn-dh{padding-left:16px}
+.pn-mid{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pn-load{display:block;height:5px;border-radius:99px;background:rgb(var(--acc)/.12);overflow:hidden;max-width:220px}
+.pn-load i{display:block;height:100%;border-radius:99px}
+.pn-load i.easy{background:linear-gradient(90deg,rgb(79 209 197/.7),rgb(79 209 197))}
+.pn-load i.hard{background:linear-gradient(90deg,rgb(255 154 92/.75),rgb(255 90 80))}
+.pn-lt{font-size:11px;color:var(--pn-mu);line-height:1.1}
+.pn-s-done{color:var(--pn-ink)}.pn-s-skip{opacity:.55;text-decoration:line-through}
+.pn-slot[style*="--k"]{border-left-color:rgb(var(--k))}
+.pn-ico{font-weight:400}
+/* Wochenfortschritt */
+.pn-wkprog{display:flex;align-items:center;gap:12px;margin:6px 0 10px;padding:8px 10px;border:1px solid var(--pn-bd);border-radius:14px;background:rgb(var(--acc)/.05)}
+.pn-ring0{fill:none;stroke:rgb(var(--acc)/.15);stroke-width:5}
+.pn-ring1{fill:none;stroke:rgb(var(--acc));stroke-width:5;stroke-linecap:round;filter:drop-shadow(0 0 3px rgb(var(--acc)/.6));transition:stroke-dasharray .6s ease}
+.pn-wkprog text{fill:var(--pn-ink);font:700 12px system-ui,-apple-system,sans-serif}
+.pn-wkt{display:flex;flex-direction:column;min-width:0}.pn-wkt b{font-size:14.5px}.pn-wkt>small{font-size:11.5px;color:var(--pn-mu)}
+.pn-dots{display:flex;gap:7px;margin-top:5px;flex-wrap:wrap}
+.pn-dot{display:flex;flex-direction:column;align-items:center;gap:1px}.pn-dot small{font-size:10px;color:var(--pn-mu)}
+.pn-dot i{width:13px;height:13px;border-radius:50%;border:2px solid var(--pn-bd);box-sizing:border-box}
+.pn-dot.done i{background:rgb(var(--acc));border-color:rgb(var(--acc));box-shadow:0 0 6px rgb(var(--acc)/.6)}
+.pn-dot.part i{background:linear-gradient(90deg,rgb(var(--acc)) 50%,transparent 50%);border-color:rgb(var(--acc))}
+.pn-dot.plan i{border-color:rgb(var(--acc)/.75)}
+.pn-dot.miss i{border-color:rgba(255,120,110,.7);background:rgba(255,120,110,.18)}
+.pn-dot.rest i{border-style:dashed;opacity:.5}
+.pn-dot.now small{color:rgb(var(--acc));font-weight:700}
+/* Heute leuchtet in der Recovery-Farbe */
+.pn-day.today.zoned{border-color:rgb(var(--zone));box-shadow:0 0 0 1px rgb(var(--zone)/.45),0 0 18px rgb(var(--zone)/.28);animation:pnGlow 3.2s ease-in-out infinite}
+@keyframes pnGlow{50%{box-shadow:0 0 0 1px rgb(var(--zone)/.6),0 0 26px rgb(var(--zone)/.42)}}
+/* Abhaken: Haken springt kurz auf */
+#planCard button.pn-done.pn-pop{animation:pnPop .55s cubic-bezier(.3,1.6,.5,1)}
+@keyframes pnPop{0%{transform:scale(.8)}45%{transform:scale(1.14);box-shadow:0 0 0 6px rgba(31,191,133,.25),0 0 22px rgba(31,191,133,.55)}100%{transform:scale(1)}}
+html[data-perf] .pn-day.today.zoned,html[data-perf] #planCard button.pn-done.pn-pop{animation:none}
+@media (prefers-reduced-motion:reduce){.pn-day.today.zoned,#planCard button.pn-done.pn-pop{animation:none}.pn-ring1{transition:none}}
