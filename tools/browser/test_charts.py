@@ -93,7 +93,8 @@ with sync_playwright() as p:
     last=days[max(days)]['recovery']['score']['recovery_score']
     txt=pg.evaluate('(document.querySelector("a.tile[href^=\'recovery.html\'] .lb-spark .lb-spk")||{}).textContent||""')
     ck('Hub: Recovery-Kachel zeigt Mini-Verlauf mit letztem Wert',txt.startswith(f'{last} %'),txt)
-    pg.locator('a.tile[href^="recovery.html"]').scroll_into_view_if_needed(); pg.screenshot(path=f'{out}/hub-handy.png')
+    if pg.locator('a.tile[href^="recovery.html"]').is_visible(): pg.locator('a.tile[href^="recovery.html"]').scroll_into_view_if_needed()   # im Cockpit-Karussell ist die Kachelliste versteckt
+    pg.screenshot(path=f'{out}/hub-handy.png')
     ck('Hub: keine Fehler, kein Seitwärtsscroll',not errs and pg.evaluate('document.documentElement.scrollWidth<=innerWidth'),errs); b.close()
     errs=[]; b,ctx=ctx_for(p,390,844); pg=ctx.new_page(); pg.on('pageerror',lambda e:errs.append(str(e)))
     pg.goto(f'http://127.0.0.1:{port}/index.html'); pg.wait_for_selector('#hub:not([hidden])'); pg.wait_for_timeout(1500)
