@@ -52,6 +52,7 @@ function flight(o){
     if(k<1)raf=requestAnimationFrame(frame);else{if(o.remove)L.c.remove();if(o.end)o.end()}
   }
   raf=requestAnimationFrame(frame);
+  if(o.remove)setTimeout(()=>{cancelAnimationFrame(raf);L.c.remove()},o.dur+700);   // Sicherung: Ebene verschwindet auch, wenn Bilder stocken
   return{stop(){cancelAnimationFrame(raf);L.c.remove()},el:L.c};
 }
 function whoosh(short){try{if(window.LBUI)LBUI.sound(short?'warpS':'warp')}catch(e){}}

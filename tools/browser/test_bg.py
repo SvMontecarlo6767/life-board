@@ -54,6 +54,7 @@ with sync_playwright() as p:
         ck(f'{dev} Cockpit: Antippen trifft Kacheln/Knöpfe, nicht den Hintergrund',behind(pg))
         if m=='space': ck(f'{dev} Weltraum: WebGL-Canvas, Pixelratio höchstens 2',pg.evaluate("(()=>{const c=document.querySelector('.lb-bgl.on canvas');return !!c&&!!(c.getContext('webgl')||c.getContext('experimental-webgl'))&&c.width<=c.clientWidth*2+1&&!!LBSpace.current})()"))
         pg.screenshot(path=f'{out}/{dev}-cockpit-{m}.png')
+        pg.evaluate('window.__lbForceSpace=false')   # ab hier wie ein Gerät ohne Grafikchip: Software-Weltraum würde den Testbrowser ausbremsen
         # Design wechseln -> Dschungel/Glühwürmchen, weicher Wechsel
         pg.click('#lb-gear'); pg.click('.lb-th[data-th="jungle"]'); pg.wait_for_timeout(250)
         mid=pg.evaluate('document.querySelectorAll(".lb-bgl").length')

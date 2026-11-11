@@ -47,10 +47,17 @@ function layer(){
   document.body.prepend(el);return el;
 }
 const FX={};
+/* three.js r134 genau einmal laden und festhalten (Vanta und Weltraum gleichzeitig, Klassik nutzt r150 als window.THREE) */
+let t134p=null;
+function t134(){
+  if(window.__LB_T134)return Promise.resolve();
+  if(!t134p)t134p=(async()=>{const prev=window.THREE;await load(SRC.t134);window.__LB_T134=window.THREE;if(prev&&prev!==window.THREE)window.THREE=prev})().catch(e=>{t134p=null;throw e});
+  return t134p;
+}
 /* Vanta NET (braucht three.js r134; wird getrennt vom three.js des Klassik-Hintergrunds gehalten) */
 FX.vanta=async()=>{
   const prev=window.THREE;
-  if(!window.__LB_T134){await load(SRC.t134);window.__LB_T134=window.THREE}
+  await t134();
   window.THREE=window.__LB_T134;
   try{await load(SRC.vanta)}finally{window.THREE=prev||window.__LB_T134}
   const el=layer();let fx;
@@ -63,10 +70,7 @@ FX.vanta=async()=>{
 };
 /* Weltraum (eigene Welt mit three.js r134, ein Renderer) */
 let spaceDead=false;
-async function t134(){
-  if(window.__LB_T134)return;const prev=window.THREE;
-  await load(SRC.t134);window.__LB_T134=window.THREE;if(prev)window.THREE=prev;
-}
+
 FX.space=async()=>{
   if(spaceDead)throw new Error('WebGL ausgefallen');
   await t134();await load(SRC.space);

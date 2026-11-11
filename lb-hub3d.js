@@ -111,11 +111,11 @@ html[data-hub3d] #tiles{display:none}
 .h3c{-webkit-box-reflect:below 8px linear-gradient(transparent 64%,rgba(255,255,255,.11))}
 .h3-rim{position:absolute;inset:0;border-radius:inherit;padding:2px;pointer-events:none;opacity:0;transition:opacity .4s;
   background:conic-gradient(from var(--ang),transparent 0 55%,rgb(var(--c)) 72%,#fff 78%,rgb(var(--c)) 84%,transparent 100%);
-  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:h3Ang 3.6s linear infinite}
-.h3c.front .h3-rim{opacity:1}
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.h3c.front .h3-rim{opacity:1;animation:h3Ang 3.6s linear infinite}
 .h3-scan{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .4s;
-  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 4px),linear-gradient(to bottom,transparent 0,rgb(var(--c) / .16) 48%,transparent 52%) 0 -120%/100% 60% no-repeat;animation:h3Scan 4.5s linear infinite}
-.h3c.front .h3-scan{opacity:1}
+  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 4px),linear-gradient(to bottom,transparent 0,rgb(var(--c) / .16) 48%,transparent 52%) 0 -120%/100% 60% no-repeat}
+.h3c.front .h3-scan{opacity:1;animation:h3Scan 4.5s linear infinite}
 .h3c.front .h3-obj svg{animation:h3Float 5s ease-in-out infinite}
 /* ---- Kopf: Begrüßung, Datum, Uhr ---- */
 .h3-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:0 clamp(14px,4vw,32px);margin:2px 0 4px}

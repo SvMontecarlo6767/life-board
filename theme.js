@@ -210,7 +210,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('lb-bg.js?v=4')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
+  try{await loadScript('lb-bg.js?v=5')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
 }
 /* ---------- Start ---------- */
 const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
@@ -220,7 +220,7 @@ window.LBUI=API;
 function start(){
   if(!root.hasAttribute('data-hud'))root.setAttribute('data-hud','');
   fonts();buildNav();accentIn(curTab());transitions();
-  loadScript('lb-warp.js?v=3').catch(()=>root.classList.remove('lb-arrive'));   // Warp-Flug: Abflug und Ankunft
+  loadScript('lb-warp.js?v=4').catch(()=>root.classList.remove('lb-arrive'));   // Warp-Flug: Abflug und Ankunft
   requestAnimationFrame(()=>root.classList.add('lb-ready'));
   setTimeout(reveal,60);
   // 3D-Hintergrund erst laden, wenn die Seite steht (three.js ist 600 KB und soll Daten und Diagramme nicht bremsen)
