@@ -72,6 +72,17 @@ void main(){
 }`;
 const STAR_F=`precision mediump float;varying vec3 vCol;varying float vA;
 void main(){vec2 c=gl_PointCoord-.5;float d=length(c);float a=smoothstep(.5,0.,d)*.5+smoothstep(.16,0.,d);if(a<.01)discard;gl_FragColor=vec4(vCol*a*vA,1.);}`;
+const STREAK_V=`attribute float aEnd;attribute vec3 aCol;
+uniform float uTravel;uniform float uDepth;uniform float uWarp;uniform float uLen;uniform vec3 uTint;
+varying vec3 vCol;varying float vA;
+void main(){
+  vec3 p=position;float d=mod(-p.z-20.-uTravel,uDepth);float dd=min(d+aEnd*uLen*uWarp,uDepth);
+  p.xy*=d*.45+160.;p.z=-(20.+dd);
+  float fade=smoothstep(uDepth,uDepth*.75,d)*smoothstep(0.,50.,d);
+  vCol=mix(mix(aCol,vec3(.8,.9,1.),.35),uTint,.45);vA=uWarp*fade*(1.-aEnd*.9);
+  gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
+}`;
+const STREAK_F=`precision mediump float;varying vec3 vCol;varying float vA;void main(){gl_FragColor=vec4(vCol*vA*1.6,1.);}`;
 const PL_V=`varying vec3 vN;varying vec3 vO;varying vec3 vV;
 void main(){vO=normalize(position);vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
 const PL_F=`precision highp float;
@@ -128,6 +139,13 @@ function create(el,opts){
   const starU={uTime:{value:0},uPR:{value:pr},uTw:{value:.2},uTravel:{value:0},uDepth:{value:DEPTH},uWarp:{value:0}};
   const stars=new T.Points(sg,new T.ShaderMaterial({uniforms:starU,vertexShader:STAR_V,fragmentShader:STAR_F,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
   stars.frustumCulled=false;scene.add(stars);
+  /* Warp: dieselben Sterne als Lichtstreifen (nur sichtbar, solange gewarpt wird) */
+  const lp=new Float32Array(N*6),lc=new Float32Array(N*6),le=new Float32Array(N*2);
+  for(let i=0;i<N;i++)for(let j=0;j<2;j++){const v=i*2+j;lp.set(pos.subarray(i*3,i*3+3),v*3);lc.set(col.subarray(i*3,i*3+3),v*3);le[v]=j}
+  const lg=new T.BufferGeometry();lg.setAttribute('position',new T.BufferAttribute(lp,3));lg.setAttribute('aCol',new T.BufferAttribute(lc,3));lg.setAttribute('aEnd',new T.BufferAttribute(le,1));
+  const strU={uTravel:starU.uTravel,uDepth:starU.uDepth,uWarp:{value:0},uLen:{value:420},uTint:{value:new T.Color(.6,.8,1)}};
+  const streaks=new T.LineSegments(lg,new T.ShaderMaterial({uniforms:strU,vertexShader:STREAK_V,fragmentShader:STREAK_F,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
+  streaks.frustumCulled=false;streaks.visible=false;scene.add(streaks);
   /* Planet am Horizont mit Atmosphäre */
   const plU={uSun:{value:new T.Vector3(-.6,.75,.35)},uC1:{value:new T.Color()},uC2:{value:new T.Color()},uAtm:{value:new T.Color()},uLit:{value:new T.Color()},uTime:{value:0},uGlow:{value:0}};
   const planet=new T.Mesh(new T.SphereGeometry(1,small?72:96,small?48:64),new T.ShaderMaterial({uniforms:plU,vertexShader:PL_V,fragmentShader:PL_F}));
@@ -178,9 +196,11 @@ function create(el,opts){
     const dt=last?Math.min(.05,(ms-last)/1000):.016;last=ms;t+=dt;
     resize();step(dt);
     if(warpT>0){warpT=Math.max(0,warpT-dt);warp=lerp(warp,warpT>0?1:0,1-Math.exp(-dt*10))}else warp=lerp(warp,0,1-Math.exp(-dt*6));
-    travel+=dt*(now.speed+warp*900);
+    travel+=dt*(now.speed+warp*warp*1400);
+    strU.uWarp.value=warp;streaks.visible=warp>.01;
+    const fov=60+warp*30;if(Math.abs(cam.fov-fov)>.01){cam.fov=fov;cam.updateProjectionMatrix()}
     const sy=Math.min(scrollY||0,1600),jit=now.glow>.5?Math.sin(t*9.3)*Math.sin(t*5.1)*.0025*now.glow:0;
-    const yaw=Math.sin(t*.045)*.09+tiltX*.06+jit,pitch=Math.sin(t*.031)*.035-sy*.00005-tiltY*.04;
+    const yaw=Math.sin(t*.045)*.09*(1-warp)+tiltX*.06+jit,pitch=Math.sin(t*.031)*.035-sy*.00005-tiltY*.04+warp*.22;
     cam.rotation.set(pitch,yaw,Math.sin(t*.023)*.012,'YXZ');
     nebU.uOff.value.set(yaw*1.6+t*.004,pitch*1.6);nebU.uTime.value=t;nebU.uWarp.value=warp;
     starU.uTime.value=t;starU.uTravel.value=travel;starU.uWarp.value=warp;
@@ -198,15 +218,17 @@ function create(el,opts){
   const onLost=e=>{try{e.preventDefault()}catch(x){}alive=false;cancelAnimationFrame(raf);raf=0;if(opts.onFail)opts.onFail()};
   cv.addEventListener('webglcontextlost',onLost,false);
   readZone(z=>{if(z!==cur.zone){cur.zone=z;target()}});
+  // Ankunft nach einem Warp: Sterne laufen aus (Zeitstempel von lb-warp.js)
+  try{const w=+sessionStorage.getItem('lb_warp_in')||0;if(Date.now()-w<3000){warp=1;warpT=.12}}catch(e){}
   resize();run();
   const api={
     el,renderer:R,THREE:T,
     recolor(){cur.acc=cssRgb('--acc');cur.acc2=cssRgb('--acc2');target()},
     setZone(z){cur.zone=ZONE[z]?z:'n';target()},
     get zone(){return cur.zone},
-    warp(sec){warpT=Math.max(warpT,sec||.6);run()},
+    warp(sec,rgb){warpT=Math.max(warpT,sec||.6);if(rgb)strU.uTint.value.setRGB(rgb[0]/255,rgb[1]/255,rgb[2]/255);run()},
     destroy(){alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',vis);window.removeEventListener('lb-tint',onTint);removeEventListener('deviceorientation',onTilt);
-      try{sg.dispose();planet.geometry.dispose();atm.geometry.dispose();neb.geometry.dispose();[neb,stars,planet,atm].forEach(m=>m.material.dispose());R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api)LBSpace.current=null}
+      try{lg.dispose();streaks.material.dispose();sg.dispose();planet.geometry.dispose();atm.geometry.dispose();neb.geometry.dispose();[neb,stars,planet,atm].forEach(m=>m.material.dispose());R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api)LBSpace.current=null}
   };
   window.LBSpace.current=api;
   return api;

@@ -272,3 +272,9 @@ html[data-hud][data-theme="jungle"] .gs input,html[data-hud][data-theme="jungle"
 html[data-hud][data-theme="jungle"] .share,html[data-hud][data-theme="jungle"] .wov{background:rgba(2,9,5,.82)}
 html[data-hud][data-theme="jungle"] .wov .box{background:linear-gradient(160deg,rgba(15,36,22,.97),rgba(6,18,10,.98))}
 html[data-hud][data-theme="jungle"] .sc .l{background:#0e1e14}
+
+/* ================= Warp-Flug: Ankunft (lb-warp.js; Klasse vorab im Kopf gesetzt, damit nichts aufblitzt) ================= */
+html[data-hud].lb-arrive{background:#02050c}
+html[data-hud].lb-arrive body,html[data-hud].lb-arrive.lb-ready body{opacity:0;animation:lbArrSafe .01s 1.2s forwards}   /* Sicherung: spätestens nach 1,2 s sichtbar */
+@keyframes lbArrSafe{to{opacity:1}}
+html[data-hud].lb-arrived.lb-ready body{animation:none}

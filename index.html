@@ -31,7 +31,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 html[data-hub3d] #tiles{display:none}
 </style><script>try{var o=JSON.parse(localStorage.getItem('lb_ui')||'{}'),t=o.theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t);
 /* Cockpit mit voller Leistung: Karussell statt Kachelliste (lb-hub3d.js), vorab gesetzt gegen Flackern; lädt es nicht, kommt die Liste zurück */
-else if(!o.perf&&!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.setAttribute('data-hub3d','');setTimeout(function(){if(!window.LBHub3D)document.documentElement.removeAttribute('data-hub3d')},4000)}}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
+else if(!o.perf&&!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.setAttribute('data-hub3d','');setTimeout(function(){if(!window.LBHub3D)document.documentElement.removeAttribute('data-hub3d')},4000)}}catch(e){}</script><script>/* Warp-Ankunft (lb-warp.js): Inhalt erst zeigen, wenn die Ankunft startet */try{var lo=JSON.parse(localStorage.getItem('lb_ui')||'{}'),lw=JSON.parse(sessionStorage.getItem('lb_warp')||'null');if(lw&&Date.now()-lw.t<4000&&lo.theme!=='jungle'&&!lo.perf&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('lb-arrive')}catch(e){}</script><link rel="stylesheet" href="theme.css?v=11">
 </head><body><main>
 <section id="login" hidden>
   <h1>Life Board</h1>
@@ -96,5 +96,5 @@ let ckAt=0;function ckAgain(){const u=auth.currentUser;if(u&&Date.now()-ckAt>300
 window.addEventListener('pageshow',e=>{if(e.persisted)ckAgain()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)ckAgain()});
 </script>
-</main><script src="theme.js?v=18"></script><script src="whoop-cache.js"></script><script src="lb-spark.js?v=1"></script><script src="lb-hub3d.js?v=1"></script>
+</main><script src="theme.js?v=19"></script><script src="whoop-cache.js"></script><script src="lb-spark.js?v=1"></script><script src="lb-hub3d.js?v=2"></script>
 </body></html>

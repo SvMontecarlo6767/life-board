@@ -79,9 +79,24 @@ function audio(){
 const SND={tap:[[880,.04,.05]],on:[[440,.08,.07],[660,.08,.07],[990,.12,.08]],ok:[[660,.07,.07],[880,.12,.07]],off:[[660,.06,.05],[440,.1,.05]],level:[[523,.1,.08],[659,.1,.08],[784,.1,.08],[1047,.28,.09]],err:[[220,.12,.07],[165,.18,.07]]};
 function sound(name){
   if(!S.sounds)return;const a=audio();if(!a)return;
+  if(name==='warp'||name==='warpS'){warpSound(a,name==='warpS');return}
   let t=a.currentTime+.005;
   (SND[name]||SND.tap).forEach(([f,d,v])=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.02);t+=d*.85});
+}
+/* Warp: Rauschen durch ein aufsteigendes Bandpassfilter + Sinus-Sweep, am Ende ein tiefer Puls */
+function warpSound(a,short){
+  const t=a.currentTime+.005,D=short?.32:.6,len=Math.ceil(a.sampleRate*(D+.1)),buf=a.createBuffer(1,len,a.sampleRate),d=buf.getChannelData(0);
+  for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
+  const n=a.createBufferSource();n.buffer=buf;const bp=a.createBiquadFilter();bp.type='bandpass';bp.Q.value=2.2;bp.frequency.setValueAtTime(260,t);bp.frequency.exponentialRampToValueAtTime(short?2600:4200,t+D);
+  const g=a.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(short?.05:.08,t+D*.7);g.gain.exponentialRampToValueAtTime(.0001,t+D+.08);
+  n.connect(bp).connect(g).connect(a.destination);n.start(t);n.stop(t+D+.1);
+  const o=a.createOscillator(),og=a.createGain();o.type='sawtooth';o.frequency.setValueAtTime(90,t);o.frequency.exponentialRampToValueAtTime(short?520:880,t+D);
+  const lp=a.createBiquadFilter();lp.type='lowpass';lp.frequency.value=1400;
+  og.gain.setValueAtTime(0,t);og.gain.linearRampToValueAtTime(short?.018:.03,t+D*.8);og.gain.exponentialRampToValueAtTime(.0001,t+D+.05);
+  o.connect(lp).connect(og).connect(a.destination);o.start(t);o.stop(t+D+.08);
+  if(!short){const b=a.createOscillator(),bg=a.createGain();b.type='sine';b.frequency.setValueAtTime(70,t+D*.85);b.frequency.exponentialRampToValueAtTime(38,t+D+.35);
+    bg.gain.setValueAtTime(0,t+D*.85);bg.gain.linearRampToValueAtTime(.09,t+D*.9);bg.gain.exponentialRampToValueAtTime(.0001,t+D+.4);b.connect(bg).connect(a.destination);b.start(t+D*.85);b.stop(t+D+.45)}
 }
 document.addEventListener('pointerdown',e=>{
   if(e.target.closest&&e.target.closest('button,.chip,.tile,a.tab,a.btn'))sound('tap');
@@ -148,6 +163,9 @@ function transitions(){
     const a=e.target.closest&&e.target.closest('a[href]');if(!a||e.defaultPrevented||e.metaKey||e.ctrlKey||a.target==='_blank'||a.hasAttribute('download'))return;
     const u=new URL(a.href,location.href);if(u.origin!==location.origin||(u.pathname===location.pathname&&u.search===location.search&&u.hash))return;
     if(S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    // Cockpit: Warp-Flug (lb-warp.js) – Karussell-Karte lang, Reiterleiste kurz; alles andere wie bisher
+    const kind=a.closest('#hub3d')?'card':a.closest('#lb-nav')?'nav':null;
+    if(kind&&window.LBWarp&&LBWarp.can()){e.preventDefault();LBWarp.leave(a.href,kind,a,e);return}
     e.preventDefault();root.classList.add('lb-leave');setTimeout(()=>{location.href=a.href},190);
     setTimeout(()=>root.classList.remove('lb-leave'),1500);   // Sicherung, falls die Navigation nicht stattfindet
   });
@@ -192,7 +210,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('lb-bg.js?v=2')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
+  try{await loadScript('lb-bg.js?v=3')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
 }
 /* ---------- Start ---------- */
 const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
@@ -202,10 +220,11 @@ window.LBUI=API;
 function start(){
   if(!root.hasAttribute('data-hud'))root.setAttribute('data-hud','');
   fonts();buildNav();accentIn(curTab());transitions();
+  loadScript('lb-warp.js?v=2').catch(()=>root.classList.remove('lb-arrive'));   // Warp-Flug: Abflug und Ankunft
   requestAnimationFrame(()=>root.classList.add('lb-ready'));
   setTimeout(reveal,60);
   // 3D-Hintergrund erst laden, wenn die Seite steht (three.js ist 600 KB und soll Daten und Diagramme nicht bremsen)
-  {const later=()=>(window.requestIdleCallback||setTimeout)(()=>bg(),{timeout:2500});if(document.readyState==='complete')later();else addEventListener('load',later,{once:true})}
+  {const later=()=>root.classList.contains('lb-arrived')||root.classList.contains('lb-arrive')?bg():(window.requestIdleCallback||setTimeout)(()=>bg(),{timeout:2500});   /* nach einem Warp: Weltraum sofort, damit die Sterne auslaufen */if(document.readyState==='complete')later();else addEventListener('load',later,{once:true})}
   listeners.push(s=>{if(!s.perf)bg();if(s.fps&&!fpsRaf)fpsLoop();});
   if(S.fps)fpsLoop();
   // gespeicherte Einstellungen vom Server holen, wenn lokal noch nichts gespeichert wurde
