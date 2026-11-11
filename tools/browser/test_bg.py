@@ -45,13 +45,13 @@ def drawn(pg):
     return pg.evaluate("""()=>{const c=document.querySelector('.lb-bgl.on canvas');if(!c)return 0;const x=c.getContext('2d');if(!x)return -1;const d=x.getImageData(0,0,c.width,c.height).data;let n=0;for(let i=3;i<d.length;i+=4)if(d[i]>0)n++;return n}""")
 def noscroll(pg): return pg.evaluate('document.documentElement.scrollWidth<=innerWidth')
 with sync_playwright() as p:
-    # Automatisch: Handy leicht, iPad 3D-Netz
-    for dev,exp in(('handy',['light']),('ipad',['vanta','light'])):
+    # Automatisch: Weltraum (Handy und iPad)
+    for dev,exp in(('handy',['space']),('ipad',['space'])):
         b,pg,errs=page(p,dev); m=wait_mode(pg,exp); L=layers(pg); on=[l for l in L if l['on']]
         ck(f'{dev} Cockpit automatisch: {exp[0]}',m in exp,m)
         ck(f'{dev} Cockpit: genau eine sichtbare Ebene mit Canvas, hinter allem, ohne Klicks',len(on)==1 and on[0]['canvas'] and on[0]['z']=='-1' and on[0]['pe']=='none' and on[0]['pos']=='fixed',L)
         ck(f'{dev} Cockpit: Antippen trifft Kacheln/Knöpfe, nicht den Hintergrund',behind(pg))
-        if m=='light': ck(f'{dev} Cockpit leicht: Partikel werden gezeichnet',drawn(pg)>200,drawn(pg))
+        if m=='space': ck(f'{dev} Weltraum: WebGL-Canvas, Pixelratio höchstens 2',pg.evaluate("(()=>{const c=document.querySelector('.lb-bgl.on canvas');return !!c&&!!(c.getContext('webgl')||c.getContext('experimental-webgl'))&&c.width<=c.clientWidth*2+1&&!!LBSpace.current})()"))
         pg.screenshot(path=f'{out}/{dev}-cockpit-{m}.png')
         # Design wechseln -> Dschungel/Glühwürmchen, weicher Wechsel
         pg.click('#lb-gear'); pg.click('.lb-th[data-th="jungle"]'); pg.wait_for_timeout(250)
@@ -95,7 +95,7 @@ with sync_playwright() as p:
     r=pg.evaluate('[...document.scripts].map(s=>s.src).filter(s=>/tsparticles|vanta|three|lb-bg/.test(s))')
     ck('Performance-Modus ab Start: keine Hintergrund-Bibliothek geladen',r==[],r); b.close()
     # Bibliotheken laden nicht -> ruhiger Verlauf, Board läuft
-    for dev,pat in(('handy',r'tsparticles'),('ipad',r'tsparticles|vanta|three')):
+    for dev,pat in(('handy',r'tsparticles|three|lb-space'),('ipad',r'tsparticles|vanta|three')):
         b,pg,errs=page(p,dev,block=pat); pg.wait_for_timeout(4000)
         ck(f'{dev} ohne Bibliothek: keine sichtbare Ebene, Board bedienbar, keine Fehler',not any(l['on'] for l in layers(pg)) and behind(pg) and not errs,(layers(pg),errs))
         pg.click('#lb-gear'); ck(f'{dev} ohne Bibliothek: Einstellungen öffnen',pg.locator('#lb-set').is_visible()); b.close()

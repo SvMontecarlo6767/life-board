@@ -26,20 +26,12 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 .tile .tag{display:inline-block;font-size:11px;font-weight:700;background:var(--bd);color:var(--mu);border-radius:999px;padding:2px 8px;margin-top:8px}
 .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .top button{padding:8px 12px;font-size:13px}
-#bk{margin-top:18px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
-#appTip{margin-top:14px;padding-top:12px;border-top:1px solid var(--bd)}
-#bk b,#appTip b{display:block;font-size:16px;margin-bottom:2px}
-#bk .row,#appTip .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-#bkMsg{font-size:13.5px;color:var(--mu);margin-top:8px}
-#bkMsg.warn,#bkPrev.warn{color:var(--bad)}#bkPrev.good{color:var(--ac)}
-#wh{margin-top:18px;background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px}
-#wh b{display:block;font-size:16px;margin-bottom:2px}
-#wh .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-#whMsg{font-size:13.5px;color:var(--mu);margin-top:8px;white-space:pre-line}
-#whMsg.warn{color:var(--bad)}#whMsg.good{color:var(--ac)}
 #err{color:var(--bad);margin-top:12px;font-size:14px}
 [hidden]{display:none!important}
-</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
+html[data-hub3d] #tiles{display:none}
+</style><script>try{var o=JSON.parse(localStorage.getItem('lb_ui')||'{}'),t=o.theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t);
+/* Cockpit mit voller Leistung: Karussell statt Kachelliste (lb-hub3d.js), vorab gesetzt gegen Flackern; lädt es nicht, kommt die Liste zurück */
+else if(!o.perf&&!matchMedia('(prefers-reduced-motion: reduce)').matches){document.documentElement.setAttribute('data-hub3d','');setTimeout(function(){if(!window.LBHub3D)document.documentElement.removeAttribute('data-hub3d')},4000)}}catch(e){}</script><link rel="stylesheet" href="theme.css?v=10">
 </head><body><main>
 <section id="login" hidden>
   <h1>Life Board</h1>
@@ -49,6 +41,7 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
 </section>
 <section id="hub" hidden>
   <div class="top"><div><h1>Life Board</h1><p class="sub" id="who"></p></div><button id="logoutBtn">Abmelden</button></div>
+  <div id="tiles">
   <a class="tile" href="checkin.html?v=3" id="ck" style="margin-bottom:12px"><b>☀️ Check-in</b><span id="ckTxt">Stimmung, Gedanken, Trainingsplan</span></a>
   <div class="grid">
     <a class="tile" href="news.html?v=1"><div style="font-size:28px">📰</div><b>Überblick</b><span>Das Wichtigste aus Deutschland & Welt, Technik und Wissen – in ein paar Minuten</span></a>
@@ -58,33 +51,6 @@ button.primary{background:var(--ac);color:#fff;border-color:var(--ac);font-weigh
     <a class="tile" href="recovery.html?v=5"><div style="font-size:28px">💚</div><b>Recovery</b><span>Erholung, HRV, Schlaf und Strain von Whoop</span></a>
     <div class="tile off"><div style="font-size:28px">✅</div><b>Gewohnheiten</b><span>Streaks und Tagesroutine</span><br><span class="tag">kommt später</span></div>
   </div>
-  <div id="wh">
-    <b>💚 Whoop</b>
-    <span id="whState" style="color:var(--mu);font-size:13.5px">Status wird geladen …</span>
-    <div class="row">
-      <button class="primary" id="whConnect">Mit Whoop verbinden</button>
-      <button id="whCheck">Verbindung prüfen</button>
-      <button id="whSync">Letzte 60 Tage holen</button>
-      <button id="whHist">Mehr Verlauf laden (1 Jahr)</button>
-    </div>
-    <div id="whMsg"></div>
-  </div>
-  <div id="bk">
-    <b>💾 Alles sichern</b>
-    <span style="color:var(--mu);font-size:13.5px">Lädt alle deine Daten als Datei herunter, unabhängig von Firebase. Am besten einmal pro Woche und die Datei zusätzlich in iCloud oder Google Drive ablegen.</span>
-    <div class="row"><button class="primary" id="bkDl">Sicherung herunterladen</button><button id="bkCopy">In Zwischenablage kopieren</button></div>
-    <div id="bkMsg"></div>
-    <details id="bkRestore" style="margin-top:12px"><summary style="cursor:pointer;min-height:44px;display:flex;align-items:center">Sicherung wiederherstellen</summary>
-      <span style="color:var(--mu);font-size:13.5px;display:block;margin:6px 0">Wählt eine Sicherungsdatei aus. Du siehst erst, was drinsteht, und bestätigst dann. Gleiche Einträge werden überschrieben, alles andere bleibt unberührt. Es wird nichts gelöscht. Whoop-Rohdaten liegen im Worker und sind nicht Teil der Datei (sie lassen sich neu abrufen).</span>
-      <div class="row"><label class="btn" style="display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border:1px solid var(--bd);border-radius:12px;cursor:pointer">Datei auswählen<input type="file" id="bkFile" accept=".json,application/json" hidden></label></div>
-      <div id="bkPrev" style="margin-top:10px;font-size:14px"></div>
-      <div class="row"><button class="primary" id="bkGo" hidden>Jetzt wiederherstellen</button></div>
-    </details>
-    <div id="appTip" hidden>
-      <b>📲 Als App aufs iPad</b>
-      <span style="color:var(--mu);font-size:13.5px">Safari → Teilen-Symbol → <b style="display:inline;font-size:inherit">Zum Home-Bildschirm</b>. Dann startet das Life Board wie eine App, ohne Adressleiste, und öffnet auch bei schwachem Netz.</span>
-      <div class="row"><button id="appTipOk">Verstanden</button></div>
-    </div>
   </div>
 </section>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
@@ -112,156 +78,7 @@ $('loginBtn').onclick=async()=>{
 };
 $('logoutBtn').onclick=()=>auth.signOut();
 
-// ---- App-Tipp (nur wenn nicht als App geöffnet) ----
-try{
-  const standalone=navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
-  let seen=false;try{seen=localStorage.getItem('lb-app-tip')==='1'}catch(e){}
-  if(!standalone&&!seen&&/iPad|iPhone|Macintosh/.test(navigator.userAgent)&&'ontouchend' in document)$('appTip').hidden=false;
-  $('appTipOk').onclick=()=>{$('appTip').hidden=true;try{localStorage.setItem('lb-app-tip','1')}catch(e){}};
-}catch(e){}
-
-// ---- Sicherung ----
-// Neue Module hier eintragen, dann sind sie automatisch in der Sicherung.
-const MODULES=['puzzle','days','journal','goals','state','settings','whoop','habits','learn','questions','learnpages','chats','training','sleepcards','sleepcfg','calendar','plan'];
-const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-function bkStatus(){
-  let last=null;try{last=localStorage.getItem('lb-last-backup')}catch(e){}
-  const m=$('bkMsg');
-  if(!last){m.textContent='Noch keine Sicherung gemacht.';m.className='warn';return}
-  const days=Math.floor((Date.now()-new Date(last+'T12:00:00'))/864e5);
-  m.textContent='Letzte Sicherung: '+last+(days>=7?' (vor '+days+' Tagen, Zeit für eine neue)':'');
-  m.className=days>=7?'warn':'';
-}
-async function collect(){
-  const u=auth.currentUser;if(!u)throw new Error('nicht angemeldet');
-  const out={v:2,app:'life-board',exported:new Date().toISOString(),collections:{}};
-  for(const name of MODULES){
-    const snap=await fs.collection('users/'+u.uid+'/'+name).get({source:'server'});
-    if(snap.empty)continue;
-    out.collections[name]={};snap.docs.forEach(d=>out.collections[name][d.id]=d.data());
-  }
-  return out;
-}
-function summary(o){return Object.entries(o.collections).map(([k,v])=>k+': '+Object.keys(v).length+' Dokumente').join(', ')||'keine Daten'}
-$('bkDl').onclick=async()=>{
-  const m=$('bkMsg');m.className='';m.textContent='Lese Daten …';
-  try{
-    const o=await collect(),txt=JSON.stringify(o,null,1);
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));
-    a.download='life-board-sicherung-'+iso(new Date())+'.json';
-    document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1500);
-    try{localStorage.setItem('lb-last-backup',iso(new Date()))}catch(e){}
-    bkStatus();m.textContent+=' · Heruntergeladen ('+summary(o)+')';
-  }catch(e){m.className='warn';m.textContent='Sicherung fehlgeschlagen: '+(e.code||e.message)}
-};
-$('bkCopy').onclick=async()=>{
-  const m=$('bkMsg');m.className='';m.textContent='Lese Daten …';
-  try{
-    const o=await collect();await navigator.clipboard.writeText(JSON.stringify(o));
-    try{localStorage.setItem('lb-last-backup',iso(new Date()))}catch(e){}
-    bkStatus();m.textContent+=' · Kopiert ('+summary(o)+')';
-  }catch(e){m.className='warn';m.textContent='Kopieren fehlgeschlagen: '+(e.code||e.message)}
-};
-bkStatus();
-
-// ---- Wiederherstellen ----
-let bkData=null;
-const BK_ID=/^[A-Za-z0-9_\-.:]{1,200}$/;
-function bkValidate(o){
-  if(!o||typeof o!=='object'||o.app!=='life-board'||!o.collections||typeof o.collections!=='object')return 'Das ist keine Life-Board-Sicherung.';
-  for(const [k,v] of Object.entries(o.collections)){
-    if(!MODULES.includes(k))return 'Unbekannter Bereich in der Datei: '+k;
-    if(!v||typeof v!=='object'||Array.isArray(v))return 'Bereich '+k+' ist kaputt.';
-    for(const [id,d] of Object.entries(v)){if(!BK_ID.test(id))return 'Ungültige Dokument-Kennung in '+k+'.';if(!d||typeof d!=='object'||Array.isArray(d))return 'Dokument '+k+'/'+id+' ist kaputt.'}
-  }
-  return '';
-}
-$('bkFile').onchange=async ev=>{
-  const f=ev.target.files&&ev.target.files[0];ev.target.value='';if(!f)return;const p=$('bkPrev');$('bkGo').hidden=true;bkData=null;
-  try{
-    const o=JSON.parse(await f.text()),err=bkValidate(o);
-    if(err){p.className='warn';p.textContent=err;return}
-    bkData=o;p.className='';p.textContent='Datei vom '+String(o.exported||'?').slice(0,10)+': '+summary(o)+'.';$('bkGo').hidden=false;
-  }catch(e){p.className='warn';p.textContent='Datei konnte nicht gelesen werden: '+e.message}
-};
-$('bkGo').onclick=async()=>{
-  const p=$('bkPrev'),u=auth.currentUser;if(!bkData||!u)return;
-  if(!confirm('Wiederherstellen? '+summary(bkData)+'. Gleiche Einträge in deinem Konto werden überschrieben.'))return;
-  $('bkGo').disabled=true;
-  try{
-    let n=0,batch=fs.batch(),c=0;
-    for(const [col,docs] of Object.entries(bkData.collections))for(const [id,d] of Object.entries(docs)){
-      batch.set(fs.doc('users/'+u.uid+'/'+col+'/'+id),d);c++;n++;
-      if(c>=400){await batch.commit();batch=fs.batch();c=0;p.textContent='Schreibe … '+n}
-    }
-    if(c)await batch.commit();
-    p.className='good';p.textContent='✓ '+n+' Dokumente wiederhergestellt. Lade die Seiten neu, damit alles sichtbar wird.';bkData=null;$('bkGo').hidden=true;
-  }catch(e){p.className='warn';p.textContent='Wiederherstellen fehlgeschlagen: '+(e.code||e.message)}
-  finally{$('bkGo').disabled=false}
-};
-
-// ---- Whoop ----
-const WORKER='https://life-board-whoop.momo-haskamp.workers.dev';
-async function wfetch(path,opts={}){
-  const u=auth.currentUser;if(!u)throw new Error('nicht angemeldet');
-  const tok=await u.getIdToken();
-  const r=await fetch(WORKER+path,{...opts,headers:{...(opts.headers||{}),Authorization:'Bearer '+tok,'Content-Type':'application/json'}});
-  let d=null;try{d=await r.json()}catch(e){}
-  if(!r.ok){const e=new Error((d&&d.error)||('Fehler '+r.status));e.code=d&&d.code;e.status=r.status;throw e}
-  return d;
-}
-function wmsg(t,c){const m=$('whMsg');m.textContent=t;m.className=c||''}
-const fmtT=ts=>new Date(ts).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
-async function whStatus(){
-  try{
-    const s=await wfetch('/status');
-    const st=$('whState');
-    if(!s.connected){st.textContent='Noch nicht verbunden.';$('whConnect').textContent='Mit Whoop verbinden'}
-    else{
-      st.textContent=(s.needs_reconnect?'⚠️ Verbindung abgelaufen, bitte neu verbinden. ':'✓ Verbunden. ')+(s.last_sync?'Letzter Abruf: '+fmtT(s.last_sync.at)+' ('+s.last_sync.counts.cycles+' Tage, '+s.last_sync.counts.sleeps+' Schlaf-Einträge).':'Noch keine Daten geholt.');
-      $('whConnect').textContent=s.needs_reconnect?'Neu verbinden':'Neu verbinden';
-    }
-  }catch(e){$('whState').textContent='Worker nicht erreichbar: '+e.message;}
-}
-$('whConnect').onclick=async()=>{
-  wmsg('Leite zu Whoop weiter …');
-  try{const d=await wfetch('/start',{method:'POST'});location.href=d.url}
-  catch(e){wmsg('Verbinden fehlgeschlagen: '+e.message,'warn')}
-};
-$('whCheck').onclick=async()=>{
-  wmsg('Prüfe …');
-  try{const d=await wfetch('/check');wmsg('✓ Verbindung zu Whoop funktioniert'+(d.first_name?' (Konto von '+d.first_name+')':'')+'.','good')}
-  catch(e){wmsg('Prüfung fehlgeschlagen: '+e.message+(e.code?' ['+e.code+']':''),'warn')}
-};
-$('whSync').onclick=async()=>{
-  wmsg('Hole die letzten 60 Tage …');
-  try{const d=await wfetch('/sync',{method:'POST',body:JSON.stringify({days:60})});
-    wmsg('✓ Fertig: '+d.counts.cycles+' Tage, '+d.counts.recoveries+' Erholungswerte, '+d.counts.sleeps+' Schlaf-Einträge, '+d.counts.workouts+' Workouts.','good');whStatus()}
-  catch(e){wmsg('Abruf fehlgeschlagen: '+e.message+(e.code?' ['+e.code+']':''),'warn')}
-};
-$('whHist').onclick=async()=>{
-  const dstr=n=>new Date(Date.now()-n*864e5).toISOString().slice(0,10);
-  let lines=[];
-  try{
-    for(let i=0;i<6;i++){
-      const to=dstr(60*i),from=dstr(60*i+59);
-      wmsg(lines.join('\n')+(lines.length?'\n':'')+'Hole '+from+' bis '+to+' …');
-      const d=await wfetch('/sync',{method:'POST',body:JSON.stringify({from,to})});
-      lines.push(from+' bis '+to+': '+d.counts.cycles+' Tage');
-    }
-    wmsg(lines.join('\n')+'\n✓ Fertig.','good');whStatus();
-  }catch(e){wmsg(lines.join('\n')+'\nAbbruch: '+e.message+(e.code?' ['+e.code+']':''),'warn')}
-};
-// Rückmeldung nach der Whoop-Anmeldung
-(function(){
-  const q=new URLSearchParams(location.search).get('whoop');
-  if(!q)return;
-  const t={connected:['✓ Whoop ist verbunden. Als Nächstes „Letzte 60 Tage holen“ tippen.','good'],error:['Whoop-Anmeldung abgebrochen.','warn'],badstate:['Anmeldung ungültig oder abgelaufen. Bitte neu starten.','warn'],tokenfail:['Whoop hat den Login nicht bestätigt (Client-ID, Secret oder Redirect-URL prüfen).','warn']}[q];
-  if(t)setTimeout(()=>wmsg(t[0],t[1]),50);
-  history.replaceState(null,'',location.pathname);
-})();
-auth.onAuthStateChanged(u=>{if(u)whStatus()});
+// Whoop-Verbindung, Sicherung und „Als App aufs iPad“: im Zahnrad-Menü (lb-account.js)
 // ---- Check-in-Status ----
 async function ckStatus(u){
   try{
@@ -279,5 +96,5 @@ let ckAt=0;function ckAgain(){const u=auth.currentUser;if(u&&Date.now()-ckAt>300
 window.addEventListener('pageshow',e=>{if(e.persisted)ckAgain()});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)ckAgain()});
 </script>
-</main><script src="theme.js?v=17"></script><script src="whoop-cache.js"></script><script src="lb-spark.js?v=1"></script>
+</main><script src="theme.js?v=18"></script><script src="whoop-cache.js"></script><script src="lb-spark.js?v=1"></script><script src="lb-hub3d.js?v=1"></script>
 </body></html>

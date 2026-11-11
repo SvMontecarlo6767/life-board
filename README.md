@@ -73,7 +73,7 @@ Laufanalyse nach dem „Training OS“-Prompt von felsr.com · Sport KI, im HUD-
 Safari → Teilen → **Zum Home-Bildschirm**. `manifest.webmanifest`, Symbole in `icons/` und `sw.js` (Service Worker: Netz zuerst, nur bei Ausfall die zuletzt geladene Seite; Firebase, Worker und Co. werden nie zwischengespeichert). Daten kommen weiterhin aus Firestore, brauchen also Netz. Nach Änderungen an Seiten steigt der Cache-Name in `sw.js` nur bei neuen Dateien in `SHELL`.
 
 ## Sicherung wiederherstellen
-Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gleiche Dokumente werden überschrieben, nichts wird gelöscht; Whoop-Rohdaten (liegen im Worker) sind nicht enthalten. Test: `python3 tools/browser/test_backup.py`.
+Im Zahnrad-Menü (jede Seite) unter „Alles sichern“ → „Sicherung wiederherstellen“: Datei auswählen, Vorschau prüfen, bestätigen. Gleiche Dokumente werden überschrieben, nichts wird gelöscht; Whoop-Rohdaten (liegen im Worker) sind nicht enthalten. Test: `python3 tools/browser/test_backup.py`.
 
 ## Check-in (Reiter „Check-in“, fürs iPhone gebaut)
 - **Morgens, vor Whoop:** Stimmung, Energie, gefühlter Schlaf (je 1–5) und ein Gefühlswort. Erst nach dem Speichern lädt die Seite die Whoop-Recovery und zeigt beides nebeneinander („Dein Gefühl trifft die Whoop-Zone an X von Y Tagen“).
@@ -93,12 +93,13 @@ Im Hub unter „Sichern“: Datei auswählen, Vorschau prüfen, bestätigen. Gle
 
 ## Einstellungen (Zahnrad bzw. „Optionen“)
 Performance-Modus (schwächt 3D, Unschärfe, Animationen ab – nur per Schalter), UI-Sounds, Geräteneigung, FPS-Anzeige.
+Darunter (alle Seiten, alle Designs, `lb-account.js`, früher im Hub): **Whoop-Verbindung** (verbinden, prüfen, 60 Tage / 1 Jahr holen; Status wird erst beim Aufklappen abgefragt), **Alles sichern** (herunterladen, kopieren, wiederherstellen; roter Punkt am Zahnrad, wenn die letzte Sicherung 7 Tage oder älter ist) und **Als App aufs iPad** (nur in Safari, solange nicht als App geöffnet). Gleiche Element-IDs wie vorher (`#wh…`, `#bk…`, `#appTip`). Nach der Whoop-Anmeldung öffnet der Hub das Zahnrad mit der Rückmeldung.
 
 ## Tests
 - `node worker/test.mjs`, `node tools/test-insights.mjs`
 - `node tools/test-whoop.mjs`, `node tools/test-day.mjs`, `node tools/test-calendar.mjs`, `node tools/test-sleep.mjs`
 - Browser (Node + Playwright): `node tools/browser/test_checkin.mjs`, `test_muster.mjs`, `test_news.mjs`, `test_full.mjs`
-- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, Screenshots mit `shot_hud.py`.
+- Browser (Playwright, Chromium): `tools/browser/test_hud.py`, `test_hub3d.py`, `test_backup.py`, `test_bg.py`, `test_theme.py`, Screenshots mit `shot_hud.py` und `shot_phone.py` (iPhone).
 - Notion ist nur mit Mocks getestet. Die KI-Routen im Worker (`/ask`, `/stt`, `/tts`) werden vom Board nicht mehr benutzt.
 
 ## Hinweis zu Versionsnummern
@@ -151,9 +152,17 @@ Eigener Kalender im Life Board (keine Verbindung zu Google/Apple). Ansichten: **
 - Test: `python3 tools/browser/test_theme.py <Ordner>` (Umschalten, Speichern, alle Seiten, Graph-Vollbild).
 
 ## Animierte Hintergründe (Zahnrad → „Hintergrund“, `lb-bg.js`)
-- **Cockpit:** Automatisch (Handy: Leicht, iPad/Computer: 3D-Netz), **3D-Netz** (Vanta NET in der Reiterfarbe), **Klassik 3D** (bisheriger Hintergrund `bg3d.js`), **Leicht** (tsParticles-Netz).
+- **Cockpit:** Automatisch = **Weltraum** (siehe unten), **3D-Netz** (Vanta NET in der Reiterfarbe), **Klassik 3D** (bisheriger Hintergrund `bg3d.js`), **Leicht** (tsParticles-Netz).
 - **Dschungel:** Automatisch = **Glühwürmchen**, **Blätter** (fallend), **Klassik 3D**. Wahl je Design in `lb_ui.bgc` / `lb_ui.bgj`.
-- Automatisch misst auf dem iPad kurz die Bildrate; ruckelt das 3D-Netz (unter 40 fps), bleibt es dauerhaft bei Leicht (`localStorage lb_bgslow`). „Automatisch“ erneut antippen misst neu.
+- Weltraum misst nach dem Start kurz die Bildrate und senkt bei Ruckeln (unter 38 fps) nur die Auflösung; fällt WebGL aus, kommt „Leicht“.
 - Jede Ebene liegt hinter allem (`z-index:-1`, `pointer-events:none`), Wechsel blendet weich über. Performance-Modus oder „Bewegung reduzieren“: kein animierter Hintergrund, nur der ruhige CSS-Verlauf. Versteckter Tab: Pause. Lädt eine Bibliothek nicht: ebenfalls der Verlauf.
 - Bibliotheken lokal in `vendor/` (siehe `vendor/LICENSES.md`), geladen erst nach dem Seitenaufbau und nur die gerade gebrauchte. Vanta braucht three.js r134 (`vendor/three.r134.min.js`), Klassik bleibt bei r150.
 - Test: `python3 tools/browser/test_bg.py <Ordner>` (Handy/iPad, alle Varianten werden gezeichnet, Klicks gehen durch, Wechsel, Performance-Modus, ohne Bibliotheken).
+
+## Weltraum-Welt, Karussell, Warp und 3D-Objekte (nur Cockpit)
+Gilt nur für das Design **Cockpit** bei voller Leistung. **Dschungel**, **Performance-Modus** und **„Bewegung reduzieren“** zeigen den bisherigen, ruhigen Look (Kachelliste im Hub, kein WebGL). Funktionen, Daten und Reihenfolge der Inhalte sind unverändert.
+- **Weltraum-Welt** (`lb-space.js`, von `lb-bg.js` geladen, three.js r134 aus `vendor/`): Sterne mit Tiefe, die langsam heranfliegen, Nebel (Shader), Planet mit Atmosphäre am unteren Rand, langsame Kamerafahrt, leichte Parallaxe beim Scrollen, optional Geräteneigung. **Stimmung je Recovery-Zone** (letzter bewerteter Tag aus dem Whoop-Speicher auf dem Gerät, `LBWhoop.peek`; zuletzt bekannte Zone in `localStorage lb_zone` – nur ein Zwischenwert, keine Nutzerdaten): grün ruhig und klar, gelb wärmer, rot unruhig und rötlich glühend; ohne Daten neutral. Die Akzentfarbe des Reiters (`THEMES`/`TABS` in `theme.js`) fließt in Nebel, Planet und Atmosphäre ein.
+- Technik: ein Renderer pro Seite, Pixelratio höchstens 2, Pause bei verborgener Seite, Kontextverlust → „Leicht“. API: `LBSpace.current` (`zone`, `setZone`, `recolor`, `warp(sek)`), Ereignis `lb-tint` (Tönung, z. B. vorderste Karte im Hub).
+- **Hub-Karussell** (`lb-hub3d.js`): Check-in (immer vorne), Überblick, Muster, Kalender, Training, Recovery, Gewohnheiten („kommt später“, nicht antippbar). Wischen dreht, Pfeile (iPad) und Punkte springen, seitliche Karte antippen dreht sie nach vorne, vorderste Karte antippen öffnet. Ziele = dieselben Links wie die Kacheln (`#tiles`, bleibt als Liste für Dschungel/Performance). Live-Werte nur lesend: Check-in = Text der bestehenden `ckTxt`-Logik, Recovery % und Zone (Whoop-Speicher), Training = heutige Einheit und „x von y“ der Woche mit Wochen-Ring (gleiche Rechnung wie `weekStats` in `plan.js`, über `plan-core.js`), Kalender = nächster Termin (14 Tage, `calendar-core.js`), Überblick = zuletzt geladener Stand (`lb_news`), Muster = Teaser. Keine Schreibzugriffe.
+- Phase 2 (Warp-Flug) und Phase 3 (3D-Objekte) folgen; die Embleme auf den Karten sind bis dahin Platzhalter.
+- Test: `python3 tools/browser/test_hub3d.py <Ordner>` (iPhone/iPad per Touch: Reihenfolge, Wischen, Antippen, Live-Werte, Zone, Tippflächen, kein Seitwärtsscroll, Dschungel/Performance/Bewegung reduzieren, WebGL-Absturz).

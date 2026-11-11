@@ -1,7 +1,7 @@
 /* Life Board – animierte Hintergründe je Design (nur Darstellung, keine Daten, keine Logik).
-   Cockpit: Vanta NET (3D-Netz), Klassik (bisheriger 3D-Hintergrund, bg3d.js) oder Leicht (tsParticles-Netz).
+   Cockpit: Weltraum (lb-space.js: Sterne, Nebel, Planet, Stimmung je Recovery-Zone; Standard bei „Automatisch“), Vanta NET (3D-Netz), Klassik (bisheriger 3D-Hintergrund, bg3d.js) oder Leicht (tsParticles-Netz).
    Dschungel: Glühwürmchen oder fallende Blätter (tsParticles) oder Klassik.
-   „Automatisch“: Handy → Leicht bzw. Glühwürmchen; iPad/Computer → Vanta, fällt nach kurzer Messung auf Leicht zurück, wenn es ruckelt.
+   „Automatisch“: Cockpit → Weltraum (senkt bei Ruckeln selbst die Auflösung; fällt WebGL aus → Leicht), Dschungel → Glühwürmchen.
    Jede Ebene liegt hinter allem (z-index -1, pointer-events none). Performance-Modus oder „Bewegung reduzieren“ → keine Animation,
    nur der ruhige CSS-Verlauf aus theme.css. Lädt eine Bibliothek nicht, bleibt ebenfalls der Verlauf. Versteckter Tab → Pause.
    Bibliotheken liegen lokal in vendor/ und werden erst geladen, wenn sie gebraucht werden. */
@@ -13,7 +13,7 @@ const ST=()=>(window.LBUI&&LBUI.settings)||{};
 const reduced=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
 const phone=()=>{try{return matchMedia('(pointer: coarse)').matches&&Math.min(screen.width,screen.height)<600}catch(e){return false}};
 const theme=()=>root.getAttribute('data-theme')==='jungle'?'jungle':'cockpit';
-const SRC={t134:'vendor/three.r134.min.js?v=134',vanta:'vendor/vanta.net.min.js?v=0524',tsp:'vendor/tsparticles.slim.bundle.min.js?v=350',t150:'vendor/three.min.js?v=150',classic:'bg3d.js?v=4'};
+const SRC={t134:'vendor/three.r134.min.js?v=134',vanta:'vendor/vanta.net.min.js?v=0524',tsp:'vendor/tsparticles.slim.bundle.min.js?v=350',t150:'vendor/three.min.js?v=150',classic:'bg3d.js?v=4',space:'lb-space.js?v=1'};
 const loaded={};
 function load(src){
   if(!loaded[src])loaded[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.async=true;s.onload=res;s.onerror=()=>{delete loaded[src];rej(new Error('nicht geladen: '+src))};document.head.append(s)});
@@ -25,7 +25,7 @@ const hexNum=a=>parseInt(hex(a).slice(1),16);
 
 /* ---------- welcher Hintergrund? ---------- */
 const CHOICES={
-  cockpit:[['auto','Automatisch'],['vanta','3D-Netz'],['classic','Klassik 3D'],['light','Leicht']],
+  cockpit:[['auto','Automatisch'],['space','Weltraum'],['vanta','3D-Netz'],['classic','Klassik 3D'],['light','Leicht']],
   jungle:[['auto','Automatisch'],['fireflies','Glühwürmchen'],['leaves','Blätter'],['classic','Klassik 3D']]
 };
 function slow(){try{return localStorage.getItem('lb_bgslow')==='1'}catch(e){return false}}
@@ -33,7 +33,7 @@ function wanted(){
   const s=ST();if(s.perf||reduced())return 'none';
   if(theme()==='jungle'){const m=s.bgj||'auto';return m==='auto'?'fireflies':m}
   const m=s.bgc||'auto';if(m!=='auto')return m;
-  return phone()||slow()?'light':'vanta';
+  return 'space';
 }
 
 /* ---------- Ebenen ---------- */
@@ -60,6 +60,19 @@ FX.vanta=async()=>{
     if(fx.renderer){fx.renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));fx.resize&&fx.resize()}
   }catch(e){el.remove();throw e}
   return{el,recolor(){try{fx.setOptions({color:hexNum(rgb('--acc'))})}catch(e){}},destroy(){try{fx.destroy()}catch(e){}el.remove()}};
+};
+/* Weltraum (eigene Welt mit three.js r134, ein Renderer) */
+let spaceDead=false;
+async function t134(){
+  if(window.__LB_T134)return;const prev=window.THREE;
+  await load(SRC.t134);window.__LB_T134=window.THREE;if(prev)window.THREE=prev;
+}
+FX.space=async()=>{
+  if(spaceDead)throw new Error('WebGL ausgefallen');
+  await t134();await load(SRC.space);
+  const el=layer();let w;
+  try{w=window.LBSpace.create(el,{onFail(){spaceDead=true;setTimeout(()=>{if(cur.mode==='space'){cur={mode:null,fx:cur.fx};apply()}},0)}})}catch(e){el.remove();throw e}
+  return{el,recolor(){w.recolor()},destroy(){w.destroy();el.remove()}};
 };
 /* tsParticles: gemeinsame Hülle */
 let slim=null;
@@ -108,7 +121,7 @@ async function apply(){
     if(m==='none'){retire(old);return}
     let fx=null,used=m;
     try{fx=await FX[m]()}catch(e){fx=null}
-    if(!fx&&m==='vanta'){try{fx=await FX.light();used='light'}catch(e){fx=null}}   // Vanta geht nicht → leichte Variante
+    if(!fx&&(m==='vanta'||m==='space')){try{fx=await FX.light();used='light'}catch(e){fx=null}}   // Vanta/Weltraum geht nicht → leichte Variante
     if(my!==seq){if(fx&&!fx.keep)fx.destroy();return}
     if(!fx){retire(old);return}                                                   // nichts lädt → ruhiger CSS-Verlauf
     cur={mode:m,fx,used};

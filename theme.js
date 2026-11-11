@@ -113,13 +113,15 @@ function buildNav(){
   panel.querySelector('#lb-bgsel').addEventListener('click',e=>{const b=e.target.closest('[data-bg]');if(!b)return;
     const k=themeOf().id==='jungle'?'bgj':'bgc';if(b.dataset.bg==='auto'&&window.LBBG)LBBG.resetProbe();setSetting(k,b.dataset.bg);paintBg();sound('ok')});
   const h=nav.getBoundingClientRect().height;if(h)root.style.setProperty('--navh',Math.ceil(h)+'px');
+  // Whoop-Verbindung, Sicherung und „Als App aufs iPad“ stehen im Zahnrad (lb-account.js, alle Seiten mit Anmeldung)
+  if(typeof auth!=='undefined'&&typeof fs!=='undefined')loadScript('lb-account.js?v=1').catch(()=>{});
 }
 /* ---------- Hintergrund-Auswahl je Design (Knöpfe im Einstellungs-Panel) ---------- */
-const BGS={cockpit:[['auto','Automatisch'],['vanta','3D-Netz'],['classic','Klassik 3D'],['light','Leicht']],jungle:[['auto','Automatisch'],['fireflies','Glühwürmchen'],['leaves','Blätter'],['classic','Klassik 3D']]};
+const BGS={cockpit:[['auto','Automatisch'],['space','Weltraum'],['vanta','3D-Netz'],['classic','Klassik 3D'],['light','Leicht']],jungle:[['auto','Automatisch'],['fireflies','Glühwürmchen'],['leaves','Blätter'],['classic','Klassik 3D']]};
 function paintBg(){
   const box=document.getElementById('lb-bgsel');if(!box)return;
   const j=themeOf().id==='jungle',cur=S[j?'bgj':'bgc']||'auto';
-  box.innerHTML='<div class="thl">Hintergrund<small>'+(j?'Automatisch: Glühwürmchen':'Automatisch: Handy leicht, iPad 3D-Netz, wenn es flüssig läuft')+'. Im Performance-Modus aus.</small></div><div class="thg">'+
+  box.innerHTML='<div class="thl">Hintergrund<small>'+(j?'Automatisch: Glühwürmchen':'Automatisch: Weltraum, Stimmung nach deiner Recovery-Zone')+'. Im Performance-Modus aus.</small></div><div class="thg">'+
     BGS[j?'jungle':'cockpit'].map(([id,n])=>'<button class="lb-th lb-bgo" data-bg="'+id+'" aria-pressed="'+(id===cur)+'">'+n+'</button>').join('')+'</div>';
 }
 /* ---------- Design wechseln: weich überblenden (View Transitions, sonst kurzes Farbüberblenden) ---------- */
@@ -190,7 +192,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('lb-bg.js?v=1')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
+  try{await loadScript('lb-bg.js?v=2')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
 }
 /* ---------- Start ---------- */
 const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
