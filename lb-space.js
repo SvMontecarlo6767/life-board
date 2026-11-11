@@ -105,6 +105,8 @@ function create(el,opts){
   const cv=document.createElement('canvas');
   const gl=cv.getContext('webgl',{alpha:false,antialias:false,powerPreference:'high-performance'})||cv.getContext('experimental-webgl');
   if(!gl)throw new Error('kein WebGL');
+  // nur per Software emuliertes WebGL (kein Grafikchip) wäre zäh: wie „kein WebGL“ behandeln (Tests erzwingen es mit window.__lbForceSpace)
+  try{const ex=gl.getExtension('WEBGL_debug_renderer_info'),rn=ex?String(gl.getParameter(ex.UNMASKED_RENDERER_WEBGL)):'';if(/swiftshader|llvmpipe|software/i.test(rn)&&!window.__lbForceSpace)throw new Error('nur Software-WebGL')}catch(e){if(/Software/.test(e.message))throw e}
   const R=new T.WebGLRenderer({canvas:cv,context:gl,antialias:false,alpha:false});
   const small=phone();let pr=Math.min(window.devicePixelRatio||1,2);
   R.setPixelRatio(pr);R.setClearColor(0x02050c,1);
@@ -159,7 +161,8 @@ function create(el,opts){
   /* ---------- Größe, Planet so platzieren, dass sein Bogen unten den Horizont bildet ---------- */
   let W=0,H=0;
   function resize(){
-    const w=el.clientWidth||innerWidth,h=el.clientHeight||innerHeight;if(w===W&&h===H)return;W=w;H=h;
+    let w=el.clientWidth||innerWidth,h=el.clientHeight||innerHeight;const sm=Math.max(screen.width||w,screen.height||h,800);w=Math.min(w,sm);h=Math.min(h,sm);   // nie größer als der Bildschirm (z. B. bei Ganzseiten-Aufnahmen)
+    if(w===W&&h===H)return;W=w;H=h;
     R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
     const d=420,hh=d*Math.tan(cam.fov*Math.PI/360),hw=hh*cam.aspect,r=Math.max(hw*1.7,hh*1.05);
     pg.position.set(-hw*.18,-hh*(w<h?.62:.7)-r,-d);pg.scale.setScalar(r);

@@ -56,7 +56,7 @@ html[data-hub3d] #tiles{display:none}
   display:flex;flex-direction:column;gap:6px;padding:18px 18px 16px;border-radius:24px;color:var(--tx);text-decoration:none;-webkit-tap-highlight-color:transparent;
   background:linear-gradient(160deg,rgb(var(--c) / .20),rgba(8,16,30,.86) 42%,rgba(5,10,20,.92));border:1px solid rgb(var(--c) / .38);
   box-shadow:0 18px 50px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.08),inset 0 0 40px rgb(var(--c) / .06);
-  backface-visibility:hidden;-webkit-backface-visibility:hidden;will-change:transform,opacity;transform-origin:50% 50%;overflow:hidden}
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;-webkit-user-drag:none;will-change:transform,opacity;transform-origin:50% 50%;overflow:hidden}
 .h3c::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
   background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.10) 48%,transparent 60%) var(--sx,120%) 0/250% 100% no-repeat}
 .h3c::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:rgba(2,5,12,var(--dim,0))}
@@ -122,7 +122,7 @@ function build(){
   const arrow=(c,l,d)=>'<button type="button" class="h3-arrow '+c+'" aria-label="'+l+'"><svg viewBox="0 0 24 24"><path d="'+d+'"/></svg></button>';
   box.innerHTML='<div class="h3-stage">'+CARDS.map((c,i)=>{
     const col=c.rgb().join(' '),tag=c.off?'div':'a',href=c.off?'':' href="'+esc(hrefOf(c.href))+'"';
-    return '<'+tag+' class="h3c'+(c.off?' off':'')+'" data-i="'+i+'" data-id="'+c.id+'"'+href+(c.off?' aria-disabled="true"':'')+' style="--c:'+col+'">'+
+    return '<'+tag+' class="h3c'+(c.off?' off':'')+'" data-i="'+i+'" data-id="'+c.id+'"'+href+' draggable="false"'+(c.off?' aria-disabled="true"':'')+' style="--c:'+col+'">'+
       '<div class="h3-head"><span class="h3-k">'+esc(c.k)+'</span><span class="h3-tag" hidden></span></div>'+
       '<div class="h3-obj" aria-hidden="true"></div><div class="h3-v"></div><div class="h3-l"></div><div class="h3-s"></div><span class="h3-go">'+(c.off?'':'Öffnen ›')+'</span></'+tag+'>';
   }).join('')+'</div>'+arrow('p','Vorherige Karte','M15 5l-7 7 7 7')+arrow('n','Nächste Karte','M9 5l7 7-7 7')+
@@ -177,6 +177,7 @@ function initial(){pos=-.85;target=0;vel=0;layout();setTimeout(anim,120)}   // k
 /* ---------- Wischen, Tippen, Tastatur ---------- */
 function wire(){
   const stage=box.querySelector('.h3-stage');let P=null,dragAt=0;
+  stage.addEventListener('dragstart',e=>e.preventDefault());   // Links nicht ziehen (sonst bricht das Wischen ab)
   stage.addEventListener('pointerdown',e=>{
     if(e.button>0)return;
     P={id:e.pointerId,x:e.clientX,y:e.clientY,p0:target,drag:false,hist:[[performance.now(),e.clientX]]};
@@ -196,7 +197,8 @@ function wire(){
     if(P.drag){
       const h=P.hist,a=h[0],b=h[h.length-1],dt=Math.max(16,b[0]-a[0]);
       const v=-(b[1]-a[1])/dt*1000/(W*.92);   // Karten pro Sekunde
-      target=Math.round(pos+Math.max(-2.4,Math.min(2.4,v*.22)));vel=v*.6;anim();dragAt=performance.now();
+      let tg=Math.round(pos+Math.max(-2.4,Math.min(2.4,v*.22)));const mv=pos-P.p0,r0=Math.round(P.p0);if(tg===r0&&Math.abs(mv)>.16)tg=r0+Math.sign(mv);   // schon ein kurzer Wisch blättert weiter
+      target=tg;vel=v*.6;anim();dragAt=performance.now();
       if(Math.round(target)!==Math.round(P.p0)&&window.LBUI)LBUI.sound('tap');
     }
     P=null;

@@ -31,8 +31,9 @@ def worker(r):
 UA='Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1'
 DEV={'iphone':dict(viewport={'width':393,'height':852},device_scale_factor=3,is_mobile=True,has_touch=True,user_agent=UA),
      'ipad':dict(viewport={'width':820,'height':1180},device_scale_factor=2,is_mobile=True,has_touch=True)}
-def ctx_for(b,dev,ui=None,reduced=False):
+def ctx_for(b,dev,ui=None,reduced=False,force=True):
     ctx=b.new_context(reduced_motion='reduce' if reduced else 'no-preference',**DEV[dev])
+    if force: ctx.add_init_script('window.__lbForceSpace=true;')   # Testbrowser hat nur Software-WebGL
     ctx.add_init_script('window.__seed='+json.dumps(seed)+';if(!sessionStorage.getItem("__i")){sessionStorage.setItem("__i",1);localStorage.clear();'+('localStorage.setItem("lb_ui",%s);'%json.dumps(json.dumps(ui)) if ui else '')+'localStorage.setItem("lb_news",%s)}'%json.dumps(json.dumps(news)))
     for n,body in(('app',mock),('auth',''),('firestore','')):
         ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%n),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))
@@ -68,8 +69,8 @@ with sync_playwright() as p:
         hrefs=pg.evaluate('[...document.querySelectorAll(".h3c")].map(e=>e.getAttribute("href"))')
         tiles=pg.evaluate('[...document.querySelectorAll("#tiles a.tile")].map(e=>e.getAttribute("href"))')
         ck(f'{dev}: Karten führen zu denselben Seiten wie die Kacheln',sorted(h for h in hrefs if h)==sorted(tiles) and hrefs[6] is None,(hrefs,tiles))
-        txt=lambda i:pg.evaluate(f'document.querySelectorAll(".h3c")[{i}].innerText')
-        try: pg.wait_for_function('()=>{const c=document.querySelectorAll(".h3c");return /Niedrig/.test(c[5].innerText)&&/von/.test(c[4].innerText)&&/Zahnarzt/.test(c[3].innerText)}',timeout=15000)
+        txt=lambda i:pg.evaluate(f'document.querySelectorAll(".h3c")[{i}].textContent')
+        try: pg.wait_for_function('()=>{const c=document.querySelectorAll(".h3c");return /Niedrig/.test(c[5].textContent)&&/von/.test(c[4].textContent)&&/Zahnarzt/.test(c[3].textContent)}',timeout=15000)
         except Exception: pass
         ck(f'{dev}: Check-in-Karte zeigt ckTxt (Stimmung 4/5)','Stimmung 4/5' in txt(0) and 'Erledigt' in txt(0),txt(0))
         ck(f'{dev}: Recovery-Karte zeigt 22 % und Zone Niedrig','22' in txt(5) and 'Niedrig' in txt(5),txt(5))
@@ -127,5 +128,8 @@ with sync_playwright() as p:
         pg.wait_for_timeout(1200)
         ck(f'{dev}: WebGL-Absturz: Ersatz-Hintergrund, Karussell bleibt',pg.evaluate("LBBG.mode")!='space' or not pg.evaluate("!!LBSpace.current"),pg.evaluate("LBBG.mode"))
         ck(f'{dev}: nach Absturz keine Fehler',not [e for e in errs if 'CONTEXT_LOST' not in e and 'context lost' not in e.lower()],errs[:3]); ctx.close()
+    # nur Software-WebGL (wie hier im Testbrowser): ruhiger Ersatz, Karussell läuft trotzdem
+    ctx=ctx_for(b,'iphone',force=False); errs=[]; pg=open_hub(ctx,errs,warm=False); pg.wait_for_timeout(2500)
+    ck('Software-WebGL: Ersatz-Hintergrund statt Weltraum, Karussell an, keine Fehler',pg.evaluate("LBBG.mode")!='space' and pg.evaluate("document.documentElement.getAttribute('data-hub3d')==='on'") and not errs,(pg.evaluate("LBBG.mode"),errs[:2])); ctx.close()
     b.close()
 print('\nFEHLER:',len(fails)); sys.exit(1 if fails else 0)

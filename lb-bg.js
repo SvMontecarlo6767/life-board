@@ -13,7 +13,7 @@ const ST=()=>(window.LBUI&&LBUI.settings)||{};
 const reduced=()=>{try{return matchMedia('(prefers-reduced-motion: reduce)').matches}catch(e){return false}};
 const phone=()=>{try{return matchMedia('(pointer: coarse)').matches&&Math.min(screen.width,screen.height)<600}catch(e){return false}};
 const theme=()=>root.getAttribute('data-theme')==='jungle'?'jungle':'cockpit';
-const SRC={t134:'vendor/three.r134.min.js?v=134',vanta:'vendor/vanta.net.min.js?v=0524',tsp:'vendor/tsparticles.slim.bundle.min.js?v=350',t150:'vendor/three.min.js?v=150',classic:'bg3d.js?v=4',space:'lb-space.js?v=1'};
+const SRC={t134:'vendor/three.r134.min.js?v=134',vanta:'vendor/vanta.net.min.js?v=0524',tsp:'vendor/tsparticles.slim.bundle.min.js?v=350',t150:'vendor/three.min.js?v=150',classic:'bg3d.js?v=4',space:'lb-space.js?v=3'};
 const loaded={};
 function load(src){
   if(!loaded[src])loaded[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.async=true;s.onload=res;s.onerror=()=>{delete loaded[src];rej(new Error('nicht geladen: '+src))};document.head.append(s)});

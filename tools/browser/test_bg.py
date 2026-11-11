@@ -19,6 +19,7 @@ def page(p,dev,ui=None,block=None,reduced=False,url='index.html'):
     b=p.chromium.launch(args=['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'])
     ctx=b.new_context(reduced_motion='reduce' if reduced else 'no-preference',**DEV[dev])
     init='localStorage.clear();'+('localStorage.setItem("lb_ui",%s);'%json.dumps(json.dumps(ui)) if ui else '')+'localStorage.setItem("lb_bgslow","0");'
+    ctx.add_init_script('window.__lbForceSpace=true;')   # Testbrowser hat nur Software-WebGL
     ctx.add_init_script('if(!sessionStorage.getItem("__i")){sessionStorage.setItem("__i","1");'+init+'}')
     for n,body in(('app',mock),('auth',''),('firestore','')):
         ctx.route(re.compile(r'gstatic\.com/firebasejs/.*/firebase-%s-compat\.js'%n),lambda r,_q=None,body=body:r.fulfill(body=body,content_type='application/javascript'))
