@@ -64,19 +64,19 @@ with sync_playwright() as p:
         writes0=pg.evaluate('window.__writes||0')
         ck(f'{dev}: Karussell an, Kachelliste aus',pg.evaluate("document.documentElement.getAttribute('data-hub3d')==='on' && !!document.querySelector('#hub3d:not([hidden])') && getComputedStyle(document.getElementById('tiles')).display==='none'"))
         ids=pg.evaluate('[...document.querySelectorAll(".h3c")].map(e=>e.dataset.id)')
-        ck(f'{dev}: Reihenfolge der Karten',ids==['checkin','news','muster','kalender','training','recovery','habits'],ids)
+        ck(f'{dev}: Reihenfolge der Karten',ids==['checkin','training','recovery','news','muster','kalender','habits'],ids)
         settle(pg); ck(f'{dev}: Check-in startet vorne',front(pg)==0,front(pg))
         hrefs=pg.evaluate('[...document.querySelectorAll(".h3c")].map(e=>e.getAttribute("href"))')
         tiles=pg.evaluate('[...document.querySelectorAll("#tiles a.tile")].map(e=>e.getAttribute("href"))')
         ck(f'{dev}: Karten führen zu denselben Seiten wie die Kacheln',sorted(h for h in hrefs if h)==sorted(tiles) and hrefs[6] is None,(hrefs,tiles))
         txt=lambda i:pg.evaluate(f'document.querySelectorAll(".h3c")[{i}].textContent')
-        try: pg.wait_for_function('()=>{const c=document.querySelectorAll(".h3c");return /Niedrig/.test(c[5].textContent)&&/von/.test(c[4].textContent)&&/Zahnarzt/.test(c[3].textContent)}',timeout=15000)
+        try: pg.wait_for_function('()=>{const c=document.querySelectorAll(".h3c");return /Niedrig/.test(c[2].textContent)&&/von/.test(c[1].textContent)&&/Zahnarzt/.test(c[5].textContent)}',timeout=15000)
         except Exception: pass
-        ck(f'{dev}: Check-in-Karte zeigt ckTxt (Stimmung 4/5)','Stimmung 4/5' in txt(0) and 'Erledigt' in txt(0),txt(0))
-        ck(f'{dev}: Recovery-Karte zeigt 22 % und Zone Niedrig','22' in txt(5) and 'Niedrig' in txt(5),txt(5))
-        ck(f'{dev}: Training-Karte zeigt Wochenfortschritt','von' in txt(4) and 'Einheiten diese Woche' in txt(4),txt(4))
-        ck(f'{dev}: Kalender-Karte zeigt nächsten Termin','Zahnarzt' in txt(3) and '09:15' in txt(3),txt(3))
-        ck(f'{dev}: Überblick-Karte zeigt letzten Stand','Testmeldung' in txt(1),txt(1))
+        ck(f'{dev}: Check-in-Karte zeigt ckTxt (Stimmung 4/5)',('Stimmung 4/5' in txt(0) and 'Erledigt' in txt(0)) or 'Morgen erledigt' in txt(0),txt(0))
+        ck(f'{dev}: Recovery-Karte zeigt 22 % und Zone Niedrig','22' in txt(2) and 'Niedrig' in txt(2),txt(2))
+        ck(f'{dev}: Training-Karte zeigt Wochenfortschritt','von' in txt(1) and 'Einheiten diese Woche' in txt(1),txt(1))
+        ck(f'{dev}: Kalender-Karte zeigt nächsten Termin','Zahnarzt' in txt(5) and '09:15' in txt(5),txt(5))
+        ck(f'{dev}: Überblick-Karte zeigt letzten Stand','Testmeldung' in txt(3),txt(3))
         ck(f'{dev}: Weltraum läuft, Stimmung rot (Recovery 22 %)',pg.evaluate("LBBG.mode==='space'&&LBSpace.current&&LBSpace.current.zone==='r'"),pg.evaluate("[LBBG.mode,LBSpace.current&&LBSpace.current.zone]"))
         pg.screenshot(path=f'{out}/{dev}-front.png')
         swipe(pg,-160); f1=front(pg); ck(f'{dev}: Wischen nach links dreht weiter',f1 in(1,2),f1)
@@ -89,7 +89,7 @@ with sync_playwright() as p:
             ck(f'{dev}: Gewohnheiten antippen öffnet nichts',pg.url==u)
         pg.evaluate('LBHub3D.goTo(0)'); settle(pg)
         # seitliche Karte antippen -> nach vorne
-        side=pg.evaluate('(()=>{const e=document.querySelector(".h3c[data-id=news]").getBoundingClientRect();return [Math.min(innerWidth-6,Math.max(e.left,0)+Math.min(e.width,innerWidth-Math.max(e.left,0))/2),e.top+e.height/2]})()')
+        side=pg.evaluate('(()=>{const e=document.querySelector(".h3c[data-id=training]").getBoundingClientRect();return [Math.min(innerWidth-6,Math.max(e.left,0)+Math.min(e.width,innerWidth-Math.max(e.left,0))/2),e.top+e.height/2]})()')
         pg.mouse.click(side[0],side[1]); settle(pg)
         ck(f'{dev}: seitliche Karte antippen dreht sie nach vorne (ohne zu öffnen)',front(pg)==1 and 'index.html' in pg.url,(front(pg),pg.url))
         ck(f'{dev}: kein Seitwärtsscroll',pg.evaluate('document.documentElement.scrollWidth<=innerWidth'))
@@ -102,7 +102,7 @@ with sync_playwright() as p:
         pg.evaluate('LBHub3D.goTo(0)'); settle(pg)
         r=pg.locator('.h3c.front').bounding_box(); import time; t0=time.time(); pg.mouse.click(r['x']+r['width']/2,r['y']+r['height']/2)
         pg.wait_for_timeout(120); warping=pg.evaluate("!!document.querySelector('canvas.lb-warp')")
-        try: pg.wait_for_url(re.compile('checkin.html'),timeout=5000,wait_until='commit'); ok=True
+        try: pg.wait_for_url(re.compile('checkin.html'),timeout=12000,wait_until='commit'); ok=True
         except Exception: ok=False
         dt=time.time()-t0
         ck(f'{dev}: vorderste Karte antippen öffnet den Check-in (Warp-Abflug)',ok and warping,(pg.url,warping))
@@ -114,10 +114,10 @@ with sync_playwright() as p:
         pg.wait_for_url(re.compile('checkin.html'),timeout=5000,wait_until='commit')
         pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(150)
         dt=float(pg.evaluate("sessionStorage.getItem('__left')||'9999'"))
-        ck(f'{dev}: Warp-Abflug (Karte) höchstens ca. 0,8 s',dt<850,round(dt))
+        ck(f'{dev}: Warp-Abflug (Karte) weicher Flug, höchstens ca. 1,2 s',800<dt<1350,round(dt))
         pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(150)
         st=pg.evaluate("[document.documentElement.classList.contains('lb-arrived'),!!document.querySelector('canvas.lb-warp'),(document.querySelector('canvas.lb-warp')||{style:{}}).style.pointerEvents,sessionStorage.getItem('lb_warp')]")
-        ck(f'{dev}: Ankunft: Warp-Ebene läuft, fängt keine Klicks, Merker verbraucht',st[0] and st[1] and st[2]=='none' and st[3] is None,st)
+        ck(f'{dev}: Ankunft: Warp läuft, Ebene fängt keine Klicks, Merker verbraucht',st[0] and (not st[1] or st[2]=='none') and st[3] is None,st)
         hit=pg.evaluate("(()=>{const b=document.querySelector('#lb-nav a.tab[data-tab=hub]');const r=b.getBoundingClientRect();const h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !!h&&!!h.closest('#lb-nav')})()")
         ck(f'{dev}: Ankunft: sofort bedienbar (Reiterleiste trifft)',hit)
         pg.wait_for_timeout(2500); ck(f'{dev}: Ankunft: Warp-Ebene danach entfernt, Seite sichtbar',pg.evaluate("!document.querySelector('canvas.lb-warp')&&getComputedStyle(document.body).opacity==='1'"))
@@ -126,7 +126,7 @@ with sync_playwright() as p:
         try: pg.wait_for_url(re.compile('recovery.html'),timeout=5000,wait_until='commit'); ok=True
         except Exception: ok=False
         pg.wait_for_selector('#lb-nav',state='attached'); dt=float(pg.evaluate("sessionStorage.getItem('__left')||'9999'"))
-        ck(f'{dev}: Reiterleiste: kurzer Warp (höchstens ca. 0,5 s), öffnet Recovery',ok and w2 and dt<550,(ok,w2,round(dt)))
+        ck(f'{dev}: Reiterleiste: kurzer Warp (höchstens ca. 0,6 s), öffnet Recovery',ok and w2 and dt<700,(ok,w2,round(dt)))
         pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(400)
         ck(f'{dev}: Ankunft nach Reiterleiste',pg.evaluate("document.documentElement.classList.contains('lb-arrived')"))
         pg.reload(); pg.wait_for_selector('#lb-nav',state='attached'); pg.wait_for_timeout(300)

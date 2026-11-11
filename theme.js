@@ -86,7 +86,7 @@ function sound(name){
 }
 /* Warp: Rauschen durch ein aufsteigendes Bandpassfilter + Sinus-Sweep, am Ende ein tiefer Puls */
 function warpSound(a,short){
-  const t=a.currentTime+.005,D=short?.32:.6,len=Math.ceil(a.sampleRate*(D+.1)),buf=a.createBuffer(1,len,a.sampleRate),d=buf.getChannelData(0);
+  const t=a.currentTime+.005,D=short?.48:1.1,len=Math.ceil(a.sampleRate*(D+.1)),buf=a.createBuffer(1,len,a.sampleRate),d=buf.getChannelData(0);
   for(let i=0;i<len;i++)d[i]=Math.random()*2-1;
   const n=a.createBufferSource();n.buffer=buf;const bp=a.createBiquadFilter();bp.type='bandpass';bp.Q.value=2.2;bp.frequency.setValueAtTime(260,t);bp.frequency.exponentialRampToValueAtTime(short?2600:4200,t+D);
   const g=a.createGain();g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(short?.05:.08,t+D*.7);g.gain.exponentialRampToValueAtTime(.0001,t+D+.08);
@@ -210,7 +210,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('lb-bg.js?v=3')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
+  try{await loadScript('lb-bg.js?v=4')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
 }
 /* ---------- Start ---------- */
 const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
@@ -220,7 +220,7 @@ window.LBUI=API;
 function start(){
   if(!root.hasAttribute('data-hud'))root.setAttribute('data-hud','');
   fonts();buildNav();accentIn(curTab());transitions();
-  loadScript('lb-warp.js?v=2').catch(()=>root.classList.remove('lb-arrive'));   // Warp-Flug: Abflug und Ankunft
+  loadScript('lb-warp.js?v=3').catch(()=>root.classList.remove('lb-arrive'));   // Warp-Flug: Abflug und Ankunft
   requestAnimationFrame(()=>root.classList.add('lb-ready'));
   setTimeout(reveal,60);
   // 3D-Hintergrund erst laden, wenn die Seite steht (three.js ist 600 KB und soll Daten und Diagramme nicht bremsen)
