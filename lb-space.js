@@ -190,6 +190,7 @@ function create(el,opts){
   let tiltX=0,tiltY=0;const onTilt=e=>{if(!(window.LBUI&&LBUI.settings.tilt))return;tiltX=Math.max(-1,Math.min(1,(e.gamma||0)/35));tiltY=Math.max(-1,Math.min(1,((e.beta||45)-45)/35))};
   addEventListener('deviceorientation',onTilt,{passive:true});
   /* ---------- Schleife ---------- */
+  const pre=[];let okSet=false;
   let raf=0,last=0,t=0,travel=0,alive=true,warp=0,warpT=0,frames=0,fpsT0=0,tuned=false,spin=window.__lbSpin||0,spinT=spin,ramp=10,decay=6;
   function frame(ms){
     raf=0;if(!alive||document.hidden)return;
@@ -206,7 +207,9 @@ function create(el,opts){
     nebU.uOff.value.set(yaw*1.6+t*.004+spin*.5,pitch*1.6);nebU.uTime.value=t;nebU.uWarp.value=warp;
     starU.uTime.value=t;starU.uTravel.value=travel;starU.uWarp.value=warp;
     plU.uTime.value=t;atU.uTime.value=t;planet.rotation.z=t*.006+spin*.35;
+    for(const f of pre){try{f(dt,t,R)}catch(e){}}   // 3D-Objekte (lb-obj3d.js) mit demselben Renderer
     R.render(scene,cam);
+    if(!okSet){okSet=true;try{localStorage.setItem('lb_space_ok','1')}catch(e){}}
     // einmalig: läuft es zäh, Auflösung senken (nie den Hintergrund wechseln)
     if(!tuned){if(!fpsT0)fpsT0=ms+1200;else if(ms>fpsT0){frames++;if(ms-fpsT0>2500){tuned=true;const fps=frames*1000/(ms-fpsT0);if(fps<38&&pr>1){pr=1;R.setPixelRatio(pr);starU.uPR.value=pr;W=0}}}}
     raf=requestAnimationFrame(frame);
@@ -217,7 +220,7 @@ function create(el,opts){
   const onTint=e=>{cur.tint=e&&e.detail||null;target()};
   window.addEventListener('lb-tint',onTint);
   const onSpin=e=>{spinT=+e.detail||0;run()};window.addEventListener('lb-spin',onSpin);if(window.__lbTint)cur.tint=window.__lbTint;target();
-  const onLost=e=>{try{e.preventDefault()}catch(x){}alive=false;cancelAnimationFrame(raf);raf=0;if(opts.onFail)opts.onFail()};
+  const onLost=e=>{try{e.preventDefault()}catch(x){}alive=false;window.dispatchEvent(new Event('lb-space-gone'));cancelAnimationFrame(raf);raf=0;if(opts.onFail)opts.onFail()};
   cv.addEventListener('webglcontextlost',onLost,false);
   readZone(z=>{if(z!==cur.zone){cur.zone=z;target()}});
   // Ankunft nach einem Warp: Sterne laufen aus (Zeitstempel von lb-warp.js)
@@ -228,11 +231,13 @@ function create(el,opts){
     recolor(){cur.acc=cssRgb('--acc');cur.acc2=cssRgb('--acc2');target()},
     setZone(z){cur.zone=ZONE[z]?z:'n';target()},
     get zone(){return cur.zone},
+    pre(f){pre.push(f);run()},
     warp(sec,rgb,soft){warpT=Math.max(warpT,sec||.6);ramp=soft?2.2:10;decay=soft?2.4:6;if(rgb)strU.uTint.value.setRGB(rgb[0]/255,rgb[1]/255,rgb[2]/255);run()},
     destroy(){alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',vis);window.removeEventListener('lb-tint',onTint);window.removeEventListener('lb-spin',onSpin);removeEventListener('deviceorientation',onTilt);
-      try{lg.dispose();streaks.material.dispose();sg.dispose();planet.geometry.dispose();atm.geometry.dispose();neb.geometry.dispose();[neb,stars,planet,atm].forEach(m=>m.material.dispose());R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api)LBSpace.current=null}
+      try{lg.dispose();streaks.material.dispose();sg.dispose();planet.geometry.dispose();atm.geometry.dispose();neb.geometry.dispose();[neb,stars,planet,atm].forEach(m=>m.material.dispose());R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api)LBSpace.current=null;window.dispatchEvent(new Event('lb-space-gone'))}
   };
   window.LBSpace.current=api;
+  setTimeout(()=>window.dispatchEvent(new Event('lb-space-ready')),0);
   return api;
 }
 window.LBSpace={create,current:null,zoneOf,ZONE};

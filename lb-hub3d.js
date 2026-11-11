@@ -126,6 +126,8 @@ html[data-hub3d] #tiles{display:none}
 .h3-clock b{font-size:clamp(26px,7.4vw,40px);letter-spacing:.06em;font-variant-numeric:tabular-nums}
 html[data-hub3d=on] #hub .top h1{font-size:13px;letter-spacing:.32em;opacity:.75;text-shadow:none;margin:0}
 html[data-hub3d=on] #hub .top .sub{font-size:12px;margin:2px 0 6px}
+.h3-obj.has3d{margin:2px -4px;border-radius:18px;overflow:hidden;background:#000;box-shadow:0 0 18px rgb(var(--c) / .14)}
+.h3-obj.has3d::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 3px);box-shadow:inset 0 0 0 1px rgb(var(--c) / .35),inset 0 0 30px rgb(var(--c) / .18)}
 @keyframes h3Bob{50%{transform:translateY(-7px)}}
 @keyframes h3Beam{50%{opacity:.55}}
 @keyframes h3Ang{to{--ang:360deg}}
@@ -185,6 +187,7 @@ function layout(){
     el.style.setProperty('--sx',(120-rel*90).toFixed(1)+'%');   // Glanz wandert beim Drehen über die Karte
     el.style.pointerEvents=ar<1.2?'auto':'none';
     el.classList.toggle('front',i===fi&&ar<.5);
+    const ob=objs[CARDS[i].id];if(ob){ob.setVisible(ar<1.25);ob.spin(vel*2.2)}
     el.setAttribute('tabindex',i===fi?'0':'-1');
   });
   if(fi!==front){const was=front;front=fi;onFront();if(was>=0&&spinning&&window.LBUI)LBUI.sound('tap')}
@@ -284,6 +287,7 @@ function put(id,o){
   if(o.css)for(const k in o.css)el.style.setProperty(k,o.css[k]);
 }
 const berlinHour=()=>+new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',hour:'2-digit',hourCycle:'h23'}).format(new Date());
+function fillEmblems(){const eve=berlinHour()>=17,E={checkin:eve?EMB.moon:EMB.sun,news:EMB.globe,muster:EMB.net,kalender:EMB.band,recovery:EMB.core,training:ringSvg((objData.training&&objData.training.days||Array.from({length:7},(_,i)=>({st:'rest',letter:'MDMDFSS'[i]}))).map(d=>Object.assign({},d,{col:d.rgb?'rgb('+d.rgb.join(' ')+')':null})))};for(const k in E)put(k,{obj:E[k]})}
 function fill(){
   const eve=berlinHour()>=17;
   put('checkin',{obj:eve?EMB.moon:EMB.sun,v:'…',l:eve?'Abend':'Morgen',s:''});
@@ -294,7 +298,8 @@ function fill(){
   put('recovery',{obj:EMB.core,v:'',l:'Erholung, HRV, Schlaf und Strain',s:'Noch keine Whoop-Daten auf diesem Gerät – Recovery einmal öffnen.'});
   put('habits',{obj:EMB.check,v:'kommt später',l:'Streaks und Tagesroutine',s:''});
   mirrorCheckin();news();
-  try{auth.onAuthStateChanged(u=>{if(!u)return;recovery(u);training(u);calendar(u)})}catch(e){}
+  try{auth.onAuthStateChanged(u=>{if(!u)return;recovery();training();calendar();checkinObj()})}catch(e){}
+  objects();
 }
 /* Check-in: Text der bestehenden ckTxt-Logik übernehmen (index.html), Status daraus ablesen */
 function mirrorCheckin(){
@@ -318,58 +323,54 @@ function news(){
     put('news',{v:esc(N.n)+'<small>Meldungen</small>',l:esc(it.t),s:'Stand '+esc(day)+' · ca. '+esc(N.minutes)+' Min Lesezeit'});
   }catch(e){}
 }
-/* Recovery: letzter bewerteter Tag aus dem Whoop-Speicher auf dem Gerät */
-async function recovery(u){
+/* Live-Werte über LBData (lb-data.js, nur lesen) – dieselben Werte nutzen auch die 3D-Objekte */
+function data(){return window.LBData?Promise.resolve(window.LBData):new Promise((res,rej)=>{const s=document.createElement('script');s.src='lb-data.js?v=1';s.onload=()=>res(window.LBData);s.onerror=rej;document.head.append(s)})}
+const OBJ={checkin:'sun',training:'ring',recovery:'core',news:'globe',muster:'net',kalender:'band'};
+const objs={},objData={};
+function feed(id,d){objData[id]=d;if(objs[id]&&d)objs[id].set(d)}
+async function recovery(){
   try{
-    if(!window.LBWhoop)return;const d=await LBWhoop.peek(u.uid);if(!d)return;
-    const keys=Object.keys(d).filter(k=>/^\d{4}-\d\d-\d\d$/.test(k)).sort().reverse();
-    const k=keys.find(k=>{const s=d[k]&&d[k].recovery&&d[k].recovery.score;return s&&typeof s.recovery_score==='number'});if(!k)return;
-    const s=d[k].recovery.score,v=Math.round(s.recovery_score),z=v>=67?['Hoch','var(--ok,#4ee3a0)','g']:v>=34?['Mittel','var(--mid,#ffc15a)','y']:['Niedrig','var(--low,#ff6a5c)','r'];
-    const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date()),when=k===today?'heute':'vom '+k.slice(8,10)+'.'+k.slice(5,7)+'.';
-    const rhr=typeof s.resting_heart_rate==='number'?Math.round(s.resting_heart_rate):null,hrv=typeof s.hrv_rmssd_milli==='number'?Math.round(s.hrv_rmssd_milli):null;
-    put('recovery',{v:v+'<small>%</small>',l:'Zone <span style="color:'+z[1]+'">'+z[0]+'</span>',tag:'Recovery '+when,
-      s:[hrv!=null?'HRV '+hrv+' ms':'',rhr!=null?'Ruhepuls '+rhr:''].filter(Boolean).join(' · '),
-      css:{'--z':z[1],'--per':rhr?(60/Math.max(35,Math.min(120,rhr))).toFixed(2)+'s':'1.1s'}});
-    try{localStorage.setItem('lb_zone',JSON.stringify({z:z[2],at:Date.now()}))}catch(e){}
+    const r=await (await data()).recovery();if(!r)return;
+    const z=[r.label,{g:'var(--ok,#4ee3a0)',y:'var(--mid,#ffc15a)',r:'var(--low,#ff6a5c)'}[r.zone]],when=r.today?'heute':'vom '+r.date.slice(8,10)+'.'+r.date.slice(5,7)+'.';
+    put('recovery',{v:r.v+'<small>%</small>',l:'Zone <span style="color:'+z[1]+'">'+z[0]+'</span>',tag:'Recovery '+when,
+      s:[r.hrv!=null?'HRV '+r.hrv+' ms':'',r.rhr!=null?'Ruhepuls '+r.rhr:''].filter(Boolean).join(' · '),
+      css:{'--z':z[1],'--per':r.rhr?(60/Math.max(35,Math.min(120,r.rhr))).toFixed(2)+'s':'1.1s'}});
+    try{localStorage.setItem('lb_zone',JSON.stringify({z:r.zone,at:Date.now()}))}catch(e){}
+    feed('recovery',r);
   }catch(e){}
 }
-function loadScript(src){return new Promise((res,rej)=>{if(document.querySelector('script[data-h3="'+src+'"]'))return res();const s=document.createElement('script');s.src=src;s.dataset.h3=src;s.onload=res;s.onerror=rej;document.head.append(s)})}
 /* Training: heutige Einheit + Wochenfortschritt (gleiche Rechnung wie plan.js weekStats, nur lesen) */
-const KCOL={kraft:'255 154 92',iso:'127 227 255',z2:'79 209 197',lauf:'94 230 168',sport:'232 220 80',mobil:'111 168 255',prae:'181 140 255',sonst:'143 166 189'};   // Farben wie KSTY in plan.js
-async function training(u){
+async function training(){
   try{
-    if(!window.PlanCore)await loadScript('plan-core.js?v=6');const P=window.PlanCore,base='users/'+u.uid;
-    const q=await fs.collection(base+'/plan').get(),vs=[],days={},hist={};
-    q.docs.forEach(d=>{const x=d.data()||{};if(/^v_\d{4}-\d{2}-\d{2}$/.test(d.id))vs.push(Object.assign(P.clean(x),{from:d.id.slice(2),at:x.at||0}));else if(/^t_\d{4}-\d{2}-\d{2}$/.test(d.id)){hist[d.id.slice(2)]=x;days[d.id.slice(2)]=P.cleanDay(x)}});
-    const versions=P.sortVersions(vs),t=P.berlinKey(Date.now());
-    if(!versions.length){put('training',{v:'',l:'Startplan noch nicht übernommen',s:'Im Training prüfen und übernehmen.'});return}
-    let gym=[];try{const g=await fs.doc(base+'/training/gym_'+t.slice(0,4)).get();gym=((g.exists&&(g.data()||{}).list)||[]).map(o=>({id:o.i,date:o.d,plan:o.p||'',skip:Array.isArray(o.k)?o.k:[],ex:(o.e||[]).map(e=>({n:e.n,s:e.s||[]}))}))}catch(e){}
-    const planAt=k=>P.versionAt(versions,k)||versions[versions.length-1];
-    const mon=P.addDays(t,-P.wdOf(t)),out=[];let plan=0,done=0,todayV=null;
-    for(let i=0;i<7;i++){
-      const k=P.addDays(mon,i),v=P.todayView(planAt(k),k,days[k]||null,gym.filter(g=>g.date===k),[]),live=v.slots.filter(x=>x.unit&&!x.skip),hd=new Set(((hist[k]||{}).done||[]).map(x=>x.u));
-      const n=live.length,dn=live.filter(x=>x.done||hd.has(x.unit.id));plan+=n;done+=dn.length;
-      const pick=(dn[0]||live[0]);out.push({k,st:!n?'rest':dn.length>=n?'done':dn.length?'part':k<t?'miss':'plan',now:k===t,letter:P.WD[i].charAt(0),col:pick?'rgb('+(KCOL[pick.unit.kind]||KCOL.sonst)+')':null});
-      if(k===t)todayV={live,hd};
-    }
+    const w=await (await data()).week();if(!w)return;
+    if(w.seeded){put('training',{v:'',l:'Startplan noch nicht übernommen',s:'Im Training prüfen und übernehmen.'});return}
+    const out=w.days.map(d=>Object.assign({},d,{col:d.rgb?'rgb('+d.rgb.join(' ')+')':null}));
     let l='Heute Pause',tag=null,ok=false;
-    if(todayV&&todayV.live.length){const names=todayV.live.map(x=>(x.done||todayV.hd.has(x.unit.id)?'✓ ':'')+esc(x.unit.name));l='Heute: '+names.join(' · ');const all=todayV.live.every(x=>x.done||todayV.hd.has(x.unit.id));tag=all?'Heute erledigt':'Heute offen';ok=all}
-    put('training',{obj:ringSvg(out),v:done+'<small>von '+plan+'</small>',l,s:'Einheiten diese Woche (Mo–So)',tag,ok});
+    if(w.today.length){l='Heute: '+w.today.map(x=>(x.done?'✓ ':'')+esc(x.name)).join(' · ');const all=w.today.every(x=>x.done);tag=all?'Heute erledigt':'Heute offen';ok=all}
+    put('training',Object.assign(objs.training?{}:{obj:ringSvg(out)},{v:w.done+'<small>von '+w.plan+'</small>',l,s:'Einheiten diese Woche (Mo–So)',tag,ok}));
+    feed('training',w);
   }catch(e){put('training',{s:'Plan gerade nicht lesbar.'})}
 }
 /* Kalender: nächster Termin ab jetzt (14 Tage) */
-async function calendar(u){
+async function calendar(){
   try{
-    if(!window.CalCore)await loadScript('calendar-core.js?v=3');const C=window.CalCore;
-    const snap=await fs.collection('users/'+u.uid+'/calendar').get(),ev=[];
-    snap.docs.forEach(d=>{if(/^ev_\d{4}$/.test(d.id))((d.data()||{}).list||[]).forEach(o=>{const r=C.normalize(o);if(r.e)ev.push(r.e)})});
-    const now=Date.now(),t=C.todayBerlin(),occ=C.occurrences(ev,t,C.addDays(t,14)).filter(o=>o.first&&(o.allDay?o.date>=t:C.startMs(o)>=now-15*6e4));
-    if(!occ.length){put('kalender',{v:'',l:'Keine Termine in den nächsten 14 Tagen',s:'Antippen zum Planen.'});return}
-    const o=occ[0],day=o.date===t?'Heute':o.date===C.addDays(t,1)?'Morgen':C.dateShort(o.date);
-    const rest=occ.slice(1,3).map(x=>(x.date===t?'heute ':x.date===C.addDays(t,1)?'morgen ':C.WD[C.dowOf(x.date)]+' ')+(x.time?x.time+' ':'')+esc(x.title));
-    put('kalender',{v:esc(o.time||'ganztägig').replace(/^ganztägig$/,'<small>ganztägig</small>'),l:esc(day+' · '+o.title),tag:o.time&&o.date===t?C.relText(C.minutesUntil(o,now)):null,s:rest.length?'Danach: '+rest.join(' · '):''});
+    const n=await (await data()).next();if(!n)return;
+    if(!n.length){put('kalender',{v:'',l:'Keine Termine in den nächsten 14 Tagen',s:'Antippen zum Planen.'});feed('kalender',[]);return}
+    const o=n[0],rest=n.slice(1,3).map(x=>(x.inDays===0?'heute ':x.inDays===1?'morgen ':x.day.split(' ')[0]+' ')+(x.time?x.time+' ':'')+esc(x.title));
+    put('kalender',{v:o.time?esc(o.time):'<small>ganztägig</small>',l:esc(o.day+' · '+o.title),tag:o.rel||null,s:rest.length?'Danach: '+rest.join(' · '):''});
+    feed('kalender',n);
   }catch(e){put('kalender',{s:'Kalender gerade nicht lesbar.'})}
 }
+async function checkinObj(){try{const c=await (await data()).checkin();feed('checkin',c)}catch(e){}}
+/* 3D-Objekte auf den Karten (lb-obj3d.js), sobald die Weltraum-Welt läuft; sonst bleiben die Embleme */
+function objects(){
+  if(!window.LBObj||!LBObj.on||!active())return;
+  cards.forEach((el,i)=>{const id=CARDS[i].id,t=OBJ[id];if(!t||objs[id])return;
+    const box=el.querySelector('.h3-obj'),o=LBObj.mount(box,t,objData[id]||null,{dist:t==='ring'?3.9:4.4});if(o){box.classList.add('has3d');objs[id]=o;if(objData[id])o.set(objData[id])}});
+  layout();
+}
+window.addEventListener('lb-obj-ready',()=>objects());
+window.addEventListener('lb-obj-gone',()=>{for(const k in objs)delete objs[k];cards.forEach(c=>c.querySelector('.h3-obj').classList.remove('has3d'));fillEmblems()});
 /* ---------- ein- und ausschalten (Design, Performance-Modus, Bewegung reduzieren) ---------- */
 function apply(){
   const on=active();

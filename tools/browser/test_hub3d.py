@@ -78,6 +78,9 @@ with sync_playwright() as p:
         ck(f'{dev}: Kalender-Karte zeigt nächsten Termin','Zahnarzt' in txt(5) and '09:15' in txt(5),txt(5))
         ck(f'{dev}: Überblick-Karte zeigt letzten Stand','Testmeldung' in txt(3),txt(3))
         ck(f'{dev}: Weltraum läuft, Stimmung rot (Recovery 22 %)',pg.evaluate("LBBG.mode==='space'&&LBSpace.current&&LBSpace.current.zone==='r'"),pg.evaluate("[LBBG.mode,LBSpace.current&&LBSpace.current.zone]"))
+        try: pg.wait_for_function("window.LBObj&&LBObj.on&&LBObj.count>=6",timeout=15000)
+        except Exception: pass
+        ck(f'{dev}: 3D-Objekte auf den Karten (ein Renderer, Holo-Display)',pg.evaluate("LBObj.count>=6&&document.querySelectorAll('.h3-obj.has3d canvas.lb-o3').length>=6&&document.querySelectorAll('canvas').length<=10"),pg.evaluate("[window.LBObj&&LBObj.count,document.querySelectorAll('.h3-obj.has3d').length]"))
         pg.screenshot(path=f'{out}/{dev}-front.png')
         swipe(pg,-160); f1=front(pg); ck(f'{dev}: Wischen nach links dreht weiter',f1 in(1,2),f1)
         swipe(pg,160); swipe(pg,160) if front(pg)!=0 else None; ck(f'{dev}: Wischen zurück',front(pg)==0,front(pg))
@@ -120,6 +123,7 @@ with sync_playwright() as p:
         ck(f'{dev}: Ankunft: Warp läuft, Ebene fängt keine Klicks, Merker verbraucht',st[0] and (not st[1] or st[2]=='none') and st[3] is None,st)
         hit=pg.evaluate("(()=>{const b=document.querySelector('#lb-nav a.tab[data-tab=hub]');const r=b.getBoundingClientRect();const h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return !!h&&!!h.closest('#lb-nav')})()")
         ck(f'{dev}: Ankunft: sofort bedienbar (Reiterleiste trifft)',hit)
+        ck(f'{dev}: im Reiter (Check-in) keine 3D-Objekte',not pg.evaluate("!!document.querySelector('canvas.lb-o3')||!!window.LBObj"))
         pg.wait_for_function("!document.querySelector('canvas.lb-warp')",timeout=15000); st2=pg.evaluate("[!document.querySelector('canvas.lb-warp'),getComputedStyle(document.body).opacity,document.documentElement.className]"); ck(f'{dev}: Ankunft: Warp-Ebene danach entfernt, Seite sichtbar',st2[0] and st2[1]=='1',st2)
         # kurzer Warp über die Reiterleiste
         pg.locator('#lb-nav a.tab[data-tab=recovery]').click(); pg.wait_for_timeout(60); w2=pg.evaluate("!!document.querySelector('canvas.lb-warp')")
@@ -137,6 +141,7 @@ with sync_playwright() as p:
             ctx=ctx_for(b,dev,ui,red); errs=[]; pg=open_hub(ctx,errs,warm=False)
             st=pg.evaluate("[!document.documentElement.hasAttribute('data-hub3d'),getComputedStyle(document.getElementById('tiles')).display!=='none',!document.querySelector('#hub3d:not([hidden])'),!(window.LBSpace&&LBSpace.current)]")
             ck(f'{dev} {name}: Kachelliste wie bisher, kein Karussell, kein WebGL',all(st),st)
+            ck(f'{dev} {name}: keine 3D-Objekte, keine Effekte',not pg.evaluate("!!(window.LBObj&&LBObj.count)||!!window.LBFx"))
             ck(f'{dev} {name}: Sicherung/Whoop im Zahnrad, keine Fehler',pg.evaluate("!!document.querySelector('#lb-set #bkDl')") and not errs,errs[:2])
             pg.locator('#lb-nav a.tab[data-tab=muster]').click(); pg.wait_for_timeout(60); w=pg.evaluate("!!document.querySelector('canvas.lb-warp')")
             pg.wait_for_url(re.compile('muster.html'),timeout=5000); pg.wait_for_timeout(300)
