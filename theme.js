@@ -80,9 +80,25 @@ const SND={tap:[[880,.04,.05]],on:[[440,.08,.07],[660,.08,.07],[990,.12,.08]],ok
 function sound(name){
   if(!S.sounds)return;const a=audio();if(!a)return;
   if(name==='warp'||name==='warpS'){warpSound(a,name==='warpS');return}
+  if(root.getAttribute('data-theme')!=='jungle'&&SCI[name]){sci(a,SCI[name]);return}   // Cockpit: Sci-Fi-Klänge, Dschungel: bisherige Töne
   let t=a.currentTime+.005;
   (SND[name]||SND.tap).forEach(([f,d,v])=>{const o=a.createOscillator(),g=a.createGain();o.type='sine';o.frequency.value=f;
     g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.008);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(g).connect(a.destination);o.start(t);o.stop(t+d+.02);t+=d*.85});
+}
+/* Sci-Fi-Klänge (Cockpit): kurze Gleit-Töne mit Filter und einem Hauch Rauschen. [Start-Hz, End-Hz, Dauer, Lautstärke, Wellenform, Verzögerung] */
+const SCI={tap:[[1500,820,.05,.035,'triangle',0]],
+  on:[[520,1180,.11,.04,'triangle',0],[1180,1780,.09,.02,'sine',.07]],
+  off:[[1150,480,.12,.035,'triangle',0]],
+  ok:[[880,880,.06,.035,'triangle',0],[1320,1320,.11,.035,'triangle',.07]],
+  level:[[523,784,.12,.05,'triangle',0],[784,1047,.12,.05,'triangle',.1],[1047,1568,.3,.05,'sine',.2]],
+  err:[[300,180,.16,.05,'sawtooth',0]]};
+function sci(a,parts){
+  const t0=a.currentTime+.005;
+  parts.forEach(([f0,f1,d,v,w,dl])=>{const t=t0+dl,o=a.createOscillator(),g=a.createGain(),lp=a.createBiquadFilter();o.type=w;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+d);
+    lp.type='lowpass';lp.frequency.value=w==='sawtooth'?1200:3600;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.connect(lp).connect(g).connect(a.destination);o.start(t);o.stop(t+d+.02)});
+  const len=Math.ceil(a.sampleRate*.025),b=a.createBuffer(1,len,a.sampleRate),ch=b.getChannelData(0);for(let i=0;i<len;i++)ch[i]=(Math.random()*2-1)*(1-i/len);
+  const n=a.createBufferSource(),bp=a.createBiquadFilter(),ng=a.createGain();n.buffer=b;bp.type='bandpass';bp.frequency.value=4200;bp.Q.value=1.4;ng.gain.value=.018;n.connect(bp).connect(ng).connect(a.destination);n.start(t0);
 }
 /* Warp: Rauschen durch ein aufsteigendes Bandpassfilter + Sinus-Sweep, am Ende ein tiefer Puls */
 function warpSound(a,short){
@@ -112,7 +128,7 @@ function buildNav(){
   document.body.prepend(nav);
   const panel=document.createElement('div');panel.id='lb-set';panel.hidden=true;
   const row=(k,t,sub)=>'<div class="r"><div>'+t+(sub?'<small>'+sub+'</small>':'')+'</div><button class="lb-sw" role="switch" data-k="'+k+'" aria-checked="'+!!S[k]+'" aria-label="'+t+'"></button></div>';
-  panel.innerHTML='<h4>Einstellungen</h4>'+'<div class="th"><div class="thl">Design<small>Ändert nur Farben und Stimmung, an den Funktionen ändert sich nichts</small></div><div class="thg">'+Object.values(THEMES).map(t=>'<button class="lb-th" data-th="'+t.id+'" aria-pressed="'+(t.id===themeOf().id)+'"><i style="background:linear-gradient(135deg,'+t.sw[0]+','+t.sw[1]+')"></i>'+t.name+'</button>').join('')+'</div></div>'+'<div class="th" id="lb-bgsel"></div>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Level-Up')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
+  panel.innerHTML='<h4>Einstellungen</h4>'+'<div class="th"><div class="thl">Design<small>Ändert nur Farben und Stimmung, an den Funktionen ändert sich nichts</small></div><div class="thg">'+Object.values(THEMES).map(t=>'<button class="lb-th" data-th="'+t.id+'" aria-pressed="'+(t.id===themeOf().id)+'"><i style="background:linear-gradient(135deg,'+t.sw[0]+','+t.sw[1]+')"></i>'+t.name+'</button>').join('')+'</div></div>'+'<div class="th" id="lb-bgsel"></div>'+row('perf','Performance-Modus','Schwächt 3D-Hintergrund, Unschärfe und Animationen ab')+row('sounds','UI-Sounds','Dezente Töne bei Tipp, Bestätigung, Warp (im Cockpit Sci-Fi-Klänge)')+row('tilt','Geräteneigung','Tiefe im Hintergrund durch Kippen (fragt nach Erlaubnis)')+row('fps','FPS-Anzeige','Kleine Zahl unten links, zum Prüfen der Flüssigkeit auf dem iPad');
   document.body.append(panel);
   nav.querySelector('#lb-gear').onclick=()=>{panel.hidden=!panel.hidden;sound(panel.hidden?'off':'on')};
   document.addEventListener('pointerdown',e=>{if(!panel.hidden&&!panel.contains(e.target)&&!nav.querySelector('#lb-gear').contains(e.target))panel.hidden=true},true);
@@ -223,7 +239,7 @@ function start(){
   loadScript('lb-warp.js?v=4').catch(()=>root.classList.remove('lb-arrive'));   // Warp-Flug: Abflug und Ankunft
   // Cockpit bei voller Leistung: Zahlen zählen hoch, Graphen zeichnen sich (lb-fx.js); 3D-Objekte auf den Hub-Karten (lb-data.js + lb-obj3d.js)
   let fx3=false;const fx=()=>{if(fx3||root.getAttribute('data-theme')==='jungle'||S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches)return;fx3=true;
-    loadScript('lb-fx.js?v=1').catch(()=>{});
+    loadScript('lb-fx.js?v=2').catch(()=>{});
     if(document.getElementById('hub')&&typeof auth!=='undefined')loadScript('lb-data.js?v=2').then(()=>loadScript('lb-obj3d.js?v=2')).catch(()=>{})};
   fx();listeners.push(()=>fx());window.addEventListener('lb-theme',fx);
   requestAnimationFrame(()=>root.classList.add('lb-ready'));

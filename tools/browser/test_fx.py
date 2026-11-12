@@ -1,5 +1,5 @@
 """Bewegungs-Effekte im Inhalt (lb-fx.js): Zahlen zählen hoch (beim Öffnen und beim Runterscrollen), Ende = exakter Originaltext,
-Chart.js-Graphen laufen von links ein, SVG-Linien zeichnen sich, Graph-Vollbild baut sich langsamer auf; Dschungel/Performance/
+Chart.js-Graphen laufen von links ein, SVG-Linien zeichnen sich, Graph-Vollbild baut sich langsamer auf, Glas-Ebenen, Lichtkante beim Berühren, Icons statt Emojis; Dschungel/Performance/
 „Bewegung reduzieren“: nichts davon; keine Fehler. Aufruf: python3 tools/browser/test_fx.py <Ordner>"""
 import re, json, sys, os, math, threading, http.server, socketserver, functools, datetime
 from playwright.sync_api import sync_playwright
@@ -40,6 +40,12 @@ with sync_playwright() as p:
         ctx=ctx_for(b,dev); pg=ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         pg.goto(f'http://127.0.0.1:{port}/recovery.html'); pg.wait_for_selector('#content:not([hidden])',timeout=20000); pg.wait_for_timeout(3500)
         ck(f'{dev}: lb-fx geladen',pg.evaluate('!!window.LBFx'))
+        st=pg.evaluate("[document.documentElement.hasAttribute('data-fx'),!!document.querySelector('h1 svg.lb-ico'),document.querySelector('h1').textContent.trim()]")
+        ck(f'{dev}: Glas-Ebenen aktiv, Icon statt Emoji in der Überschrift, Text bleibt',st[0] and st[1] and st[2]=='Recovery',st)
+        r=pg.locator('.card').first.bounding_box(); pg.mouse.move(r['x']+30,r['y']+20); pg.mouse.down(); pg.wait_for_timeout(120)
+        sh=pg.evaluate("(()=>{const s=document.querySelector('.card>.lb-shine');return s?[s.classList.contains('on'),getComputedStyle(s).pointerEvents,s.style.getPropertyValue('--lx')]:null})()")
+        pg.mouse.up(); pg.wait_for_timeout(700)
+        ck(f'{dev}: Lichtkante beim Berühren (folgt dem Finger, fängt keine Klicks), danach aus',sh and sh[0] and sh[1]=='none' and sh[2]=='30px' and not pg.evaluate("document.querySelector('.card>.lb-shine').classList.contains('on')"),sh)
         seen=pg.evaluate('window.__seen')
         ups=[s for s in seen if s[0] and s[1] and re.sub(r'[\d.,]','',s[0])==re.sub(r'[\d.,]','',s[1])]
         ck(f'{dev}: Zahlen zählen beim Öffnen hoch',len(ups)>=3,seen[:6])
@@ -63,11 +69,17 @@ with sync_playwright() as p:
         d=pg.evaluate("(()=>{const p=document.querySelector('#gf .gf-ln');if(!p)return 'keine Kurve';if(p.classList.contains('gf-draw'))return getComputedStyle(p).animationDuration;const a=p.getAnimations();return a.length?'waapi '+Math.round(a[0].effect.getTiming().duration):'keine Animation'})()")
         ck(f'{dev}: Graph-Vollbild baut die Kurve sichtbar auf',d=='1.8s' or d.startswith('waapi'),d)
         pg.wait_for_timeout(1000); pg.screenshot(path=f'{out}/{dev}-full.png')
+        pg.keyboard.press('Escape'); pg.wait_for_timeout(400)
+        pg.evaluate("LBUI.setTheme('jungle')"); pg.wait_for_timeout(1200)
+        st=pg.evaluate("[document.documentElement.hasAttribute('data-fx'),!!document.querySelector('svg.lb-ico'),document.querySelector('h1').textContent.trim()]")
+        ck(f'{dev}: Wechsel zu Dschungel: Effekte aus, Emoji wieder da',not st[0] and not st[1] and st[2].startswith('💚'),st)
+        pg.evaluate("LBUI.setTheme('cockpit')"); pg.wait_for_timeout(1200)
+        ck(f'{dev}: zurück zu Cockpit: Icons wieder da',pg.evaluate("!!document.querySelector('h1 svg.lb-ico')"))
         ck(f'{dev}: keine Fehler, kein Seitwärtsscroll',not errs and pg.evaluate('document.documentElement.scrollWidth<=innerWidth'),errs[:3]); ctx.close()
     for name,ui,red in(('Dschungel',{'theme':'jungle'},False),('Performance-Modus',{'perf':True},False),('Bewegung reduzieren',None,True)):
         ctx=ctx_for(b,'iphone',ui,red); pg=ctx.new_page(); errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
         pg.goto(f'http://127.0.0.1:{port}/recovery.html'); pg.wait_for_selector('#content:not([hidden])',timeout=20000); pg.wait_for_timeout(3000)
         seen=pg.evaluate('window.__seen'); ups=[s for s in seen if s[0] and s[1] and re.sub(r'[\d.,]','',s[0])==re.sub(r'[\d.,]','',s[1])]
-        ck(f'{name}: kein Hochzählen, keine Effekte, keine Fehler',not pg.evaluate('!!window.LBFx') and not errs,(pg.evaluate('!!window.LBFx'),errs[:2])); ctx.close()
+        ck(f'{name}: kein Hochzählen, keine Effekte, Emojis bleiben, keine Fehler',not pg.evaluate('!!window.LBFx') and not pg.evaluate("document.documentElement.hasAttribute('data-fx')||!!document.querySelector('svg.lb-ico')") and not errs,(pg.evaluate('!!window.LBFx'),errs[:2])); ctx.close()
     b.close()
 print('\nFEHLER:',len(fails)); sys.exit(1 if fails else 0)

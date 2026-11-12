@@ -5,6 +5,9 @@
    2) Graphen zeichnen sich, sobald sie ins Bild kommen: Chart.js-Diagramme laufen von links nach rechts ein (Kurve kommt herein),
       SVG-Linien zeichnen sich entlang des Pfads, Balken wachsen gestaffelt.
    3) Graph-Vollbild (graph-full.js): die Kurve baut sich langsamer und deutlicher auf, Balken wachsen gestaffelt.
+   4) Lichtkante beim Berühren: Karten, Knöpfe, Chips und Reiter leuchten unter dem Finger auf (Licht folgt dem Finger).
+   5) Tiefere Glas-Ebenen (Lichtschein oben, Innenkante, Tiefenschatten) und Einfliegen aus der Tiefe beim Scrollen (gestaffelt).
+   6) Eigene SVG-Icons statt Emojis in Überschriften (nur Darstellung; der Text bleibt, Dschungel zeigt wieder die Emojis).
    Dschungel, Performance-Modus, „Bewegung reduzieren“: nichts davon. Im Testbrowser aus (außer window.__lbFxTest). */
 (function(){
 'use strict';
@@ -111,6 +114,66 @@ function graphFull(){
       p.animate([{strokeDasharray:'1 1',strokeDashoffset:1-k},{strokeDasharray:'1 1',strokeDashoffset:0}],{duration:Math.max(120,D-el),easing:'cubic-bezier(.3,.2,.2,1)'})});
   }).observe(document.body,{childList:true,subtree:true});
 }
-window.LBFx={start,scan,parse,countNode};
+/* ---------- 4) Lichtkante beim Berühren ---------- */
+const LIT='.card,.tile,button,.chip,.btn,a.tab,summary';
+function shine(e){
+  if(!on())return;const el=e.target.closest&&e.target.closest(LIT);if(!el||el.closest('#gf,.h3c,.lb-sw,#lb-set .lb-sw')||el.classList.contains('lb-sw'))return;
+  let sp=el.querySelector(':scope>.lb-shine');
+  if(!sp){sp=document.createElement('span');sp.className='lb-shine';sp.setAttribute('aria-hidden','true');if(getComputedStyle(el).position==='static')el.style.position='relative';el.append(sp)}
+  const r=el.getBoundingClientRect(),mv=ev=>{sp.style.setProperty('--lx',(ev.clientX-r.left)+'px');sp.style.setProperty('--ly',(ev.clientY-r.top)+'px')};
+  sp.style.setProperty('--lr',Math.max(70,Math.min(260,Math.max(r.width,r.height)*.8))+'px');mv(e);sp.classList.add('on');
+  const end=()=>{sp.classList.remove('on');removeEventListener('pointermove',mv);removeEventListener('pointerup',end);removeEventListener('pointercancel',end)};
+  addEventListener('pointermove',mv,{passive:true});addEventListener('pointerup',end);addEventListener('pointercancel',end);
+}
+/* ---------- 5) Glas-Ebenen + Einfliegen (CSS, nur solange aktiv: html[data-fx]) ---------- */
+const FXCSS=`
+html[data-fx] .card{background:radial-gradient(130% 70% at 0% 0%,rgba(255,255,255,.07),transparent 55%),radial-gradient(90% 60% at 100% 100%,rgb(var(--acc) / .07),transparent 60%),linear-gradient(155deg,var(--glass2),var(--glass));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11),inset 0 0 0 1px rgba(255,255,255,.025),inset 0 -26px 44px -34px rgb(var(--acc) / .38),0 20px 46px -20px rgba(0,0,0,.78),0 2px 6px rgba(0,0,0,.35)}
+html[data-fx] .rv:not(.in){transform:perspective(900px) translate3d(0,34px,-60px) rotateX(9deg) scale(.95)}
+html[data-fx] .rv.in{transition:opacity .6s ease,transform .8s cubic-bezier(.16,.9,.24,1);transition-delay:var(--d,0s)}
+.lb-shine{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .55s ease;z-index:3;
+  background:radial-gradient(var(--lr,160px) circle at var(--lx,50%) var(--ly,50%),rgb(var(--acc) / .2),transparent 62%)}
+.lb-shine::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;
+  background:radial-gradient(calc(var(--lr,160px) * .8) circle at var(--lx,50%) var(--ly,50%),rgba(255,255,255,.95),rgb(var(--acc) / .7) 30%,transparent 70%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.lb-shine.on{opacity:1;transition:opacity .07s}
+html:not([data-fx]) .lb-shine{display:none}
+.lb-ico{display:inline-block;width:1.05em;height:1.05em;vertical-align:-.16em;margin-right:.08em;stroke:rgb(var(--acc));fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 6px rgb(var(--acc) / .55))}
+`;
+/* ---------- 6) Icons ---------- */
+const ICO={
+  '☀️':'<circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.4M12 19.1v2.4M2.5 12h2.4M19.1 12h2.4M5.3 5.3l1.7 1.7M17 17l1.7 1.7M5.3 18.7L7 17M17 7l1.7-1.7"/>',
+  '💚':'<path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0112 7.3a4.3 4.3 0 017.5 2.5C19.5 15.4 12 20 12 20z"/><path d="M5.5 12h3l1.4-2.6 2.2 5 1.5-2.4h4.9"/>',
+  '💪':'<path d="M6.5 8v8M17.5 8v8M3.5 10v4M20.5 10v4M6.5 12h11"/>',
+  '📈':'<path d="M3.5 19.5h17"/><path d="M4.5 16l5-5.5 3.5 3 6.5-7.5"/><path d="M15.5 6h4v4"/>',
+  '📋':'<rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5h6v2.5H9zM8.5 11h7M8.5 14.5h7M8.5 18h4"/>',
+  '😴':'<path d="M18.5 14.5A7.5 7.5 0 019.5 5.5a7.5 7.5 0 109 9z"/><path d="M14 4h4l-4 4h4"/>',
+  '📅':'<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+  '🎯':'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1"/>'
+};
+const EMO=new RegExp('^\\s*('+Object.keys(ICO).map(k=>k.replace(/️/g,'')+'\\ufe0f?').join('|')+')\\s*');
+function icons(root){
+  (root||document).querySelectorAll('h1,h2,h3').forEach(h=>{
+    if(h.closest(SKIP)||h.querySelector(':scope>.lb-ico'))return;const t=h.firstChild;if(!t||t.nodeType!==3)return;
+    const m=EMO.exec(t.nodeValue);if(!m)return;const key=Object.keys(ICO).find(k=>k.replace(/️/g,'')===m[1].replace(/️/g,''));if(!key)return;
+    const sv=document.createElementNS('http://www.w3.org/2000/svg','svg');sv.setAttribute('viewBox','0 0 24 24');sv.setAttribute('class','lb-ico');sv.setAttribute('aria-hidden','true');sv.dataset.e=m[0];sv.innerHTML=ICO[key];
+    t.nodeValue=t.nodeValue.slice(m[0].length);h.insertBefore(sv,t);t.nodeValue=' '+t.nodeValue;
+  });
+}
+function unicons(){document.querySelectorAll('svg.lb-ico').forEach(sv=>{const t=sv.nextSibling;if(t&&t.nodeType===3)t.nodeValue=sv.dataset.e+t.nodeValue.replace(/^ /,'');sv.remove()})}
+/* ---------- ein/aus mit Design und Einstellungen ---------- */
+let cssOn=false;
+function sync(){
+  const a=on();
+  if(a){if(!cssOn){cssOn=true;const st=document.createElement('style');st.id='lb-fx2-css';st.textContent=FXCSS;document.head.append(st)}root.setAttribute('data-fx','');icons()}
+  else{root.removeAttribute('data-fx');unicons()}
+}
+document.addEventListener('pointerdown',shine,{passive:true,capture:true});
+let ipend=0;new MutationObserver(()=>{if(ipend||!on())return;ipend=setTimeout(()=>{ipend=0;icons()},60)}).observe(document.documentElement,{childList:true,subtree:true});
+if(window.LBUI)LBUI.onSettings(()=>setTimeout(sync,0));
+window.addEventListener('lb-theme',()=>setTimeout(sync,30));
+try{matchMedia('(prefers-reduced-motion: reduce)').addEventListener('change',sync)}catch(e){}
+sync();
+window.LBFx={start,scan,parse,countNode,sync,icons};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,30));else setTimeout(start,30);
 })();
