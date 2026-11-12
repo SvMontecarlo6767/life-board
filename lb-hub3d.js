@@ -314,7 +314,7 @@ function mirrorCheckin(){
   sync();new MutationObserver(sync).observe(src,{childList:true,subtree:true,characterData:true});
 }
 /* Live-Werte über LBData (lb-data.js, nur lesen) – dieselben Werte nutzen auch die 3D-Objekte */
-function data(){return window.LBData?Promise.resolve(window.LBData):new Promise((res,rej)=>{const s=document.createElement('script');s.src='lb-data.js?v=1';s.onload=()=>res(window.LBData);s.onerror=rej;document.head.append(s)})}
+function data(){return window.LBData?Promise.resolve(window.LBData):new Promise((res,rej)=>{const s=document.createElement('script');s.src='lb-data.js?v=2';s.onload=()=>res(window.LBData);s.onerror=rej;document.head.append(s)})}
 const OBJ={checkin:'sun',training:'ring',recovery:'core',muster:'net',kalender:'band'};
 const objs={},objData={};
 function feed(id,d){objData[id]=d;if(objs[id]&&d)objs[id].set(d)}

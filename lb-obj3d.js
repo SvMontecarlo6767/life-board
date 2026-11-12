@@ -3,7 +3,7 @@
      Recovery  = Energiekern: leuchtende Kugel mit Ringen, pulsiert im Ruhepuls-Takt, Farbe = Zone (grün ruhig, rot flackernd)
      Training  = Wochen-Ring: 7 Segmente Mo–So, erledigt leuchtet in Sportart-Farbe (wie plan.js), heute pulsiert
      Check-in  = morgens Sonne, abends Mond; Glanz je Stimmung, erledigt = voll leuchtend
-     Überblick = drehender Globus · Kalender = 3D-Zeitband mit den nächsten Terminen · Muster = Netz aus leuchtenden Knoten
+     Kalender = 3D-Zeitband mit den nächsten Terminen · Muster = Netz aus leuchtenden Knoten
    Ein Renderer pro Seite: gezeichnet wird mit dem Renderer der Weltraum-Welt (LBSpace.current), jedes Objekt in einen Bereich
    des Bildpuffers und von dort in sein eigenes 2D-Canvas kopiert (Ersatzweg: Render-Target + Auslesen, falls ein Browser
    beim Kopieren leer liefert). Ohne Weltraum-Welt (anderer Hintergrund, Performance, Dschungel, kein WebGL): keine Objekte,
@@ -110,17 +110,6 @@ BUILD.sun=d=>{   // Check-in: Sonne (morgens) / Mond (abends)
     else rays.children.forEach(s=>{s.material.opacity=.4+.6*Math.abs(Math.sin(t*1.3+s.userData.p))});
     b.rotation.y+=dt*.08;boost=Math.max(0,boost-dt*1.4);sp.update(dt);sh.update(dt)},
     fx(){boost=.8;sp.fire();sh.fire()}};
-};
-BUILD.globe=()=>{   // Überblick
-  const g=new T.Group(),b=sphere(.8,3,[90,150,255],[150,220,190],64),atm=glow([110,160,255],2.6,.55),wire=new T.Group();
-  for(let i=1;i<6;i++){const y=-.82+i*.82/3;const r=Math.sqrt(Math.max(0,.84*.84-(y-.0)*(y-.0)));const l=ringLine(r,[150,190,255],.18);l.position.y=y*.0+(i-3)*.27;l.scale.setScalar(Math.sqrt(Math.max(.01,.84*.84-Math.pow((i-3)*.27,2)))/Math.max(.01,r));wire.add(l)}
-  for(let i=0;i<6;i++){const l=ringLine(.84,[150,190,255],.18);l.rotation.z=Math.PI/2;l.rotation.y=i*Math.PI/6;wire.add(l)}
-  const sats=new T.Group();for(let i=0;i<3;i++){const s=glow([200,220,255],.18,1);s.userData.a=i*2;sats.add(s)}
-  g.add(atm,b,wire,sats);const pings=[0,1,2].map(()=>{const t=new T.Mesh(new T.TorusGeometry(.12,.012,6,48),add([180,220,255],0));g.add(t);return{t,k:1}});
-  return{g,set(){},update(dt,t){b.material.uniforms.uT.value=t;b.rotation.y+=dt*.25;wire.rotation.y+=dt*.25;
-    sats.children.forEach((s,i)=>{const a=s.userData.a+t*(.6+i*.25);s.position.set(Math.cos(a)*1.2,Math.sin(a*.7+i)*.5,Math.sin(a)*1.2)});
-    pings.forEach((p,i)=>{if(p.k>=1){p.t.visible=false;return}p.k=Math.min(1,p.k+dt*.9);p.t.visible=true;p.t.scale.setScalar(1+p.k*10);p.t.material.opacity=1-p.k})},
-    fx(){pings.forEach((p,i)=>{p.k=-i*.25;const a=Math.random()*6;p.t.position.set(Math.cos(a)*.5,.4,Math.sin(a)*.5+.4);p.t.lookAt(0,0,0)})}};
 };
 BUILD.band=d=>{   // Kalender: Zeitband
   const g=new T.Group(),inner=new T.Group();g.add(inner);inner.rotation.x=.35;

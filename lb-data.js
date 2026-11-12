@@ -1,7 +1,6 @@
 /* Life Board – gemeinsame Live-Werte für Hub-Karussell und 3D-Objekte (lb-hub3d.js, lb-obj3d.js). NUR LESEN, nie schreiben.
    Quellen über bestehende Module: Whoop-Speicher auf dem Gerät (LBWhoop.peek), Trainingsplan (plan-core.js + plan/ und
-   training/gym_JJJJ, gleiche Rechnung wie weekStats in plan.js), Kalender (calendar-core.js + calendar/), Check-in (journal/{Tag}),
-   Überblick (zuletzt geladener Stand in localStorage lb_news). Fehlende Module werden bei Bedarf nachgeladen. */
+   training/gym_JJJJ, gleiche Rechnung wie weekStats in plan.js), Kalender (calendar-core.js + calendar/), Check-in (journal/{Tag}). Fehlende Module werden bei Bedarf nachgeladen. */
 (function(){
 'use strict';
 if(window.LBData)return;
@@ -57,6 +56,5 @@ function checkin(){return once('ck',async()=>{
   const eve=berlinHour()>=17,morning=!!(d&&d.m),evening=!!(d&&d.e&&d.e.stress);
   return{eve,morning,evening,done:eve?evening:morning,mood:d&&d.m&&d.m.mood||null,energy:d&&d.m&&d.m.energy||null};
 })}
-function news(){try{const N=JSON.parse(localStorage.getItem('lb_news')||'null');if(!N||!N.sections)return null;const top=N.sections.find(s=>s.id==='top'&&s.items.length)||N.sections.find(s=>s.items.length);return{n:N.n,minutes:N.minutes,at:N.at,top:top?top.items[0].t:''}}catch(e){return null}}
-window.LBData={recovery,week,next,checkin,news,ZCOL,KCOL,script,berlinHour};
+window.LBData={recovery,week,next,checkin,ZCOL,KCOL,script,berlinHour};
 })();

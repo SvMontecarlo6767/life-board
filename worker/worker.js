@@ -499,75 +499,6 @@ async function stravaActivities(env, b) {
 
 // ---------- Routen ----------
 
-// ---------- Tagesüberblick (Nachrichten aus RSS/Atom, ohne KI) ----------
-// Nur das Wichtige (kein Sport): Top-Themen ausführlich, dann Deutschland, Welt, Wirtschaft, Technik & Wissen –
-// in der Reihenfolge der Redaktionen, etwa 8–10 Minuten Lesezeit.
-// Pro Bereich mehrere Quellen; fällt eine aus, reichen die anderen. Kurztexte stammen von den Redaktionen.
-const NEWS_SECTIONS = [
-  // long: so viele Meldungen bekommen den ausführlichen Text (bis longChars), die übrigen bis shortChars
-  { id: 'top', title: 'Die wichtigsten Themen', max: 3, long: 3, longChars: 900, feeds: [['tagesschau', 'https://www.tagesschau.de/index~rss2.xml'], ['ZDFheute', 'https://www.zdf.de/rss/zdf/nachrichten']] },
-  { id: 'de', title: 'Deutschland', max: 6, long: 2, feeds: [['tagesschau Inland', 'https://www.tagesschau.de/inland/index~rss2.xml'], ['tagesschau', 'https://www.tagesschau.de/index~rss2.xml']] },
-  { id: 'welt', title: 'Welt', max: 6, long: 2, feeds: [['tagesschau Ausland', 'https://www.tagesschau.de/ausland/index~rss2.xml'], ['DW', 'https://rss.dw.com/xml/rss-de-all']] },
-  { id: 'wirtschaft', title: 'Wirtschaft', max: 4, long: 1, feeds: [['tagesschau Wirtschaft', 'https://www.tagesschau.de/wirtschaft/index~rss2.xml']] },
-  { id: 'tech', title: 'Technik & Wissen', max: 6, long: 2, feeds: [['heise', 'https://www.heise.de/rss/heise-top-atom.xml'], ['heise', 'https://www.heise.de/newsticker/heise-top-atom.xml'], ['tagesschau Wissen', 'https://www.tagesschau.de/wissen/index~rss2.xml'], ['tagesschau Digitales', 'https://www.tagesschau.de/wirtschaft/digitales/index~rss2.xml']] }
-];
-const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', shy: '' };
-const unent = t => String(t || '').replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e) => e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : +e.slice(1)) : (ENT[e.toLowerCase()] ?? m));
-const untag = t => unent(String(t || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-function tagOf(x, names) { for (const n of names) { const m = new RegExp('<' + n + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + n + '>', 'i').exec(x); if (m) return m[1] } return '' }
-/* RSS 2.0 und Atom -> [{t, s, url, time}] */
-/* Text bis max Zeichen, am Satzende gekürzt */
-function cutText(txt, max) {
-  if (txt.length <= max) return txt;
-  const cut = txt.slice(0, max), dot = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '), cut.lastIndexOf('." '));
-  return dot > max * 0.35 ? cut.slice(0, dot + 1) : cut.replace(/\s+\S*$/, '') + ' …';
-}
-/* RSS 2.0 und Atom -> [{t, s (längster verfügbarer Text), url, time}]; höchstens 20 Einträge pro Feed */
-function parseFeed(xml) {
-  const out = [], blocks = (xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || []).slice(0, 20);
-  for (const b of blocks) {
-    const t = untag(tagOf(b, ['title'])); if (!t) continue;
-    let url = untag(tagOf(b, ['link'])); if (!/^https?:/.test(url)) { const m = /<link[^>]*?href="([^"]+)"[^>]*?(?:rel="alternate"[^>]*)?\/?>/i.exec(b); url = m ? unent(m[1]) : '' }
-    const short = untag(tagOf(b, ['description', 'summary'])), full = untag(tagOf(b, ['content:encoded', 'content']));
-    let txt = full.length > short.length + 40 ? full : short;
-    if (short && full && !full.startsWith(short.slice(0, 40)) && full.length > short.length + 40) txt = short + ' ' + full;   // Vorspann + Artikelanfang
-    const d = Date.parse(untag(tagOf(b, ['pubDate', 'published', 'updated', 'dc:date'])));
-    out.push({ t, s: txt === t ? '' : txt.replace(/^\s*mehr\s*$/i, ''), url: /^https:\/\//.test(url) ? url : '', time: isNaN(d) ? null : d });
-  }
-  return out;
-}
-async function newsBuild(env, nowMs) {
-  const sources = [], sections = [], cache = new Map(), seen = new Set();
-  const load = (name, url) => { if (!cache.has(url)) cache.set(url, (async () => {
-    try { const r = await fetch(url, { headers: { 'User-Agent': 'LifeBoard/1.0 (privat)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' }, signal: AbortSignal.timeout(8000) });
-      if (!r.ok) throw new Error(String(r.status)); const items = parseFeed((await r.text()).slice(0, 600000)); sources.push({ name, ok: items.length > 0 }); return items.map(x => Object.assign(x, { src: name.split(' ')[0] })) }
-    catch (e) { sources.push({ name, ok: false }); return [] } })()); return cache.get(url) };
-  const all = await Promise.all(NEWS_SECTIONS.map(sec => Promise.all(sec.feeds.map(([n, u]) => load(n, u)))));   // alle Feeds gleichzeitig
-  NEWS_SECTIONS.forEach((sec, si) => {   // der Reihe nach, damit eine Meldung nur im ersten passenden Bereich steht
-    const list = [];
-    all[si].forEach((items, fi) => items.forEach((x, i) => { if (x.time && nowMs - x.time > 36 * 3600e3) return; list.push({ x, rank: fi * 0.5 + i }) }));
-    list.sort((a, b) => a.rank - b.rank);
-    const items = [];
-    for (const { x } of list) {
-      const k = x.t.toLowerCase().replace(/[^a-zäöüß0-9]+/g, ' ').trim().slice(0, 60); if (seen.has(k)) continue; seen.add(k);
-      items.push(Object.assign({}, x, { s: cutText(x.s, items.length < (sec.long || 0) ? (sec.longChars || 650) : 380) }));
-      if (items.length >= sec.max) break;
-    }
-    sections.push({ id: sec.id, title: sec.title, items });
-  });
-  const words = sections.reduce((n, s) => n + s.items.reduce((m, x) => m + (x.t + ' ' + x.s).split(/\s+/).length, 0), 0);
-  const n = sections.reduce((k, s) => k + s.items.length, 0);
-  const res = { at: nowMs, day: berlinNow(nowMs).day, n, minutes: Math.max(1, Math.round(words / 200)), sections, sources };
-  if (n) await env.WB.put('news:latest', JSON.stringify(res));
-  return res;
-}
-async function newsGet(env, nowMs, force) {
-  const old = JSON.parse((await env.WB.get('news:latest')) || 'null');
-  if (!force && old && nowMs - old.at < 3 * 3600e3) return old;
-  const fresh = await newsBuild(env, nowMs);
-  return fresh.n ? fresh : (old ? Object.assign(old, { stale: true, sources: fresh.sources }) : fresh);
-}
-
 // ---------- Benachrichtigungen (Web Push mit VAPID, RFC 8291/8292) ----------
 // Schlüssel erzeugt der Worker beim ersten Mal selbst und legt sie in KV ab (kein Secret nötig).
 // Zeitplan: die Seite schickt Tagesziele mit Glocke; der Cron (alle 5 Minuten) verschickt fällige Erinnerungen,
@@ -605,7 +536,7 @@ async function sendPush(env, sub, msg) {
   const r = await fetch(sub.endpoint, { method: 'POST', headers: { 'Content-Encoding': 'aes128gcm', 'Content-Type': 'application/octet-stream', TTL: '7200', Urgency: 'high', Authorization: await vapidAuth(env, sub.endpoint) }, body: await encryptPush(sub, JSON.stringify(msg)) });
   return r.status;
 }
-const PUSH_DEF = { subs: [], quiet: { days: [1, 2, 3, 4, 5], from: '08:00', to: '15:30' }, morning: { on: true, wd: '06:45', we: '09:30' }, news: { on: true, wd: '06:45', we: '09:30' }, lead: 0, items: [], done: {}, sent: {} };
+const PUSH_DEF = { subs: [], quiet: { days: [1, 2, 3, 4, 5], from: '08:00', to: '15:30' }, morning: { on: true, wd: '06:45', we: '09:30' }, lead: 0, items: [], done: {}, sent: {} };
 async function pushCfg(env) { return Object.assign({}, PUSH_DEF, JSON.parse((await env.WB.get(PUSH_KEY)) || '{}')) }
 const hmOk = v => /^([01]\d|2[0-3]):[0-5]\d$/.test(v || '');
 function berlinNow(ms) {
@@ -631,24 +562,16 @@ function pushDue(cfg, nowMs) {
   const m = cfg.morning || {}, mt = n.dow === 0 || n.dow === 6 ? m.we : m.wd;
   if (m.on && hmOk(mt) && !cfg.done[n.day] && !(cfg.sent[n.day] || []).includes('morning') && n.wall >= wallMin(n.day, mt) && n.wall - wallMin(n.day, mt) <= 180)
     out.push({ day: n.day, key: 'morning', msg: { title: '☀️ Morgen-Check', body: 'Wie fühlst du dich? Kurz eintragen, bevor du auf Whoop schaust.', url: 'checkin.html?v=1', tag: 'morning' } });
-  const nw = cfg.news || {}, nt = n.dow === 0 || n.dow === 6 ? nw.we : nw.wd;
-  if (nw.on && hmOk(nt) && !(cfg.sent[n.day] || []).includes('news') && n.wall >= wallMin(n.day, nt) && n.wall - wallMin(n.day, nt) <= 180) {
-    const mi = out.findIndex(o => o.key === 'morning');
-    const nd = { day: n.day, key: 'news', news: true, msg: { title: '📰 Dein Tagesüberblick', body: 'Top-Themen, Deutschland, Welt, Wirtschaft, Technik & Wissen.', url: 'news.html?v=1', tag: 'news' } };
-    if (mi >= 0) { out[mi] = Object.assign(nd, { also: 'morning', msg: { title: '☀️ Guten Morgen', body: 'Kurz einchecken – danach wartet dein Tagesüberblick.', url: 'checkin.html?v=1&news=1', tag: 'morning' } }) }   // eine Nachricht statt zwei
-    else out.push(nd);
-  }
   return out.slice(0, Math.max(0, (cfg.max || PUSH_MAX) - sentToday));
 }
 async function pushRun(env, nowMs) {
   const cfg = await pushCfg(env); if (!cfg.subs.length) return 0;
   const due = pushDue(cfg, nowMs); let sent = 0;
   for (const d of due) {
-    if (d.news) { try { const nz = await newsGet(env, nowMs, true); if (nz.n) d.msg.body = d.also ? 'Kurz einchecken – danach dein Überblick: ' + nz.n + ' Meldungen, ' + nz.minutes + ' Min.' : nz.n + ' Meldungen · ca. ' + nz.minutes + ' Min Lesezeit' } catch (e) {} }
     for (const sub of cfg.subs.slice()) {
       try { const st = await sendPush(env, sub, d.msg); if (st === 404 || st === 410) cfg.subs = cfg.subs.filter(x => x.endpoint !== sub.endpoint); else if (st < 300) sent++ } catch (e) {}
     }
-    (cfg.sent[d.day] = cfg.sent[d.day] || []).push(d.key); if (d.also) cfg.sent[d.day].push(d.also);
+    (cfg.sent[d.day] = cfg.sent[d.day] || []).push(d.key);
   }
   const keep = new Date(nowMs - 3 * 864e5).toISOString().slice(0, 10), before = JSON.stringify(cfg.sent) + JSON.stringify(cfg.done) + cfg.items.length;
   ['sent', 'done'].forEach(k => Object.keys(cfg[k]).forEach(day => { if (day < keep) delete cfg[k][day] }));
@@ -659,7 +582,7 @@ async function pushRun(env, nowMs) {
 async function pushApi(env, path, b) {
   const cfg = await pushCfg(env);
   if (path === '/push/key') return { key: (await vapidKeys(env)).pub };
-  if (path === '/push/status') return { subs: cfg.subs.length, quiet: cfg.quiet, morning: cfg.morning, news: cfg.news, lead: cfg.lead, items: cfg.items.length };
+  if (path === '/push/status') return { subs: cfg.subs.length, quiet: cfg.quiet, morning: cfg.morning, lead: cfg.lead, items: cfg.items.length };
   if (path === '/push/subscribe') {
     const s = b.sub; if (!s || !/^https:\/\//.test(s.endpoint || '') || !s.keys || !s.keys.p256dh || !s.keys.auth) { const e = new Error('ungültiges Abo'); e.code = 'RANGE'; throw e; }
     cfg.subs = cfg.subs.filter(x => x.endpoint !== s.endpoint).concat({ endpoint: s.endpoint, keys: { p256dh: s.keys.p256dh, auth: s.keys.auth } }).slice(-5);
@@ -667,7 +590,6 @@ async function pushApi(env, path, b) {
   else if (path === '/push/config') {
     if (b.quiet && hmOk(b.quiet.from) && hmOk(b.quiet.to)) cfg.quiet = { days: (b.quiet.days || []).filter(d => d >= 0 && d <= 6), from: b.quiet.from, to: b.quiet.to };
     if (b.morning) cfg.morning = { on: !!b.morning.on, wd: hmOk(b.morning.wd) ? b.morning.wd : cfg.morning.wd, we: hmOk(b.morning.we) ? b.morning.we : cfg.morning.we };
-    if (b.news) cfg.news = { on: !!b.news.on, wd: hmOk(b.news.wd) ? b.news.wd : cfg.news.wd, we: hmOk(b.news.we) ? b.news.we : cfg.news.we };
     if (b.lead != null) cfg.lead = Math.max(0, Math.min(120, parseInt(b.lead, 10) || 0));
   } else if (path === '/push/schedule') {
     const days = new Set((b.days || []).filter(validDate));
@@ -682,7 +604,7 @@ async function pushApi(env, path, b) {
   return { ok: true, subs: cfg.subs.length };
 }
 
-globalThis.__lbPush = { pushDue, encryptPush, berlinNow, parseFeed };   // nur für Tests
+globalThis.__lbPush = { pushDue, encryptPush, berlinNow };   // nur für Tests
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -775,7 +697,6 @@ export default {
         const b = await request.json().catch(() => ({}));
         return json(env, await askAI(env, b));
       }
-      if (url.pathname === '/news') return json(env, await newsGet(env, Date.now(), url.searchParams.get('refresh') === '1'));
       if (url.pathname.startsWith('/push/')) return json(env, await pushApi(env, url.pathname, request.method === 'POST' ? await request.json().catch(() => ({})) : {}));
       if (url.pathname === '/ai/providers') return json(env, { gemini: !!env.GEMINI_KEY, ...Object.fromEntries(Object.entries(PROVIDERS).map(([k, p]) => [k, !!env[p.key]])) });
       if (url.pathname === '/stt' && request.method === 'POST') return json(env, await sttGemini(env, await request.json().catch(() => ({}))));

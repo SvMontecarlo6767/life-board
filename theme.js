@@ -224,7 +224,7 @@ function start(){
   // Cockpit bei voller Leistung: Zahlen zählen hoch, Graphen zeichnen sich (lb-fx.js); 3D-Objekte auf den Hub-Karten (lb-data.js + lb-obj3d.js)
   let fx3=false;const fx=()=>{if(fx3||root.getAttribute('data-theme')==='jungle'||S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches)return;fx3=true;
     loadScript('lb-fx.js?v=1').catch(()=>{});
-    if(document.getElementById('hub')&&typeof auth!=='undefined')loadScript('lb-data.js?v=1').then(()=>loadScript('lb-obj3d.js?v=1')).catch(()=>{})};
+    if(document.getElementById('hub')&&typeof auth!=='undefined')loadScript('lb-data.js?v=2').then(()=>loadScript('lb-obj3d.js?v=2')).catch(()=>{})};
   fx();listeners.push(()=>fx());window.addEventListener('lb-theme',fx);
   requestAnimationFrame(()=>root.classList.add('lb-ready'));
   setTimeout(reveal,60);
