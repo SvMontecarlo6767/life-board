@@ -149,7 +149,8 @@ function size(){
   box.style.setProperty('--h3w',W+'px');box.style.setProperty('--h3h',H+'px');
   // Platz zwischen Kopf und unterer Leiste ganz nutzen, damit die Bühne mittig steht
   const top=box.getBoundingClientRect().top+(scrollY||0),nav=document.getElementById('lb-nav'),nb=nav&&getComputedStyle(nav).bottom==='0px'?nav.getBoundingClientRect().height:0;
-  box.style.setProperty('--h3full',Math.max(0,Math.round(vh-top-nb-8))+'px');
+  const pb=parseFloat(getComputedStyle(document.body).paddingBottom)||0;   // unterer Seitenabstand (über der Leiste) mitrechnen, sonst scrollt der Hub minimal
+  box.style.setProperty('--h3full',Math.max(0,Math.round(vh-top-Math.max(nb+8,pb)))+'px');
 }
 function build(){
   if(built)return;built=true;
