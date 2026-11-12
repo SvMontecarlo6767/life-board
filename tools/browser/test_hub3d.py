@@ -87,7 +87,8 @@ with sync_playwright() as p:
         swipe(pg,170); ck(f'{dev}: Wischen nach rechts von Check-in landet bei Kalender (Ring)',front(pg) in(4,3),front(pg))
         pg.evaluate('LBHub3D.goTo(0)'); settle(pg)
         # seitliche Karte antippen -> nach vorne
-        side=pg.evaluate('(()=>{const e=document.querySelector(".h3c[data-id=training]").getBoundingClientRect();return [Math.min(innerWidth-6,Math.max(e.left,0)+Math.min(e.width,innerWidth-Math.max(e.left,0))/2),e.top+e.height/2]})()')
+        side=pg.evaluate('(()=>{const e=document.querySelector(".h3c[data-id=training]").getBoundingClientRect(),f=document.querySelector(".h3c.front").getBoundingClientRect(),l=Math.max(e.left,f.right),r=Math.min(e.right,innerWidth);return [(l+r)/2,e.top+e.height/2,r-l]})()')   # sichtbarer Streifen neben der vorderen Karte
+        ck(f'{dev}: sichtbarer Streifen der Seitenkarte mindestens 40 px',side[2]>=40,side)
         pg.mouse.click(side[0],side[1]); settle(pg)
         ck(f'{dev}: seitliche Karte antippen dreht sie nach vorne (ohne zu öffnen)',front(pg)==1 and 'index.html' in pg.url,(front(pg),pg.url))
         ck(f'{dev}: kein Seitwärtsscroll',pg.evaluate('document.documentElement.scrollWidth<=innerWidth'))
