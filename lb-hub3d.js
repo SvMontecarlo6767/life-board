@@ -1,11 +1,11 @@
 /* Life Board – Hub als 3D-Karussell (nur Cockpit-Design, nur bei voller Leistung).
    Dschungel, Performance-Modus und „Bewegung reduzieren“ zeigen die bisherige Kachelliste (#tiles) – unverändert.
-   Karten in fester Reihenfolge: Check-in (immer vorne), Überblick, Muster, Kalender, Training, Recovery, Gewohnheiten (kommt später).
+   Karten in fester Reihenfolge: Check-in (immer vorne), Training, Recovery, Muster, Kalender.
    Wischen dreht, die vorderste Karte ist groß, Antippen öffnet (seitliche Karte antippen = nach vorne drehen).
    Ziele der Karten = dieselben Links wie die Kacheln (werden aus #tiles gelesen).
    Live-Werte NUR LESEND über bestehende Module: Check-in = Text der bestehenden ckTxt-Logik (gespiegelt),
    Recovery = LBWhoop.peek (Gerätespeicher), Training = plan-core.js + plan/ und training/gym_JJJJ (gelesen),
-   Kalender = calendar-core.js + calendar/ (gelesen), Überblick = zuletzt geladener Stand (localStorage lb_news), Muster = Teaser.
+   Kalender = calendar-core.js + calendar/ (gelesen) Muster = Teaser.
    Keine Schreibzugriffe. Die vorderste Karte tönt die Weltraum-Welt (Ereignis 'lb-tint'). */
 (function(){
 'use strict';
@@ -21,22 +21,18 @@ const CARDS=[   // wichtigste zuerst: Check-in, Training, Recovery
   {id:'checkin',k:'Check-in',href:'checkin.html',rgb:()=>tabRgb('checkin')||[255,190,90]},
   {id:'training',k:'Training',href:'training.html',rgb:()=>tabRgb('training')||[255,84,96]},
   {id:'recovery',k:'Recovery',href:'recovery.html',rgb:()=>tabRgb('recovery')||[52,235,170]},
-  {id:'news',k:'Überblick',href:'news.html',rgb:()=>[150,175,255]},
   {id:'muster',k:'Muster',href:'muster.html',rgb:()=>tabRgb('muster')||[120,230,255]},
-  {id:'kalender',k:'Kalender',href:'calendar.html',rgb:()=>tabRgb('kalender')||[255,200,70]},
-  {id:'habits',k:'Gewohnheiten',off:true,rgb:()=>[140,160,185]}
+  {id:'kalender',k:'Kalender',href:'calendar.html',rgb:()=>tabRgb('kalender')||[255,200,70]}
 ];
-const N=CARDS.length,STEP=2*Math.PI/N;
+const N=CARDS.length,STEP=2*Math.PI/N,ANG=.62;   // ANG: Winkel zwischen zwei Karten (Darstellung), STEP: eine Umdrehung = alle Karten (Weltraum dreht mit)
 /* Embleme (Platz für die 3D-Objekte aus Phase 3) */
 const EMB={
   sun:'<svg viewBox="0 0 120 120"><defs><radialGradient id="h3sun" cx=".4" cy=".38"><stop offset="0" stop-color="#fff8e0"/><stop offset=".45" stop-color="rgb(var(--c))"/><stop offset="1" stop-color="rgb(var(--c) / .1)"/></radialGradient></defs><g class="spin">'+Array.from({length:12},(_,i)=>'<path d="M60 8v14" transform="rotate('+i*30+' 60 60)"/>').join('')+'</g><circle cx="60" cy="60" r="27" fill="url(#h3sun)" class="glow"/></svg>',
   moon:'<svg viewBox="0 0 120 120"><defs><radialGradient id="h3moon" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset=".6" stop-color="rgb(var(--c))"/><stop offset="1" stop-color="rgb(var(--c) / .2)"/></radialGradient></defs><path d="M78 26a36 36 0 1 0 18 52A30 30 0 0 1 78 26z" fill="url(#h3moon)" class="glow"/><g class="tw"><circle cx="28" cy="30" r="1.8"/><circle cx="96" cy="20" r="1.4"/><circle cx="20" cy="84" r="1.2"/></g></svg>',
-  globe:'<svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="36" class="glow" fill="rgb(var(--c) / .12)"/><g class="spinY"><ellipse cx="60" cy="60" rx="16" ry="36"/><ellipse cx="60" cy="60" rx="30" ry="36"/></g><path d="M24 60h72M30 42h60M30 78h60"/><circle cx="60" cy="60" r="36"/></svg>',
   net:'<svg viewBox="0 0 120 120"><g class="drift"><path d="M24 80L46 46 70 62 96 30M46 46L60 92 70 62M24 80L60 92 96 74 70 62M96 30L96 74"/>'+[[24,80],[46,46],[70,62],[96,30],[60,92],[96,74]].map(([x,y],i)=>'<circle cx="'+x+'" cy="'+y+'" r="'+(i===2?6:4.5)+'" class="node" style="--d:'+i*.3+'s"/>').join('')+'</g></svg>',
   band:'<svg viewBox="0 0 120 120"><path d="M14 74c22-22 70-22 92-6" class="lane"/><path d="M14 88c22-22 70-22 92-6" class="lane l2"/>'+[[30,62],[58,54],[86,58]].map(([x,y],i)=>'<rect x="'+(x-9)+'" y="'+(y-9)+'" width="18" height="18" rx="5" class="ev" style="--d:'+i*.4+'s"/>').join('')+'</svg>',
   ring:'',   // Wochen-Ring wird mit echten Daten gezeichnet
   core:'<svg viewBox="0 0 120 120"><defs><radialGradient id="h3core" cx=".4" cy=".36"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="var(--z,rgb(var(--c)))"/><stop offset="1" stop-color="var(--z,rgb(var(--c)))" stop-opacity=".05"/></radialGradient></defs><ellipse cx="60" cy="60" rx="48" ry="14" class="orbit" transform="rotate(-18 60 60)"/><ellipse cx="60" cy="60" rx="44" ry="12" class="orbit o2" transform="rotate(28 60 60)"/><circle cx="60" cy="60" r="24" fill="url(#h3core)" class="beat"/></svg>',
-  check:'<svg viewBox="0 0 120 120"><rect x="30" y="30" width="60" height="60" rx="16"/><path d="M44 60l11 11 22-24"/></svg>'
 };
 function ringSvg(days){   // 7 Segmente Mo–So; erledigt leuchtet in Sportart-Farbe, heute pulsiert
   const cx=60,cy=60,r=40,seg=2*Math.PI/7,gap=.09;
@@ -50,6 +46,8 @@ function ringSvg(days){   // 7 Segmente Mo–So; erledigt leuchtet in Sportart-F
 const CSS=`
 #hub3d{position:relative;margin:4px calc(-1*clamp(14px,4vw,32px)) 0;overflow:hidden;overflow:clip;touch-action:pan-y;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 #hub3d[hidden]{display:none}
+#hub3d{display:flex;flex-direction:column;min-height:var(--h3full,auto)}
+#hub3d .h3-stage{margin:auto 0;flex:none}   /* Karten in der Mitte, Hintergrund darüber und darunter */
 html[data-hub3d] #tiles{display:none}
 .h3-stage{position:relative;height:var(--h3h,430px);perspective:1100px;perspective-origin:50% 42%}
 .h3c{position:absolute;left:50%;top:10px;width:var(--h3w,320px);height:calc(var(--h3h,430px) - 30px);margin-left:calc(var(--h3w,320px) / -2);
@@ -108,7 +106,6 @@ html[data-hub3d] #tiles{display:none}
 .h3-floor::after{inset:4%;border:1px dashed rgb(var(--c) / .5);box-shadow:none;animation:h3Spin 30s linear infinite}
 .h3-beam{position:absolute;left:50%;top:40px;width:calc(var(--h3w,320px) * 1.05);height:calc(var(--h3h,430px) - 60px);margin-left:calc(var(--h3w,320px) * -.525);pointer-events:none;z-index:2;
   background:linear-gradient(to top,rgb(var(--c) / .26),rgb(var(--c) / .06) 55%,transparent);clip-path:polygon(32% 100%,68% 100%,100% 0,0 0);filter:blur(6px);animation:h3Beam 3.2s ease-in-out infinite;transition:background .6s}
-.h3c{-webkit-box-reflect:below 8px linear-gradient(transparent 64%,rgba(255,255,255,.11))}
 .h3-rim{position:absolute;inset:0;border-radius:inherit;padding:2px;pointer-events:none;opacity:0;transition:opacity .4s;
   background:conic-gradient(from var(--ang),transparent 0 55%,rgb(var(--c)) 72%,#fff 78%,rgb(var(--c)) 84%,transparent 100%);
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
@@ -146,10 +143,13 @@ let built=false,box=null,cards=[],pos=0,vel=0,target=0,raf=0,front=-1,W=320,R=36
 function size(){
   const vw=Math.min(innerWidth,document.documentElement.clientWidth||innerWidth),vh=innerHeight;
   const wide=vw>=700;
-  W=Math.round(wide?Math.min(vw*.52,440):Math.min(vw*.8,340));
-  const H=Math.round(Math.max(360,Math.min(vh*(wide?.5:.56),wide?560:440)));
-  R=Math.round(W*.95);
+  W=Math.round(wide?Math.min(vw*.42,380):Math.min(vw*.7,300));
+  const H=Math.round(Math.max(330,Math.min(vh*(wide?.44:.48),wide?500:400)));
+  R=Math.round(W*1.2);
   box.style.setProperty('--h3w',W+'px');box.style.setProperty('--h3h',H+'px');
+  // Platz zwischen Kopf und unterer Leiste ganz nutzen, damit die Bühne mittig steht
+  const top=box.getBoundingClientRect().top+(scrollY||0),nav=document.getElementById('lb-nav'),nb=nav&&getComputedStyle(nav).bottom==='0px'?nav.getBoundingClientRect().height:0;
+  box.style.setProperty('--h3full',Math.max(0,Math.round(vh-top-nb-8))+'px');
 }
 function build(){
   if(built)return;built=true;
@@ -176,16 +176,14 @@ const wrap=r=>{r=((r%N)+N)%N;return r>N/2?r-N:r};
 function layout(){
   const fi=((Math.round(pos)%N)+N)%N;
   cards.forEach((el,i)=>{
-    const rel=wrap(i-pos),a=rel*STEP,c=Math.cos(a),s=Math.sin(a),ar=Math.abs(rel);
-    const x=R*s,z=R*(c-1),sc=1-.1*Math.min(ar,1.5);
+    const rel=wrap(i-pos),a=rel*ANG,c=Math.cos(a),sn=Math.sin(a),ar=Math.abs(rel);
+    const x=R*sn,z=R*(c-1)-ar*30,sc=1-.07*Math.min(ar,2);
     el.style.transform='translate3d('+x.toFixed(1)+'px,0,'+z.toFixed(1)+'px) rotateY('+(a*180/Math.PI).toFixed(2)+'deg) scale('+sc.toFixed(3)+')';
-    const vis=ar<1.9;
-    el.style.opacity=vis?Math.max(0,Math.min(1,1.35-ar*.55)).toFixed(3):'0';
+    const vis=ar<1.85;
+    el.style.opacity=vis?(ar<1?1-ar*.3:Math.max(0,.7-(ar-1)*.85)).toFixed(3):'0';   // nur Deckkraft ändern: läuft auf der Grafikkarte, kein Neuzeichnen
     el.style.visibility=vis?'visible':'hidden';
     el.style.zIndex=String(200+Math.round(c*100));
-    el.style.setProperty('--dim',Math.min(.6,ar*.45).toFixed(3));
-    el.style.setProperty('--sx',(120-rel*90).toFixed(1)+'%');   // Glanz wandert beim Drehen über die Karte
-    el.style.pointerEvents=ar<1.2?'auto':'none';
+    el.style.pointerEvents=ar<1.15?'auto':'none';
     el.classList.toggle('front',i===fi&&ar<.5);
     const ob=objs[CARDS[i].id];if(ob){ob.setVisible(ar<1.25);ob.spin(vel*2.2)}
     el.setAttribute('tabindex',i===fi?'0':'-1');
@@ -220,8 +218,8 @@ function anim(){
   if(raf)return;let last=performance.now();
   const f=now=>{
     const dt=Math.min(.05,(now-last)/1000);last=now;
-    const k=90,d=2*Math.sqrt(k)*.92;vel+=((target-pos)*k-vel*d)*dt;pos+=vel*dt;
-    if(Math.abs(target-pos)<.001&&Math.abs(vel)<.01){pos=target;vel=0;raf=0;layout();spinning=false;return}
+    const k=150,d=2*Math.sqrt(k);vel+=((target-pos)*k-vel*d)*dt;pos+=vel*dt;   // kritisch gedämpft: landet ohne Nachwippen
+    if(Math.abs(target-pos)<.0015&&Math.abs(vel)<.02){pos=target;vel=0;raf=0;layout();spinning=false;return}
     layout();raf=requestAnimationFrame(f);
   };
   raf=requestAnimationFrame(f);
@@ -242,20 +240,22 @@ function wire(){
   stage.addEventListener('pointermove',e=>{
     if(!P||e.pointerId!==P.id)return;const dx=e.clientX-P.x,dy=e.clientY-P.y;
     if(!P.drag){
-      if(Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)*1.1){P.drag=true;spinning=true;P.p0=pos;cancelAnimationFrame(raf);raf=0;vel=0;try{stage.setPointerCapture(P.id)}catch(x){}}
+      if(Math.abs(dx)>7&&Math.abs(dx)>Math.abs(dy)*1.1){P.drag=true;spinning=true;P.p0=pos;P.x=e.clientX;cancelAnimationFrame(raf);raf=0;vel=0;try{stage.setPointerCapture(P.id)}catch(x){}}
       else if(Math.abs(dy)>12){P=null;return}
       else return;
     }
-    pos=P.p0-dx/(W*.92);target=pos;layout();
-    P.hist.push([performance.now(),e.clientX]);if(P.hist.length>6)P.hist.shift();
+    const ddx=e.clientX-P.x;pos=P.p0-ddx/(W*.8);target=pos;layout();
+    const now=performance.now();P.hist.push([now,e.clientX]);while(P.hist.length>2&&now-P.hist[0][0]>100)P.hist.shift();
   });
   const up=e=>{
     if(!P||e.pointerId!==P.id)return;
     if(P.drag){
-      const h=P.hist,a=h[0],b=h[h.length-1],dt=Math.max(16,b[0]-a[0]);
-      const v=-(b[1]-a[1])/dt*1000/(W*.92);   // Karten pro Sekunde
-      let tg=Math.round(pos+Math.max(-2.4,Math.min(2.4,v*.22)));const mv=pos-P.p0,r0=Math.round(P.p0);if(tg===r0&&Math.abs(mv)>.16)tg=r0+Math.sign(mv);   // schon ein kurzer Wisch blättert weiter
-      target=tg;vel=v*.6;anim();dragAt=performance.now();
+      const h=P.hist,a=h[0],b=h[h.length-1],dt=Math.max(16,b[0]-a[0]),fresh=performance.now()-b[0]<90;
+      const v=fresh?Math.max(-8,Math.min(8,-(b[1]-a[1])/dt*1000/(W*.8))):0;   // Karten pro Sekunde (Finger, der stillsteht = 0)
+      const r0=Math.round(P.p0);let tg=Math.round(pos+Math.max(-1.6,Math.min(1.6,v*.2)));const mv=pos-P.p0;
+      if(tg===r0&&Math.abs(mv)>.15)tg=r0+Math.sign(mv);   // schon ein kurzer Wisch blättert weiter
+      tg=Math.max(r0-2,Math.min(r0+2,tg));
+      target=tg;vel=v;anim();dragAt=performance.now();
       if(Math.round(target)!==Math.round(P.p0)&&window.LBUI)LBUI.sound('tap');
     }
     P=null;
@@ -266,7 +266,8 @@ function wire(){
     const el=e.target.closest('.h3c');if(!el)return;
     if(performance.now()-dragAt<350){e.preventDefault();e.stopPropagation();return}
     const i=+el.dataset.i;
-    if(i!==front||Math.abs(wrap(i-pos))>.3){e.preventDefault();goTo(i,false);return}
+    if(i!==front){e.preventDefault();goTo(i,false);return}   // seitliche Karte: nach vorne drehen
+    if(raf){cancelAnimationFrame(raf);raf=0;pos=target=Math.round(target);vel=0;layout()}   // vorderste Karte öffnet immer, auch wenn noch nachläuft
     if(CARDS[i].off){e.preventDefault();return}
   });
   box.querySelector('.h3-arrow.p').onclick=()=>goTo(front-1);
@@ -287,17 +288,15 @@ function put(id,o){
   if(o.css)for(const k in o.css)el.style.setProperty(k,o.css[k]);
 }
 const berlinHour=()=>+new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',hour:'2-digit',hourCycle:'h23'}).format(new Date());
-function fillEmblems(){const eve=berlinHour()>=17,E={checkin:eve?EMB.moon:EMB.sun,news:EMB.globe,muster:EMB.net,kalender:EMB.band,recovery:EMB.core,training:ringSvg((objData.training&&objData.training.days||Array.from({length:7},(_,i)=>({st:'rest',letter:'MDMDFSS'[i]}))).map(d=>Object.assign({},d,{col:d.rgb?'rgb('+d.rgb.join(' ')+')':null})))};for(const k in E)put(k,{obj:E[k]})}
+function fillEmblems(){const eve=berlinHour()>=17,E={checkin:eve?EMB.moon:EMB.sun,muster:EMB.net,kalender:EMB.band,recovery:EMB.core,training:ringSvg((objData.training&&objData.training.days||Array.from({length:7},(_,i)=>({st:'rest',letter:'MDMDFSS'[i]}))).map(d=>Object.assign({},d,{col:d.rgb?'rgb('+d.rgb.join(' ')+')':null})))};for(const k in E)put(k,{obj:E[k]})}
 function fill(){
   const eve=berlinHour()>=17;
   put('checkin',{obj:eve?EMB.moon:EMB.sun,v:'…',l:eve?'Abend':'Morgen',s:''});
-  put('news',{obj:EMB.globe,v:'',l:'Das Wichtigste in ein paar Minuten',s:'Deutschland & Welt, Wirtschaft, Technik und Wissen'});
   put('muster',{obj:EMB.net,v:'',l:'Was dir guttut, was dich bremst',s:'Zusammenhänge aus Check-in und Whoop · Verläufe vergleichen · Rückblick'});
   put('kalender',{obj:EMB.band,v:'',l:'Nächster Termin',s:'wird geladen …'});
   put('training',{obj:ringSvg(Array.from({length:7},(_,i)=>({st:'rest',letter:'MDMDFSS'[i]}))),v:'',l:'Trainingsplan',s:'wird geladen …'});
   put('recovery',{obj:EMB.core,v:'',l:'Erholung, HRV, Schlaf und Strain',s:'Noch keine Whoop-Daten auf diesem Gerät – Recovery einmal öffnen.'});
-  put('habits',{obj:EMB.check,v:'kommt später',l:'Streaks und Tagesroutine',s:''});
-  mirrorCheckin();news();
+  mirrorCheckin();
   try{auth.onAuthStateChanged(u=>{if(!u)return;recovery();training();calendar();checkinObj()})}catch(e){}
   objects();
 }
@@ -314,18 +313,9 @@ function mirrorCheckin(){
   };
   sync();new MutationObserver(sync).observe(src,{childList:true,subtree:true,characterData:true});
 }
-/* Überblick: zuletzt geladener Stand der Nachrichten-Seite (nur lesen) */
-function news(){
-  try{
-    const N=JSON.parse(localStorage.getItem('lb_news')||'null');if(!N||!N.sections)return;
-    const top=(N.sections.find(s=>s.id==='top'&&s.items.length)||N.sections.find(s=>s.items.length));if(!top)return;
-    const it=top.items[0],day=new Date(N.at).toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'});
-    put('news',{v:esc(N.n)+'<small>Meldungen</small>',l:esc(it.t),s:'Stand '+esc(day)+' · ca. '+esc(N.minutes)+' Min Lesezeit'});
-  }catch(e){}
-}
 /* Live-Werte über LBData (lb-data.js, nur lesen) – dieselben Werte nutzen auch die 3D-Objekte */
 function data(){return window.LBData?Promise.resolve(window.LBData):new Promise((res,rej)=>{const s=document.createElement('script');s.src='lb-data.js?v=1';s.onload=()=>res(window.LBData);s.onerror=rej;document.head.append(s)})}
-const OBJ={checkin:'sun',training:'ring',recovery:'core',news:'globe',muster:'net',kalender:'band'};
+const OBJ={checkin:'sun',training:'ring',recovery:'core',muster:'net',kalender:'band'};
 const objs={},objData={};
 function feed(id,d){objData[id]=d;if(objs[id]&&d)objs[id].set(d)}
 async function recovery(){

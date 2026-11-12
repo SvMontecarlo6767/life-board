@@ -1,6 +1,7 @@
 /* Life Board – Weltraum-Welt (Hintergrund „Weltraum“ im Cockpit-Design). Nur Darstellung, keine Daten, keine Logik.
    Ein WebGL-Renderer (three.js r134 aus vendor/), Pixelratio höchstens 2, pausiert bei verborgener Seite.
-   Inhalt: Sterne mit Tiefe (fliegen langsam auf dich zu), Nebel (Shader), Planet am Horizont mit Atmosphäre, langsame Kamerafahrt.
+   Inhalt: Sterne mit Tiefe (fliegen langsam auf dich zu), Nebel (Shader), Spiralgalaxie hinter der Bildmitte (dreht innen schneller,
+   im Hub mit dem Karussell), Sternschnuppen, schwebender Sternenstaub nah vor der Kamera, langsame Kamerafahrt.
    Stimmung je Recovery-Zone (nur gelesen: LBWhoop.peek bzw. zuletzt bekannte Zone):
      grün = ruhig und klar, gelb = wärmer, rot = unruhig, rötlich glühend. Ohne Daten: neutral in der Reiterfarbe.
    Akzentfarbe des Reiters (--acc/--acc2 aus theme.js) fließt in Nebel, Sterne und Planet ein; der Hub kann die Tönung
@@ -83,31 +84,44 @@ void main(){
   gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
 }`;
 const STREAK_F=`precision mediump float;varying vec3 vCol;varying float vA;void main(){gl_FragColor=vec4(vCol*vA*1.6,1.);}`;
-const PL_V=`varying vec3 vN;varying vec3 vO;varying vec3 vV;
-void main(){vO=normalize(position);vN=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);vV=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`;
-const PL_F=`precision highp float;
-uniform vec3 uSun;uniform vec3 uC1;uniform vec3 uC2;uniform vec3 uAtm;uniform vec3 uLit;uniform float uTime;uniform float uGlow;
-varying vec3 vN;varying vec3 vO;varying vec3 vV;
-float h31(vec3 p){p=fract(p*.3183099+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
-float n3(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
-  return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x),mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x),f.y),mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x),mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x),f.y),f.z);}
-float fb3(vec3 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*n3(p);p=p*2.07+vec3(3.1,1.7,5.3);a*=.5;}return v;}
+/* Galaxie: Punkte in einer flachen Scheibe (Spiralarme + heller Kern), dreht differenziell (innen schneller) */
+const GAL_V=`attribute float aSize;attribute vec3 aCol;attribute float aR;
+uniform float uTime;uniform float uPR;uniform float uSpin;uniform float uGlow;uniform vec3 uArm;uniform vec3 uCore;
+varying vec3 vCol;varying float vA;
 void main(){
-  vec3 o=vO;
-  float w=fb3(o*3.2+vec3(0.,0.,uTime*.01));
-  float b=fb3(vec3(o.x*2.,o.y*9.+w*2.4,o.z*2.));
-  vec3 base=mix(uC1,uC2,smoothstep(.32,.72,b));
-  base*=.8+.2*sin(o.y*30.+w*7.);
-  float l=dot(normalize(vN),normalize(uSun));float day=smoothstep(-.15,.4,l);
-  vec3 col=base*(.05+.85*day);
-  float city=smoothstep(.66,.72,fb3(o*14.))*(1.-day)*.45;col+=uLit*city;
-  float fr=pow(1.-max(dot(normalize(vN),normalize(vV)),0.),3.);
-  col+=uAtm*fr*(.25+.45*day+uGlow*.3);
-  gl_FragColor=vec4(col,1.);
+  float a=uSpin+uTime*(.012+.05*(1.-aR));float c=cos(a),s=sin(a);
+  vec3 p=vec3(position.x*c-position.z*s,position.y,position.x*s+position.z*c);
+  vec4 mv=modelViewMatrix*vec4(p,1.);
+  gl_PointSize=clamp(aSize*uPR*(640./-mv.z),1.,11.*uPR);
+  float k=smoothstep(0.,.5,aR);
+  vCol=mix(uCore*1.2,aCol*uArm*1.15,k);
+  vA=(1.-aR*.35)*(1.+uGlow*.35*sin(uTime*3.3+aR*24.)*(1.-k));
+  gl_Position=projectionMatrix*mv;
 }`;
-const AT_V=`varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
-const AT_F=`precision mediump float;uniform vec3 uAtm;uniform float uPow;uniform float uTime;uniform float uGlow;varying vec3 vN;
-void main(){float i=pow(max(.68-dot(vN,vec3(0.,0.,1.)),0.),3.6)*uPow;i*=1.+uGlow*.25*sin(uTime*2.1);gl_FragColor=vec4(uAtm*i,1.);}`;
+const GAL_F=`precision mediump float;varying vec3 vCol;varying float vA;
+void main(){vec2 c=gl_PointCoord-.5;float d=length(c);float a=smoothstep(.5,0.,d);a*=a;if(a<.01)discard;gl_FragColor=vec4(vCol*a*vA,1.);}`;
+/* Sternenstaub nah an der Kamera (unscharf, „Bokeh“) */
+const DUST_V=`attribute float aSize;uniform float uTime;uniform float uPR;uniform vec3 uCol;varying float vA;varying vec3 vC;
+void main(){vec3 p=position;p.y+=sin(uTime*.12+position.x*.05)*6.;p.x+=cos(uTime*.09+position.y*.04)*5.;vec4 mv=modelViewMatrix*vec4(p,1.);
+  gl_PointSize=aSize*uPR*(48./-mv.z);vA=.07;vC=uCol*1.4;gl_Position=projectionMatrix*mv;}`;
+const DUST_F=`precision mediump float;varying float vA;varying vec3 vC;
+void main(){vec2 c=gl_PointCoord-.5;float d=length(c);float a=smoothstep(.5,.42,d)*.6+smoothstep(.45,0.,d)*.4;if(a<.01)discard;gl_FragColor=vec4(vC*a*vA,1.);}`;
+let GLOW=null;
+function glowTex(T){if(GLOW)return GLOW;const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.15,'rgba(255,255,255,.55)');g.addColorStop(.4,'rgba(255,255,255,.14)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,128);
+  GLOW=new T.CanvasTexture(c);return GLOW}
+function streakTex(T){const c=document.createElement('canvas');c.width=128;c.height=8;const x=c.getContext('2d'),g=x.createLinearGradient(0,0,128,0);
+  g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.85,'rgba(255,255,255,.8)');g.addColorStop(1,'rgba(255,255,255,1)');x.fillStyle=g;x.fillRect(0,2,128,4);return new T.CanvasTexture(c)}
+/* Leuchtende Spiralscheibe als Textur (einmal gemalt): viele weiche Lichtflecken entlang der Arme + heller Kern */
+function diskTex(T,arms){
+  const N=512,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d');x.globalCompositeOperation='lighter';
+  for(let i=0;i<4200;i++){const r=Math.pow(Math.random(),1.15),th=(i%arms)/arms*Math.PI*2+r*5.2+gauss()*(.16+.1*r),R=r*N*.47;
+    const px=N/2+Math.cos(th)*R,py=N/2+Math.sin(th)*R,sz=4+(1-r)*16+Math.random()*8,a=.05*(1-r*.55);
+    const g=x.createRadialGradient(px,py,0,px,py,sz);g.addColorStop(0,'rgba(255,255,255,'+a+')');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(px-sz,py-sz,sz*2,sz*2)}
+  const g=x.createRadialGradient(N/2,N/2,0,N/2,N/2,N*.2);g.addColorStop(0,'rgba(255,255,255,.95)');g.addColorStop(.3,'rgba(255,255,255,.35)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,N,N);
+  return new T.CanvasTexture(c);
+}
+const gauss=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
 
 /* ---------- Welt bauen ---------- */
 function create(el,opts){
@@ -146,12 +160,36 @@ function create(el,opts){
   const strU={uTravel:starU.uTravel,uDepth:starU.uDepth,uWarp:{value:0},uLen:{value:420},uTint:{value:new T.Color(.6,.8,1)}};
   const streaks=new T.LineSegments(lg,new T.ShaderMaterial({uniforms:strU,vertexShader:STREAK_V,fragmentShader:STREAK_F,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));
   streaks.frustumCulled=false;streaks.visible=false;scene.add(streaks);
-  /* Planet am Horizont mit Atmosphäre */
-  const plU={uSun:{value:new T.Vector3(-.6,.75,.35)},uC1:{value:new T.Color()},uC2:{value:new T.Color()},uAtm:{value:new T.Color()},uLit:{value:new T.Color()},uTime:{value:0},uGlow:{value:0}};
-  const planet=new T.Mesh(new T.SphereGeometry(1,small?72:96,small?48:64),new T.ShaderMaterial({uniforms:plU,vertexShader:PL_V,fragmentShader:PL_F}));
-  const atU={uAtm:{value:new T.Color()},uPow:{value:.55},uTime:{value:0},uGlow:{value:0}};
-  const atm=new T.Mesh(new T.SphereGeometry(1.07,64,40),new T.ShaderMaterial({uniforms:atU,vertexShader:AT_V,fragmentShader:AT_F,side:T.BackSide,blending:T.AdditiveBlending,transparent:true,depthWrite:false}));
-  const pg=new T.Group();pg.add(planet,atm);planet.rotation.x=.9;scene.add(pg);
+  /* Galaxie flach unter den Inhalten (Spiralarme, heller Kern) */
+  const NG=small?18000:30000,ARMS=3,gp=new Float32Array(NG*3),gc=new Float32Array(NG*3),gs=new Float32Array(NG),gr=new Float32Array(NG);
+  for(let i=0;i<NG;i++){
+    let x,y,z,r;const bulge=Math.random()<.14;
+    if(bulge){r=Math.pow(Math.random(),2.4)*.2;const th=Math.random()*Math.PI*2;x=Math.cos(th)*r;z=Math.sin(th)*r;y=gauss()*.04*(1-r/.2)}
+    else{   // klare Spiralarme: Zufallsabweichung wächst nach außen, Punkte ballen sich am Arm
+      r=.05+Math.pow(Math.random(),1.25)*.95;const th=(i%ARMS)/ARMS*Math.PI*2+r*5.2,sp=.32*r;
+      const rx=Math.pow(Math.random(),3)*(Math.random()<.5?-1:1)*sp,rz=Math.pow(Math.random(),3)*(Math.random()<.5?-1:1)*sp;
+      x=Math.cos(th)*r+rx;z=Math.sin(th)*r+rz;y=gauss()*.012}
+    gp[i*3]=x;gp[i*3+1]=y;gp[i*3+2]=z;gr[i]=Math.min(1,Math.hypot(x,z));
+    const q=Math.random(),cc=q<.035?[1,.42,.72]:q<.09?[1,.86,.6]:[.78+Math.random()*.22,.86+Math.random()*.14,1];
+    gc.set(cc,i*3);gs[i]=bulge?1.4+Math.random()*1.8:.9+Math.random()*1.6+(q<.035?1.6:0);
+  }
+  const gg=new T.BufferGeometry();gg.setAttribute('position',new T.BufferAttribute(gp,3));gg.setAttribute('aCol',new T.BufferAttribute(gc,3));gg.setAttribute('aSize',new T.BufferAttribute(gs,1));gg.setAttribute('aR',new T.BufferAttribute(gr,1));
+  const galU={uTime:{value:0},uPR:{value:pr},uSpin:{value:0},uGlow:{value:0},uArm:{value:new T.Color()},uCore:{value:new T.Color()}};
+  const galaxy=new T.Points(gg,new T.ShaderMaterial({uniforms:galU,vertexShader:GAL_V,fragmentShader:GAL_F,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));galaxy.frustumCulled=false;
+  const spr=(sz,op)=>{const m=new T.Sprite(new T.SpriteMaterial({map:glowTex(T),transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:op}));m.scale.set(sz,sz*.55,1);return m};
+  const core1=spr(.9,.95),core2=spr(2.4,.32),core3=spr(.34,1);core3.scale.set(.34,.22,1);
+  const disk=new T.Mesh(new T.PlaneGeometry(2.1,2.1),new T.MeshBasicMaterial({map:diskTex(T,ARMS),transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:.85,side:T.DoubleSide}));
+  disk.rotation.x=-Math.PI/2;const diskG=new T.Group();diskG.add(disk);
+  const gal=new T.Group();gal.add(diskG,galaxy,core2,core1,core3);gal.rotation.set(1.18,0,-.14);scene.add(gal);   // schräg von oben: Arme ragen über und unter den Karten heraus
+  /* Sternschnuppen */
+  const sTex=streakTex(T),shoot=[0,1].map(()=>{const m=new T.Mesh(new T.PlaneGeometry(1,1),new T.MeshBasicMaterial({map:sTex,transparent:true,depthWrite:false,blending:T.AdditiveBlending,opacity:0}));m.visible=false;scene.add(m);return{m,t:0,life:0,v:new T.Vector3()}});
+  let nextShoot=2+Math.random()*3;
+  /* Sternenstaub nah vor der Kamera */
+  const ND=small?26:40,dp=new Float32Array(ND*3),ds=new Float32Array(ND);
+  for(let i=0;i<ND;i++){const z=-(40+Math.random()*150);dp[i*3]=(Math.random()*2-1)*-z*.8;dp[i*3+1]=(Math.random()*2-1)*-z*.9;dp[i*3+2]=z;ds[i]=18+Math.random()*44}
+  const dg=new T.BufferGeometry();dg.setAttribute('position',new T.BufferAttribute(dp,3));dg.setAttribute('aSize',new T.BufferAttribute(ds,1));
+  const dustU={uTime:{value:0},uPR:{value:pr},uCol:{value:new T.Color(.6,.8,1)}};
+  const dust=new T.Points(dg,new T.ShaderMaterial({uniforms:dustU,vertexShader:DUST_V,fragmentShader:DUST_F,transparent:true,depthWrite:false,blending:T.AdditiveBlending}));dust.frustumCulled=false;scene.add(dust);
   /* ---------- Farben / Stimmung (weich überblenden) ---------- */
   const cur={acc:cssRgb('--acc'),acc2:cssRgb('--acc2'),tint:null,zone:cachedZone()};
   const tgt={},now={};
@@ -161,10 +199,9 @@ function create(el,opts){
     tgt.A=mix(a,zt,zc?.32:0).map(c=>c/255*.68);
     tgt.B=mix(a2,zt,zc?.55:.15).map(c=>c/255*.58);
     tgt.Z=zt.map(c=>c/255*(z==='r'?.9:.5));
-    tgt.C1=mix([14,26,48],a,.18).map(c=>c/255);
-    tgt.C2=mix([40,70,110],a2,.35).map(c=>c/255*.9);
-    tgt.Atm=mix(a,zt,zc?.6:.2).map(c=>c/255*(z==='r'?.95:.7));
-    tgt.Lit=mix([255,210,140],a,.4).map(c=>c/255);
+    tgt.Arm=mix(mix([96,128,255],a,.38),zt,zc?.35:0).map(c=>c/255*1.05);   // Arme: blau-violett, getönt von Reiter und Zone
+    tgt.Core=mix([255,226,186],zt,z==='r'?.65:zc?.22:0).map(c=>c/255);
+    tgt.Dust=mix(a,zt,.3).map(c=>c/255);
     Object.assign(tgt,m);
   }
   target();for(const k in tgt)now[k]=Array.isArray(tgt[k])?tgt[k].slice():tgt[k];
@@ -173,17 +210,17 @@ function create(el,opts){
     for(const n in tgt){if(Array.isArray(tgt[n]))now[n]=now[n].map((v,i)=>lerp(v,tgt[n][i],k));else now[n]=lerp(now[n],tgt[n],k)}
     nebU.uA.value.setRGB(...now.A);nebU.uB.value.setRGB(...now.B);nebU.uZ.value.setRGB(...now.Z);
     nebU.uDense.value=now.dense;nebU.uTurb.value=now.turb;nebU.uGlow.value=now.glow;starU.uTw.value=now.tw;
-    plU.uC1.value.setRGB(...now.C1);plU.uC2.value.setRGB(...now.C2);plU.uAtm.value.setRGB(...now.Atm);plU.uLit.value.setRGB(...now.Lit);plU.uGlow.value=now.glow;
-    atU.uAtm.value.setRGB(...now.Atm);atU.uGlow.value=now.glow;
+    galU.uArm.value.setRGB(...now.Arm);galU.uCore.value.setRGB(...now.Core);galU.uGlow.value=now.glow;
+    core1.material.color.setRGB(...now.Core);disk.material.color.setRGB(...now.Arm.map(v=>v*.9));core2.material.color.setRGB(...now.Arm);core3.material.color.setRGB(1,.97,.9);dustU.uCol.value.setRGB(...now.Dust);
   }
-  /* ---------- Größe, Planet so platzieren, dass sein Bogen unten den Horizont bildet ---------- */
-  let W=0,H=0;
+  /* ---------- Größe; Galaxie hinter der Bildmitte ---------- */
+  let W=0,H=0,hhG=1,hwG=1,dG=520;
   function resize(){
     let w=el.clientWidth||innerWidth,h=el.clientHeight||innerHeight;const sm=Math.max(screen.width||w,screen.height||h,800);w=Math.min(w,sm);h=Math.min(h,sm);   // nie größer als der Bildschirm (z. B. bei Ganzseiten-Aufnahmen)
     if(w===W&&h===H)return;W=w;H=h;
     R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
-    const d=420,hh=d*Math.tan(cam.fov*Math.PI/360),hw=hh*cam.aspect,r=Math.max(hw*1.7,hh*1.05);
-    pg.position.set(-hw*.18,-hh*(w<h?.62:.7)-r,-d);pg.scale.setScalar(r);
+    const d=520,hh=d*Math.tan(cam.fov*Math.PI/360),hw=hh*cam.aspect,r=Math.max(hw*1.8,hh*(w<h?1.12:1.3));
+    gal.position.set(0,-hh*.06,-d);gal.scale.setScalar(r);hhG=hh;hwG=hw;dG=d;   // Kern etwa hinter der Bildschirmmitte (dort stehen im Hub die Karten)
     const b=R.getDrawingBufferSize(new T.Vector2());nebU.uRes.value.copy(b);
   }
   /* ---------- Kamera: langsame Fahrt, leichte Parallaxe beim Scrollen, optional Geräteneigung ---------- */
@@ -206,12 +243,19 @@ function create(el,opts){
     cam.rotation.set(pitch,yaw,Math.sin(t*.023)*.012,'YXZ');
     nebU.uOff.value.set(yaw*1.6+t*.004+spin*.5,pitch*1.6);nebU.uTime.value=t;nebU.uWarp.value=warp;
     starU.uTime.value=t;starU.uTravel.value=travel;starU.uWarp.value=warp;
-    plU.uTime.value=t;atU.uTime.value=t;planet.rotation.z=t*.006+spin*.35;
+    galU.uTime.value=t;galU.uSpin.value=spin*.6;diskG.rotation.y=-(spin*.6+t*.035);dustU.uTime.value=t;
+    const pulse=1+.05*Math.sin(t*1.3)+now.glow*.12*Math.sin(t*5.7)*Math.sin(t*2.3);core1.scale.set(.9*pulse,.5*pulse,1);core2.material.opacity=.3+.08*Math.sin(t*.7)+now.glow*.1;
+    // Sternschnuppen: alle paar Sekunden eine, quer über den oberen Himmel
+    nextShoot-=dt;if(nextShoot<=0&&warp<.05){nextShoot=3+Math.random()*6;const s=shoot.find(x=>!x.m.visible);if(s){
+      const dir=Math.random()<.5?-1:1,ang=dir*(.35+Math.random()*.35),sp=hhG*(1.1+Math.random()*.8);
+      s.m.position.set((Math.random()*1.4-.7)*hwG,hhG*(.25+Math.random()*.6),-dG);s.v.set(-Math.cos(ang)*dir*sp,-Math.abs(Math.sin(ang))*sp,0);
+      s.m.rotation.z=Math.atan2(s.v.y,s.v.x);s.m.scale.set(hhG*(.22+Math.random()*.18),hhG*.006,1);s.t=0;s.life=.7+Math.random()*.5;s.m.visible=true}}
+    shoot.forEach(s=>{if(!s.m.visible)return;s.t+=dt;const k=s.t/s.life;if(k>=1){s.m.visible=false;return}s.m.position.addScaledVector(s.v,dt);s.m.material.opacity=Math.sin(k*Math.PI)*.9});
     for(const f of pre){try{f(dt,t,R)}catch(e){}}   // 3D-Objekte (lb-obj3d.js) mit demselben Renderer
     R.render(scene,cam);
     if(!okSet){okSet=true;try{localStorage.setItem('lb_space_ok','1')}catch(e){}}
     // einmalig: läuft es zäh, Auflösung senken (nie den Hintergrund wechseln)
-    if(!tuned){if(!fpsT0)fpsT0=ms+1200;else if(ms>fpsT0){frames++;if(ms-fpsT0>2500){tuned=true;const fps=frames*1000/(ms-fpsT0);if(fps<38&&pr>1){pr=1;R.setPixelRatio(pr);starU.uPR.value=pr;W=0}}}}
+    if(!tuned){if(!fpsT0)fpsT0=ms+1200;else if(ms>fpsT0){frames++;if(ms-fpsT0>2500){tuned=true;const fps=frames*1000/(ms-fpsT0);if(fps<38&&pr>1){pr=1;R.setPixelRatio(pr);starU.uPR.value=galU.uPR.value=dustU.uPR.value=pr;W=0}}}}
     raf=requestAnimationFrame(frame);
   }
   const run=()=>{if(!raf&&alive&&!document.hidden){last=0;raf=requestAnimationFrame(frame)}};
@@ -227,14 +271,14 @@ function create(el,opts){
   try{const w=+sessionStorage.getItem('lb_warp_in')||0;if(Date.now()-w<3000){warp=1;warpT=.1;decay=2.4}}catch(e){}
   resize();run();
   const api={
-    el,renderer:R,THREE:T,
+    el,renderer:R,THREE:T,scene,camera:cam,
     recolor(){cur.acc=cssRgb('--acc');cur.acc2=cssRgb('--acc2');target()},
     setZone(z){cur.zone=ZONE[z]?z:'n';target()},
     get zone(){return cur.zone},
     pre(f){pre.push(f);run()},
     warp(sec,rgb,soft){warpT=Math.max(warpT,sec||.6);ramp=soft?2.2:10;decay=soft?2.4:6;if(rgb)strU.uTint.value.setRGB(rgb[0]/255,rgb[1]/255,rgb[2]/255);run()},
     destroy(){alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',vis);window.removeEventListener('lb-tint',onTint);window.removeEventListener('lb-spin',onSpin);removeEventListener('deviceorientation',onTilt);
-      try{lg.dispose();streaks.material.dispose();sg.dispose();planet.geometry.dispose();atm.geometry.dispose();neb.geometry.dispose();[neb,stars,planet,atm].forEach(m=>m.material.dispose());R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api)LBSpace.current=null;window.dispatchEvent(new Event('lb-space-gone'))}
+      try{lg.dispose();streaks.material.dispose();sg.dispose();gg.dispose();dg.dispose();neb.geometry.dispose();[neb,stars,galaxy,dust,core1,core2,core3,disk].forEach(m=>m.material.dispose());disk.geometry.dispose();shoot.forEach(s=>{s.m.geometry.dispose();s.m.material.dispose()});R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api)LBSpace.current=null;window.dispatchEvent(new Event('lb-space-gone'))}
   };
   window.LBSpace.current=api;
   setTimeout(()=>window.dispatchEvent(new Event('lb-space-ready')),0);

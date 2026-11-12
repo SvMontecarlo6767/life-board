@@ -37,6 +37,6 @@ const p2=await ctx.newPage();p2.on('pageerror',e=>errs.push(String(e)));await p2
 await p2.goto(URL+'/checkin.html?v=1&news=1');await p2.waitForFunction(()=>window.__checkinReady,null,{timeout:15000});
 await p2.click('[data-s=mood] [data-v="4"]');await p2.click('[data-s=energy] [data-v="3"]');await p2.click('#mSave');await p2.waitForTimeout(400);
 ck('Check-in zeigt „Tagesüberblick lesen“ (hervorgehoben aus der Nachricht)',(await p2.$eval('#morning a[href^="news.html"] button',x=>x.className))==='primary');
-ck('Hub hat die Kachel',fs.readFileSync(path.join(root,'index.html'),'utf8').includes('href="news.html?v=1"'));
+ck('Überblick-Seite vorhanden (Hub-Kachel auf Wunsch entfernt)',fs.existsSync(path.join(root,'news.html'))&&!fs.readFileSync(path.join(root,'index.html'),'utf8').includes('href="news.html'));
 ck('keine Seitenfehler',!errs.length,errs.join(' | '));
 await b.close();srv.close();console.log(fails?fails+' FEHLER':'alles ok');process.exit(fails?1:0);

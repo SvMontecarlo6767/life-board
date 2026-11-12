@@ -1,6 +1,6 @@
 """Hub-Karussell + Weltraum-Welt (lb-hub3d.js, lb-space.js). Prüft auf iPhone und iPad (Touch): Karussell nur im Cockpit bei voller Leistung,
 Check-in startet vorne, Wischen dreht, seitliche Karte antippen dreht nach vorne, vorderste Karte antippen öffnet den Reiter,
-Gewohnheiten nicht antippbar, Live-Werte (Recovery, Check-in, Training, Kalender, Überblick), Stimmung je Recovery-Zone,
+Überblick/Gewohnheiten nicht mehr im Hub, Live-Werte (Recovery, Check-in, Training, Kalender), Stimmung je Recovery-Zone,
 Dschungel/Performance-Modus/„Bewegung reduzieren“ = Kachelliste ohne WebGL, WebGL-Absturz = ruhiger Ersatz, kein Seitwärtsscroll,
 Tippflächen mindestens 40 px, keine Schreibzugriffe, Warp-Flug (Abflug ≤ 0,8 s, Ankunft sofort bedienbar, kurzer Warp über die Reiterleiste, kein Warp in Dschungel/Performance). Aufruf: python3 tools/browser/test_hub3d.py <Ordner>"""
 import re, json, sys, os, math, threading, http.server, socketserver, functools, datetime, subprocess
@@ -64,32 +64,27 @@ with sync_playwright() as p:
         writes0=pg.evaluate('window.__writes||0')
         ck(f'{dev}: Karussell an, Kachelliste aus',pg.evaluate("document.documentElement.getAttribute('data-hub3d')==='on' && !!document.querySelector('#hub3d:not([hidden])') && getComputedStyle(document.getElementById('tiles')).display==='none'"))
         ids=pg.evaluate('[...document.querySelectorAll(".h3c")].map(e=>e.dataset.id)')
-        ck(f'{dev}: Reihenfolge der Karten',ids==['checkin','training','recovery','news','muster','kalender','habits'],ids)
+        ck(f'{dev}: Reihenfolge der Karten',ids==['checkin','training','recovery','muster','kalender'],ids)
         settle(pg); ck(f'{dev}: Check-in startet vorne',front(pg)==0,front(pg))
         hrefs=pg.evaluate('[...document.querySelectorAll(".h3c")].map(e=>e.getAttribute("href"))')
         tiles=pg.evaluate('[...document.querySelectorAll("#tiles a.tile")].map(e=>e.getAttribute("href"))')
-        ck(f'{dev}: Karten führen zu denselben Seiten wie die Kacheln',sorted(h for h in hrefs if h)==sorted(tiles) and hrefs[6] is None,(hrefs,tiles))
+        ck(f'{dev}: Karten führen zu denselben Seiten wie die Kacheln',sorted(hrefs)==sorted(tiles) and len(hrefs)==5,(hrefs,tiles))
         txt=lambda i:pg.evaluate(f'document.querySelectorAll(".h3c")[{i}].textContent')
-        try: pg.wait_for_function('()=>{const c=document.querySelectorAll(".h3c");return /Niedrig/.test(c[2].textContent)&&/von/.test(c[1].textContent)&&/Zahnarzt/.test(c[5].textContent)}',timeout=15000)
+        try: pg.wait_for_function('()=>{const c=document.querySelectorAll(".h3c");return /Niedrig/.test(c[2].textContent)&&/von/.test(c[1].textContent)&&/Zahnarzt/.test(c[4].textContent)}',timeout=15000)
         except Exception: pass
         ck(f'{dev}: Check-in-Karte zeigt ckTxt (Stimmung 4/5)',('Stimmung 4/5' in txt(0) and 'Erledigt' in txt(0)) or 'Morgen erledigt' in txt(0),txt(0))
         ck(f'{dev}: Recovery-Karte zeigt 22 % und Zone Niedrig','22' in txt(2) and 'Niedrig' in txt(2),txt(2))
         ck(f'{dev}: Training-Karte zeigt Wochenfortschritt','von' in txt(1) and 'Einheiten diese Woche' in txt(1),txt(1))
-        ck(f'{dev}: Kalender-Karte zeigt nächsten Termin','Zahnarzt' in txt(5) and '09:15' in txt(5),txt(5))
-        ck(f'{dev}: Überblick-Karte zeigt letzten Stand','Testmeldung' in txt(3),txt(3))
+        ck(f'{dev}: Kalender-Karte zeigt nächsten Termin','Zahnarzt' in txt(4) and '09:15' in txt(4),txt(4))
+        ck(f'{dev}: Überblick und Gewohnheiten nicht mehr im Hub',pg.evaluate("!document.querySelector('#hub a[href^=\"news.html\"]')&&!/Gewohnheiten/.test(document.getElementById('hub').textContent)"))
         ck(f'{dev}: Weltraum läuft, Stimmung rot (Recovery 22 %)',pg.evaluate("LBBG.mode==='space'&&LBSpace.current&&LBSpace.current.zone==='r'"),pg.evaluate("[LBBG.mode,LBSpace.current&&LBSpace.current.zone]"))
-        try: pg.wait_for_function("window.LBObj&&LBObj.on&&LBObj.count>=6",timeout=15000)
+        try: pg.wait_for_function("window.LBObj&&LBObj.on&&LBObj.count>=5",timeout=15000)
         except Exception: pass
-        ck(f'{dev}: 3D-Objekte auf den Karten (ein Renderer, Holo-Display)',pg.evaluate("LBObj.count>=6&&document.querySelectorAll('.h3-obj.has3d canvas.lb-o3').length>=6&&document.querySelectorAll('canvas').length<=10"),pg.evaluate("[window.LBObj&&LBObj.count,document.querySelectorAll('.h3-obj.has3d').length]"))
+        ck(f'{dev}: 3D-Objekte auf den Karten (ein Renderer, Holo-Display)',pg.evaluate("LBObj.count>=5&&document.querySelectorAll('.h3-obj.has3d canvas.lb-o3').length>=5&&document.querySelectorAll('canvas').length<=10"),pg.evaluate("[window.LBObj&&LBObj.count,document.querySelectorAll('.h3-obj.has3d').length]"))
         pg.screenshot(path=f'{out}/{dev}-front.png')
         swipe(pg,-160); f1=front(pg); ck(f'{dev}: Wischen nach links dreht weiter',f1 in(1,2),f1)
         swipe(pg,160); swipe(pg,160) if front(pg)!=0 else None; ck(f'{dev}: Wischen zurück',front(pg)==0,front(pg))
-        swipe(pg,170); ck(f'{dev}: Wischen nach rechts von Check-in landet bei Gewohnheiten (Ring)',front(pg) in(6,5),front(pg))
-        hab=pg.evaluate('document.querySelector(".h3c[data-id=habits]").tagName')
-        ck(f'{dev}: Gewohnheiten ist kein Link',hab=='DIV')
-        if front(pg)==6:
-            u=pg.url; r=pg.locator('.h3c[data-id=habits]').bounding_box(); pg.mouse.click(r['x']+r['width']/2,r['y']+r['height']/2); pg.wait_for_timeout(600)
-            ck(f'{dev}: Gewohnheiten antippen öffnet nichts',pg.url==u)
+        swipe(pg,170); ck(f'{dev}: Wischen nach rechts von Check-in landet bei Kalender (Ring)',front(pg) in(4,3),front(pg))
         pg.evaluate('LBHub3D.goTo(0)'); settle(pg)
         # seitliche Karte antippen -> nach vorne
         side=pg.evaluate('(()=>{const e=document.querySelector(".h3c[data-id=training]").getBoundingClientRect();return [Math.min(innerWidth-6,Math.max(e.left,0)+Math.min(e.width,innerWidth-Math.max(e.left,0))/2),e.top+e.height/2]})()')
@@ -98,7 +93,7 @@ with sync_playwright() as p:
         ck(f'{dev}: kein Seitwärtsscroll',pg.evaluate('document.documentElement.scrollWidth<=innerWidth'))
         sm=pg.evaluate(small_js); ck(f'{dev}: Tippflächen mindestens 40 px',not sm,sm)
         fw=pg.evaluate('(()=>{const r=document.querySelector(".h3c.front").getBoundingClientRect();return [r.width,r.height]})()')
-        ck(f'{dev}: vorderste Karte groß',fw[0]>=280 and fw[1]>=320,fw)
+        ck(f'{dev}: vorderste Karte groß genug (etwas kleiner als früher, mehr Hintergrund)',fw[0]>=250 and fw[1]>=300,fw)
         ck(f'{dev}: keine Schreibzugriffe durch den Hub',pg.evaluate('window.__writes||0')==writes0)
         ck(f'{dev}: Zahnrad hat Whoop, Sicherung, App',pg.evaluate("!!document.querySelector('#lb-set #lb-acc-wh')&&!!document.querySelector('#lb-set #lb-acc-bk')&&!!document.querySelector('#lb-set #lb-acc-app')"))
         # vorderste Karte antippen öffnet
