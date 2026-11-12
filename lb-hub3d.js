@@ -143,8 +143,8 @@ let built=false,box=null,cards=[],pos=0,vel=0,target=0,raf=0,front=-1,W=320,R=36
 function size(){
   const vw=Math.min(innerWidth,document.documentElement.clientWidth||innerWidth),vh=innerHeight;
   const wide=vw>=700;
-  W=Math.round(wide?Math.min(vw*.42,380):Math.min(vw*.7,300));
-  const H=Math.round(Math.max(330,Math.min(vh*(wide?.44:.48),wide?500:400)));
+  W=Math.round(wide?Math.min(vw*.5,430):Math.min(vw*.78,330));   // groß (Großteil des Bildes), Rand für den Hintergrund bleibt
+  const H=Math.round(Math.max(350,Math.min(vh*(wide?.5:.55),wide?560:450)));
   R=Math.round(W*1.2);
   box.style.setProperty('--h3w',W+'px');box.style.setProperty('--h3h',H+'px');
   // Platz zwischen Kopf und unterer Leiste ganz nutzen, damit die Bühne mittig steht
