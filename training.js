@@ -56,7 +56,21 @@ async function addGym(o) {
   if (linked) { linked.ok = true; if (!linked.rpe) linked.rpe = s.rpe; if (!linked.focus && s.plan) linked.focus = s.plan; if (!['Kraft', 'Isometrie', 'Plyometrie'].includes(linked.sport)) { linked.sp = 'Kraft'; linked.sport = 'Kraft' } }   // gehört zu einer Whoop-Einheit: nicht doppelt zählen
   else { const a = { id: 'g' + s.id, t, raw: 'Kraft', name: s.plan || 'Gym', km: null, sec: s.min * 60, hr: null, hrmax: null, elev: null, cad: null, gear: null, kcal: null, steps: null, rpe: s.rpe }; a.sport = 'Kraft'; ACTS = dedupe(ACTS.concat([a])) }
   try { await saveGym(); await saveActs() } catch (e) { GYM = keepG; ACTS = keepA; throw e }
-  renderAll(); return prs;
+  renderAll(); prs.id = s.id; return prs;
+}
+/* Gespeicherte Gym-Einheit nachträglich ändern (z. B. vergessene Übung ergänzen): gleiche ID, Verknüpfungen bleiben, nichts doppelt */
+async function updateGym(id, o) {
+  const G = window.TrainingGym.core, old = GYM.find(x => x.id === id); if (!old) throw new Error('Einheit nicht gefunden');
+  const [y, m, d] = o.date.split('-').map(Number), now = C.local(Date.now());
+  const t = o.date === old.date ? old.t : (o.date === now.key ? Date.now() : C.localToMs(y, m, d, 18, 0, 0));
+  const s = Object.assign({}, old, { date: o.date, t: old.link ? old.t : t, min: o.min, rpe: o.rpe, note: o.note, plan: o.plan, ex: o.ex, skip: (o.skip || []).slice(0, 30) });
+  const keepG = GYM.slice(), keepA = ACTS.map(a => Object.assign({}, a));
+  const others = GYM.filter(x => x.id !== id), prs = G.prsOf(others, s, todayKey());
+  GYM = others.concat([s]);
+  const ga = ACTS.find(a => a.id === 'g' + id); if (ga) { ga.sec = s.min * 60; ga.rpe = s.rpe; ga.name = s.plan || 'Gym'; ga.t = s.t }
+  const wa = s.link && ACTS.find(a => a.id === s.link); if (wa) { wa.rpe = s.rpe; if (s.plan) wa.focus = s.plan }
+  try { await saveGym(); await saveActs() } catch (e) { GYM = keepG; ACTS = keepA; throw e }
+  renderAll(); prs.id = s.id; return prs;
 }
 async function removeGym(id) {
   const keepG = GYM.slice(), keepA = ACTS.slice();
@@ -94,7 +108,7 @@ function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidde
 function homeOnboard() { const o = $('onboard'), g = $('setup').querySelector('.g'); if (o && g && o.parentNode !== g) g.prepend(o) }
 let stvInit = false;
 function multiCtx() {
-  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, remove: removeGym, muscles: ST.muscles || {}, setMuscles: async m => { ST.muscles = m; await saveSettings() }, rec: WREC, workouts: ST.workouts || [], setWorkouts: async w => { ST.workouts = w; await saveSettings() } }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
+  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, update: updateGym, remove: removeGym, muscles: ST.muscles || {}, setMuscles: async m => { ST.muscles = m; await saveSettings() }, rec: WREC, workouts: ST.workouts || [], setWorkouts: async w => { ST.workouts = w; await saveSettings() } }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
 }
 function renderMulti() {
   show('multi'); say(''); window.TrainingMulti.render($('mcontent'), R, multiCtx());
@@ -110,8 +124,10 @@ async function addAct(o) {
   a.sport = C.classify(a.raw, a.name, a.km, a.elev);
   const keep = ACTS.slice(); ACTS = dedupe(ACTS.concat([a]));
   try { await saveActs() } catch (e) { ACTS = keep; throw e }
-  renderAll();
+  renderAll(); return a.id;
 }
+/* Für den Trainingsplan (plan.js): eigene Einheit ohne Whoop ins Logbuch eintragen bzw. wieder löschen – über die Seite, damit nichts überschrieben wird */
+window.LBTrainingLog = { add: o => addAct(o), remove: id => removeAct(id) };
 /* Whoop-Einheit ergänzen: Sportart, Fokus, Anstrengung, Notiz */
 async function completeAct(id, o) {
   const a = ACTS.find(x => x.id === id); if (!a) throw new Error('Einheit nicht gefunden');

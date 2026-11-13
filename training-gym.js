@@ -201,6 +201,7 @@ function draw() {
   if (G.prs && G.prs.length) h += '<div class="gprs" role="status">🏆 <b>Neue Rekorde:</b> ' + G.prs.map(p => esc(p.n) + ' (' + p.kind + ': ' + (p.w ? fmtW(p.w) + ' kg × ' : '') + p.r + ')').join(' · ') + '</div>';
   h += d ? editor(d) : starter();
   h += '<div class="msg" id="gMsg" aria-live="polite">' + esc(G.msg) + '</div>';
+  if (!d && G.saved && A.sessions.some(x => x.id === G.saved)) h += '<div class="btns"><button type="button" data-a="editS" data-id="' + esc(G.saved) + '">✎ Doch noch ändern (z. B. Übung vergessen)</button></div>';
   if (A.ex.length) h += progress() + insightsCard() + muscles() + history();
   G.host.innerHTML = h; bind(); if (A.ex.length) chart();
 }
@@ -215,7 +216,7 @@ function starter() {
 }
 function editor(d) {
   const st = liveStats(), inDraft = new Set(d.ex.map(e => key(e.n))), known = G.A.ex.map(o => o.name), quick = G.A.ex.filter(o => !inDraft.has(o.key)).slice(0, 16);
-  let h = '<div class="gedit"><div class="gtop"><b>' + (d.plan ? esc(d.plan) : 'Gym-Einheit') + '</b><span class="mu" id="gLive">' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg Volumen</span></div>' + (d.link ? '<div class="mu" style="margin:4px 0 8px">⌚ Gehört zur Whoop-Einheit vom ' + window.TrainingCore.fmt.date(d.date) + ' – zählt nur einmal.</div>' : '');
+  let h = '<div class="gedit">' + (d.edit ? '<div class="gediting info" style="margin:0 0 10px">✎ Du bearbeitest die gespeicherte Einheit vom ' + window.TrainingCore.fmt.date(d.date) + '. „Änderungen speichern“ ersetzt sie (nichts doppelt), „Abbrechen“ lässt sie wie sie war.</div>' : '') + '<div class="gtop"><b>' + (d.plan ? esc(d.plan) : 'Gym-Einheit') + '</b><span class="mu" id="gLive">' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg Volumen</span></div>' + (d.link ? '<div class="mu" style="margin:4px 0 8px">⌚ Gehört zur Whoop-Einheit vom ' + window.TrainingCore.fmt.date(d.date) + ' – zählt nur einmal.</div>' : '');
   h += '<div class="grest" id="gRest">' + [60, 90, 120, 180].map(s => '<button type="button" class="chip" data-a="rest" data-s="' + s + '">' + (s >= 120 ? s / 60 + ' min' : s + ' s') + '</button>').join('') + '<span id="gRestT" class="grt" aria-live="off"></span></div>';
   d.ex.forEach((e, i) => {
     const o = G.A.byKey.get(key(e.n));
@@ -233,7 +234,7 @@ function editor(d) {
   h += '<div class="fm"><div class="row"><div><label for="gDate">Datum</label><input id="gDate" type="date" max="' + G.ctx.today + '" value="' + esc(d.date) + '"></div><div><label for="gMin">Dauer (Minuten)</label><input id="gMin" type="number" inputmode="numeric" min="5" max="400" placeholder="' + (d.start ? Math.max(5, Math.round((Date.now() - d.start) / 60000)) : 60) + '" value="' + esc(d.min) + '"></div></div>' +
     '<label>Wie anstrengend? <b id="gRpeT">' + d.rpe + '/10</b></label><div class="seg rpe" id="gRpe" role="group" aria-label="Anstrengung">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => '<button type="button" data-r="' + n + '" aria-pressed="' + (n === d.rpe) + '">' + n + '</button>').join('') + '</div>' +
     '<label for="gNote">Notiz (optional)</label><input id="gNote" type="text" maxlength="120" value="' + esc(d.note) + '" placeholder="z. B. Schulter zwickt"></div>' +
-    '<div class="btns"><button type="button" class="primary" id="gSave">Einheit speichern</button><button type="button" id="gDrop">Verwerfen</button></div></div>';
+    '<div class="btns"><button type="button" class="primary" id="gSave">' + (d.edit ? 'Änderungen speichern' : 'Einheit speichern') + '</button><button type="button" id="gDrop">' + (d.edit ? 'Abbrechen' : 'Verwerfen') + '</button></div></div>';
   return h;
 }
 function progress() {
@@ -307,7 +308,7 @@ function insightsCard() {
 }
 function history() {
   const list = G.A.sessions.slice(0, 8), F = window.TrainingCore.fmt;
-  return '<h3 class="gh">Letzte Einheiten</h3><div class="ghist">' + list.map(s => { const st = sessStats(s); return '<details data-id="' + esc(s.id) + '"' + (G.openId === s.id ? ' open' : '') + '><summary>' + F.date(s.date) + ' · ' + esc(s.plan || 'Gym') + ' · ' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg</summary><div class="gdet">' + s.ex.map(e => '<div><b>' + esc(e.n) + '</b> <span class="mu">' + esc(setStr(e.s)) + '</span></div>').join('') + (s.skip && s.skip.length ? '<div class="mu">Ausgelassen: ' + esc(s.skip.join(', ')) + '</div>' : '') + (s.note ? '<div class="mu">„' + esc(s.note) + '“</div>' : '') + '<div class="btns"><button type="button" class="txt" data-a="delS" data-id="' + esc(s.id) + '">Einheit löschen</button></div></div></details>' }).join('') + '</div>';
+  return '<h3 class="gh">Letzte Einheiten</h3><div class="ghist">' + list.map(s => { const st = sessStats(s); return '<details data-id="' + esc(s.id) + '"' + (G.openId === s.id ? ' open' : '') + '><summary>' + F.date(s.date) + ' · ' + esc(s.plan || 'Gym') + ' · ' + st.sets + ' Sätze · ' + nf(st.vol) + ' kg</summary><div class="gdet">' + s.ex.map(e => '<div><b>' + esc(e.n) + '</b> <span class="mu">' + esc(setStr(e.s)) + '</span></div>').join('') + (s.skip && s.skip.length ? '<div class="mu">Ausgelassen: ' + esc(s.skip.join(', ')) + '</div>' : '') + (s.note ? '<div class="mu">„' + esc(s.note) + '“</div>' : '') + '<div class="btns"><button type="button" data-a="editS" data-id="' + esc(s.id) + '">✎ Bearbeiten</button><button type="button" class="txt" data-a="delS" data-id="' + esc(s.id) + '">Einheit löschen</button></div></div></details>' }).join('') + '</div>';
 }
 function chart() {
   const el = $('gChart'), o = G.A.byKey.get(G.sel); if (!el || !o) return;
@@ -344,6 +345,13 @@ function bind() {
     if (a === 'wdel') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w || !confirm('Workout „' + w.name + '“ löschen? Deine gespeicherten Einheiten bleiben.')) return; await saveWorkouts(G.ctx.workouts.filter(x => x.id !== w.id), 'Workout gelöscht.'); return }
     if (a === 'sel') { G.sel = b.dataset.k; draw(); return }
     if (a === 'rest') { startRest(+b.dataset.s); return }
+    if (a === 'editS') {   // gespeicherte Einheit wieder öffnen (vergessene Übung ergänzen, Sätze korrigieren)
+      const s = G.A.sessions.find(x => x.id === b.dataset.id); if (!s) return;
+      if (G.draft && !G.draft.edit && G.draft.ex.some(e => e.s.some(x => x.r)) && !confirm('Deinen offenen Entwurf verwerfen und die gespeicherte Einheit bearbeiten?')) return;
+      G.draft = { plan: s.plan || '', wid: null, start: null, date: s.date, min: String(s.min || ''), rpe: s.rpe || 7, note: s.note || '', link: s.link || null, edit: s.id,
+        ex: s.ex.map(e => ({ n: e.n, s: e.s.map(x => ({ w: x.w ? fmtW(x.w) : '', r: String(x.r) })) })).concat((s.skip || []).map(n => ({ n, s: [{ w: '', r: '' }], skip: true }))) };
+      G.saved = null; G.prs = null; G.msg = ''; saveDraft(); draw(); try { G.host.scrollIntoView({ block: 'start', behavior: 'smooth' }) } catch (e) {} return;
+    }
     if (a === 'delS') { const s = G.A.sessions.find(x => x.id === b.dataset.id); if (!s || !confirm('Einheit vom ' + window.TrainingCore.fmt.date(s.date) + ' löschen?')) return; try { await G.ctx.remove(s.id); G.msg = 'Gelöscht.' } catch (er) { setMsg('Konnte nicht löschen: ' + er.message, true) } return }
     if (a === 'mus') { const k = key(b.dataset.n); G.mEdit = G.mEdit && G.mEdit.k === k && G.mEdit.at === b.dataset.at ? null : { k, n: b.dataset.n, at: b.dataset.at }; draw(); return }
     if (a === 'mrole') { await setRole(b.dataset.m, b.dataset.r); return }
@@ -367,7 +375,7 @@ function bind() {
   host.querySelectorAll('#gRpe [data-r]').forEach(b => b.addEventListener('click', () => { d.rpe = +b.dataset.r; host.querySelectorAll('#gRpe [data-r]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); $('gRpeT').textContent = d.rpe + '/10'; saveDraft() }));
   const add = () => { const i = $('gNew'); if (!i.value.trim()) return; addEx(d, i.value); saveDraft(); draw(); const n = $('gNew'); if (n) n.focus() };
   $('gAdd').addEventListener('click', add); $('gNew').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); add() } });
-  $('gDrop').addEventListener('click', () => { if (d.ex.some(e => e.s.some(x => x.r)) && !confirm('Einheit verwerfen? Eingaben gehen verloren.')) return; stopRest(); G.draft = null; saveDraft(); draw() });
+  $('gDrop').addEventListener('click', () => { if (!d.edit && d.ex.some(e => e.s.some(x => x.r)) && !confirm('Einheit verwerfen? Eingaben gehen verloren.')) return; stopRest(); G.draft = null; saveDraft(); draw() });
   $('gSave').addEventListener('click', async () => {
     const c = cleanSession({ ex: d.ex.filter(e => !e.skip) });
     if (!c.ex.length) return setMsg('Trag mindestens einen Satz mit Wiederholungen ein.', true);
@@ -378,8 +386,9 @@ function bind() {
     $('gSave').disabled = true;
     try {
       const done = new Set(c.ex.map(e => key(e.n))), skip = d.wid ? [...new Set(d.ex.filter(e => !done.has(key(e.n))).map(e => e.n))] : d.ex.filter(e => e.skip).map(e => e.n);   // im Workout, aber ohne Sätze: zählt als ausgelassen
-      const prs = await G.ctx.save({ plan: d.plan || '', date: d.date, min: Math.round(min), rpe: d.rpe, note: String(d.note || '').trim().slice(0, 120), ex: c.ex, skip, link: d.link || null });
-      stopRest(); G.draft = null; saveDraft(); G.prs = prs; G.msg = 'Gespeichert: ' + c.ex.length + ' Übungen, ' + sessStats(c).sets + ' Sätze.'; draw();
+      const o = { plan: d.plan || '', date: d.date, min: Math.round(min), rpe: d.rpe, note: String(d.note || '').trim().slice(0, 120), ex: c.ex, skip, link: d.link || null };
+      const prs = d.edit && G.ctx.update ? await G.ctx.update(d.edit, o) : await G.ctx.save(o);
+      stopRest(); G.draft = null; saveDraft(); G.prs = prs; G.saved = prs && prs.id || null; G.msg = (d.edit ? 'Geändert: ' : 'Gespeichert: ') + c.ex.length + ' Übungen, ' + sessStats(c).sets + ' Sätze.'; draw();
     } catch (er) { $('gSave').disabled = false; setMsg('Konnte nicht speichern: ' + er.message, true) }
   });
 }

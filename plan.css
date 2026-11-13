@@ -140,3 +140,11 @@ html[data-hud] #planCard select.pn-add option{color:#000}
 @keyframes pnPop{0%{transform:scale(.8)}45%{transform:scale(1.14);box-shadow:0 0 0 6px rgba(31,191,133,.25),0 0 22px rgba(31,191,133,.55)}100%{transform:scale(1)}}
 html[data-perf] .pn-day.today.zoned,html[data-perf] #planCard button.pn-done.pn-pop{animation:none}
 @media (prefers-reduced-motion:reduce){.pn-day.today.zoned,#planCard button.pn-done.pn-pop{animation:none}.pn-ring1{transition:none}}
+/* Eigene Einheit (frei eingetragen, z. B. Hyrox) und ihre Belastung */
+.pn-ownf{border:1px dashed var(--pn-bd);border-radius:14px;padding:10px 12px;margin:8px 0;display:flex;flex-direction:column;gap:6px}
+.pn-ownf input,.pn-ownf select{min-height:44px}
+#planCard .pn-ownf .pn-rpe button{min-width:0;flex:1;padding:0 2px}
+.pn-loadtxt{font-size:13.5px;padding:6px 10px;border-radius:10px;border-left:3px solid var(--pn-bd);background:rgb(var(--acc)/.05)}
+.pn-loadtxt.l0{border-left-color:#4ee3a0}.pn-loadtxt.l1{border-left-color:#ffc15a}.pn-loadtxt.l2{border-left-color:#ff8a5c}.pn-loadtxt.l3{border-left-color:#ff5c6c}
+.pn-loadtxt.l0 b{color:#4ee3a0}.pn-loadtxt.l1 b{color:#ffc15a}.pn-loadtxt.l2 b{color:#ff8a5c}.pn-loadtxt.l3 b{color:#ff5c6c}
+.pn-own{border-left-color:rgb(var(--k,var(--acc)))}

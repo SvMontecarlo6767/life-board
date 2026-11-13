@@ -17,7 +17,7 @@ const PRIO = [
 ];
 const KINDS = [
   { id: 'kraft', name: 'Kraft' }, { id: 'iso', name: 'Isometrie' }, { id: 'z2', name: 'Zone 2' }, { id: 'lauf', name: 'Lauf' },
-  { id: 'sport', name: 'Mannschaftssport' }, { id: 'mobil', name: 'Haltung / Mobility' }, { id: 'prae', name: 'Verletzungsprävention' }, { id: 'sonst', name: 'Sonstiges' }
+  { id: 'sport', name: 'Mannschaftssport' }, { id: 'hiit', name: 'HIIT / Hyrox' }, { id: 'mobil', name: 'Haltung / Mobility' }, { id: 'prae', name: 'Verletzungsprävention' }, { id: 'sonst', name: 'Sonstiges' }
 ];
 const PRIO_IDS = PRIO.map(p => p.id), KIND_IDS = KINDS.map(k => k.id);
 const LIM = { units: 40, ex: 30, slots: 4, alts: 4 };
@@ -193,8 +193,13 @@ const REASONS = [{ id: 'zeit', name: 'Zeit' }, { id: 'recovery', name: 'Recovery
 const nkey = s => String(s || '').toLowerCase().replace(/[^a-zäöüß0-9]/g, '');
 const slotKey = s => s.alts.join('|');
 function cleanDay(d) {
-  d = d || {}; const o = { pick: {}, units: {}, reason: '', gym: [], short: !!d.short, sug: {}, extra: [] };
+  d = d || {}; const o = { pick: {}, units: {}, reason: '', gym: [], short: !!d.short, sug: {}, extra: [], own: [] };
   if (Array.isArray(d.extra)) o.extra = [...new Set(d.extra.map(x => txt(x, 24)).filter(Boolean))].slice(0, 6);   // zusätzlich gemacht (nicht im Plan)
+  if (Array.isArray(d.own)) o.own = d.own.filter(x => x && txt(x.n, 40)).slice(0, 8).map((x, i) => {   // eigene Einheit, frei eingetragen (z. B. Hyrox)
+    const r = { id: txt(x.id, 24) || 'o' + i, n: txt(x.n, 40), kind: KIND_IDS.includes(x.kind) ? x.kind : 'sonst', min: int(x.min, 1, 600), rpe: int(x.rpe, 1, 10) };
+    const wh = txt(x.wh, 40); if (wh) r.wh = wh; const lg = txt(x.log, 40); if (lg) r.log = lg; const st = parseFloat(x.strain); if (isFinite(st) && st >= 0 && st <= 21) r.strain = Math.round(st * 10) / 10;
+    return r;
+  });
   if (d.pick && typeof d.pick === 'object') Object.keys(d.pick).slice(0, 12).forEach(k => { o.pick[txt(k, 120)] = txt(d.pick[k], 24) });
   if (d.units && typeof d.units === 'object') Object.keys(d.units).slice(0, 12).forEach(u => {
     const x = d.units[u] || {}, ex = {};
@@ -207,6 +212,15 @@ function cleanDay(d) {
   if (d.sug && typeof d.sug === 'object') Object.keys(d.sug).filter(k => RULE_IDS.includes(k)).forEach(k => { const x = d.sug[k] || {}; if (x.d === 'ok' || x.d === 'no') o.sug[k] = { d: x.d, at: +x.at || 0, title: txt(x.title, 120), why: (Array.isArray(x.why) ? x.why : []).slice(0, 6).map(w => txt(w, 160)), ops: (Array.isArray(x.ops) ? x.ops : []).slice(0, 30).map(t => txt(t, 120)) } });
   if (Array.isArray(d.gym)) o.gym = [...new Set(d.gym.map(x => txt(x, 40)).filter(Boolean))].slice(0, 10);
   return o;
+}
+/* Belastung einer eigenen Einheit: Whoop-Strain, wenn verknüpft; sonst Session-RPE (Dauer × Anstrengung, Foster) */
+const LOADS = ['leicht', 'mittel', 'hart', 'sehr hart'];
+function ownLoad(o) {
+  if (!o) return null;
+  if (o.strain != null) { const st = o.strain, i = st >= 18 ? 3 : st >= 14 ? 2 : st >= 10 ? 1 : 0; return { level: LOADS[i], i, hard: i >= 2, src: 'whoop', strain: st, text: 'Whoop-Strain ' + String(Math.round(st * 10) / 10).replace('.', ',') } }
+  if (o.min == null || o.rpe == null) return null;
+  const au = o.min * o.rpe, i = au >= 600 ? 3 : au >= 350 ? 2 : au >= 150 ? 1 : 0;
+  return { level: LOADS[i], i, hard: i >= 2 || o.rpe >= 7, src: 'rpe', au, text: o.min + ' min × Anstrengung ' + o.rpe + ' = ' + au };
 }
 /* gym: Gym-Einheiten (aus training/gym_JJJJ, nur gelesen) – Felder {id, date, plan, ex:[{n, s:[{w,r}]}], skip:[Namen]} */
 function todayView(plan, key, day, gym, wk) {
@@ -236,8 +250,9 @@ function todayView(plan, key, day, gym, wk) {
     slots.push({ key: k, alts: s.alts, pick, unit, extra: !!s.extra, skip, done, ex, gym: g, min: o.min == null ? null : o.min, rpe: o.rpe || null, note: o.note || '', whoop: wo });
     if (!skip && o.min != null && o.min !== unit.min) devs.push({ t: 'min', u: unit.id, from: unit.min, to: o.min, text: unit.name + ' ' + (unit.min || '?') + ' → ' + o.min + ' min' });
   });
-  const used = new Set(slots.filter(s => s.whoop).map(s => s.whoop.id));
-  return { key, wd, slots, devs, gym: gToday, reason: day.reason, day, wk: wk || [], wkFree: (wk || []).filter(w => !used.has(w.id)) };
+  const own = day.own.map(o => { const w = o.wh ? (wk || []).find(x => x.id === o.wh) || null : null, x = Object.assign({}, o, w && w.strain != null && o.strain == null ? { strain: w.strain } : {}); return Object.assign(x, { whoop: w, load: ownLoad(x) }) });
+  const used = new Set(slots.filter(s => s.whoop).map(s => s.whoop.id).concat(own.filter(o => o.wh).map(o => o.wh)));
+  return { key, wd, slots, own, devs, gym: gToday, reason: day.reason, day, wk: wk || [], wkFree: (wk || []).filter(w => !used.has(w.id)) };
 }
 /* Was gespeichert wird: Abweichungen + Schnappschuss geplant/gemacht */
 function dayDoc(view, ver) {
@@ -248,6 +263,7 @@ function dayDoc(view, ver) {
     planned: units.map(s => ({ u: s.unit.id, name: s.unit.name, kind: s.unit.kind, hard: s.unit.hard, legs: s.unit.legs, min: s.unit.min, ex: s.unit.ex.map(e => ({ n: e.n, sets: e.sets, prio: e.prio })) })),
     extra: all.filter(s => s.extra).map(s => s.unit.id), extraUnits: all.filter(s => s.extra).map(s => ({ u: s.unit.id, name: s.unit.name, kind: s.unit.kind, hard: s.unit.hard, legs: s.unit.legs, min: s.unit.min })),
     done: all.filter(s => s.done).map(s => Object.assign({ u: s.unit.id, name: s.unit.name, ex: exDone(s), gym: s.gym.map(g => g.id) }, s.rpe ? { rpe: s.rpe } : {}, s.note ? { note: s.note } : {}, s.whoop ? { whoop: { id: s.whoop.id, sport: s.whoop.sport, min: s.whoop.min, strain: s.whoop.strain } } : {})),
+    ownUnits: (view.own || []).map(o => Object.assign({ id: o.id, name: o.n, kind: o.kind, min: o.min, rpe: o.rpe, hard: !!(o.load && o.load.hard) }, o.load ? { load: o.load.level } : {}, o.strain != null ? { strain: o.strain } : {})),
     skipped: units.filter(s => s.skip).map(s => s.unit.id),
     dev: view.devs.map(x => x.text).slice(0, 40)
   });
@@ -362,7 +378,7 @@ function suggest(o) {
   }
   // d) harte Tage in Folge (heute wäre der n-te)
   if (R.d.on && hard.length) {
-    const hist = o.hist || {}, isHard = k => { const st = F.strainOf(k), h = hist[k]; return (st != null && st >= R.d.hard) || !!(h && (h.done || []).some(x => ((h.planned || []).find(p => p.u === x.u) || {}).hard)) };
+    const hist = o.hist || {}, isHard = k => { const st = F.strainOf(k), h = hist[k]; return (st != null && st >= R.d.hard) || !!(h && (h.done || []).some(x => ((h.planned || []).find(p => p.u === x.u) || {}).hard)) || !!(h && (h.ownUnits || []).some(x => x.hard)) };
     let n = 0; while (n < R.d.n - 1 && isHard(addDays(v.key, -(n + 1)))) n++;
     if (n >= R.d.n - 1) add('d', (n + 1) + ' harte Tage in Folge: heute eher Erholung?', ['die letzten ' + n + ' Tage hart (Strain ab ' + r1(R.d.hard) + ' oder harte Einheit erledigt)', 'heute hart geplant: ' + hard.map(s => s.unit.name).join(', ')], [], true);
   }
@@ -392,6 +408,6 @@ function applyOps(day, ops) {
   return cleanDay(d);
 }
 
-const api = { TEMPLATES, berlinKey, berlinHour, whoopWorkouts, WD, WD_LONG, PRIO, KINDS, LIM, REASONS, RULES, RULE_DEF, cleanRules, facts, bedMin, clockOf, zone, slotMin, dayMin, trimOps, shortOps, suggest, applyOps, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff, nkey, slotKey, cleanDay, todayView, dayDoc };
+const api = { LOADS, ownLoad, TEMPLATES, berlinKey, berlinHour, whoopWorkouts, WD, WD_LONG, PRIO, KINDS, LIM, REASONS, RULES, RULE_DEF, cleanRules, facts, bedMin, clockOf, zone, slotMin, dayMin, trimOps, shortOps, suggest, applyOps, isDate, wdOf, addDays, uid, copy, clean, cleanUnit, cleanEx, cleanSettings, seed, versionAt, sortVersions, unitById, slotText, dayText, workSec, estMin, diff, nkey, slotKey, cleanDay, todayView, dayDoc };
 if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.PlanCore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

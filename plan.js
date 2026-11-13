@@ -1,5 +1,7 @@
 /* Life Board – Trainingsplan-Karte (oben im Training und im Check-in). Eigenes Modul: liest training/settings und training/gym_* nur,
-   schreibt ausschließlich in users/{uid}/plan/ (v_JJJJ-MM-TT = Planversionen, t_JJJJ-MM-TT = Tage, settings = Einstellungen). Rechnen: plan-core.js.
+   schreibt in users/{uid}/plan/ (v_JJJJ-MM-TT = Planversionen, t_JJJJ-MM-TT = Tage, settings = Einstellungen). Rechnen: plan-core.js.
+   Einzige Ausnahme: eine eigene Einheit (z. B. Hyrox) ohne Whoop-Aufzeichnung wird zusätzlich als Einheit ins Training-Logbuch
+   (training/acts_JJJJ) eingetragen – im Training über window.LBTrainingLog, im Check-in direkt (lesen, anhängen, schreiben).
    <section id="planCard" data-mode="compact"> (Check-in): Woche ansehen, Tage anpassen und abhaken – Bearbeiten der Vorlage nur im Training. */
 (function () {
 'use strict';
@@ -98,7 +100,7 @@ function say(t, err) { S.msg = t || ''; S.err = !!err; const m = $('pnMsg'); if 
 /* ---------- Anzeige ---------- */
 const r1 = v => String(Math.round(v * 10) / 10).replace('.', ',');
 /* Aussehen je Art: Farbe als „R G B“ und Symbol */
-const KSTY = { kraft: ['255 154 92', '🏋️'], iso: ['127 227 255', '🧱'], z2: ['79 209 197', '🚴'], lauf: ['94 230 168', '🏃'], sport: ['232 220 80', '⚽'], mobil: ['111 168 255', '🧘'], prae: ['181 140 255', '🛡️'], sonst: ['143 166 189', '✨'] };
+const KSTY = { kraft: ['255 154 92', '🏋️'], iso: ['127 227 255', '🧱'], z2: ['79 209 197', '🚴'], lauf: ['94 230 168', '🏃'], sport: ['232 220 80', '⚽'], hiit: ['255 112 196', '⚡'], mobil: ['111 168 255', '🧘'], prae: ['181 140 255', '🛡️'], sonst: ['143 166 189', '✨'] };
 const kst = kind => KSTY[kind] || KSTY.sonst;
 const ZONE_RGB = { 'grün': '31 191 133', gelb: '255 196 60', rot: '255 90 80' };
 /* Ø Whoop-Strain je Einheit aus früheren Zuordnungen (ab 2 Mal) */
@@ -109,7 +111,7 @@ function weekStats() {
   const t = todayKey(), mon = P.addDays(t, -P.wdOf(t)), days = []; let plan = 0, done = 0;
   for (let i = 0; i < 7; i++) {
     const k = P.addDays(mon, i), v = viewAt(k), live = v.slots.filter(x => x.unit && !x.skip), hd = new Set(((S.hist[k] || {}).done || []).map(x => x.u));
-    const n = live.length, d = live.filter(x => x.done || hd.has(x.unit.id)).length; plan += n; done += d;
+    const ow = k <= t ? v.own.length : 0, n = live.length + ow, d = live.filter(x => x.done || hd.has(x.unit.id)).length + ow; plan += n; done += d;   // eigene Einheiten = erledigt
     days.push({ k, n, d, st: !n ? 'rest' : d >= n ? 'done' : d ? 'part' : k < t ? 'miss' : 'plan' });
   }
   return { plan, done, days };
@@ -135,13 +137,14 @@ function sugBox(v) {
 }
 /* Kurzfassung eines Tages für die Wochenliste */
 function daySum(v) {
-  if (!v.slots.length) return 'Pause';
+  const own = v.own.map(o => '<span class="pn-s-done">✓ ' + kst(o.kind)[1] + ' ' + esc(o.n) + '</span>');
+  if (!v.slots.length) return own.length ? own.join(' + ') : 'Pause';
   return v.slots.map(s => {
     const chosen = s.alts.length < 2 || (v.day.pick && v.day.pick[s.key] !== undefined);
     if (!chosen) return s.alts.map(a => { const u = a === '' ? null : P.unitById(planAt(v.key), a); return u ? kst(u.kind)[1] + ' ' + esc(u.name) : 'nichts' }).join(' / ');
     if (!s.unit) return 'Pause';
     return '<span class="' + (s.skip ? 'pn-s-skip' : s.done ? 'pn-s-done' : '') + '">' + (s.skip ? '✕ ' : s.done ? '✓ ' : '') + kst(s.unit.kind)[1] + ' ' + esc(s.unit.name) + '</span>';
-  }).join(' + ');
+  }).concat(own).join(' + ');
 }
 function unitPanel(v, s, A, past) {
   const u = s.unit, k = v.key, id = esc(u.id), open = A || S.ux.has(k + '|' + u.id), word = dayWord(k);
@@ -170,7 +173,7 @@ function dayPanel(k) {
   if (any) h += '<div class="pn-row pn-tools">' + (isToday ? '<button type="button" class="chip' + (v.day.short ? ' on' : '') + '" data-a="short" data-k="' + k + '" aria-pressed="' + !!v.day.short + '">⏱ heute kurz</button>' : '') + '<button type="button" data-a="adj" data-k="' + k + '" aria-pressed="' + A + '">' + (A ? '✓ Fertig' : '✎ ' + dayWord(k, true) + ' anpassen') + '</button></div>';
   if (any && isToday) h += sugBox(v);
   if (!v.slots.length && S.seeded) return h + '<div class="mu">Kein Training geplant.</div></div>';
-  if (!v.slots.length) h += '<div class="mu">Kein Training geplant.</div>';
+  if (!v.slots.length && !v.own.length) h += '<div class="mu">Kein Training geplant.</div>';
   if (S.seeded) return h + '<div class="mu pn-d">Anpassen und Abhaken geht, sobald der Plan übernommen ist' + (compact() ? ' (im Training).' : '.') + '</div>' + v.slots.map(s => '<div class="pn-slot">' + s.alts.map(a => esc(a === '' ? 'nichts' : (P.unitById(p, a) || {}).name || '?')).join(' <span class="pn-or2">oder</span> ') + '</div>').join('') + '</div>';
   v.slots.forEach(s => {
     h += '<div class="pn-slot"' + (s.unit ? ' style="--k:' + kst(s.unit.kind)[0] + '"' : '') + '>';
@@ -182,6 +185,8 @@ function dayPanel(k) {
   const onDay = new Set(); v.slots.forEach(s => s.alts.forEach(a => onDay.add(a)));
   const addable = p.units.filter(u => !onDay.has(u.id));
   if (addable.length) h += '<div class="pn-row pn-addrow"><select class="pn-add" data-a="xadd" data-k="' + k + '" aria-label="Einheit hinzufügen, die nicht im Plan steht"><option value="__">+ Zusätzliche Einheit …</option>' + addable.map(u => '<option value="' + esc(u.id) + '">' + esc(u.name) + '</option>').join('') + '</select></div>';
+  // Eigene Einheiten (frei, z. B. Hyrox) – heute und früher
+  if (past) h += ownBlock(v, k);
   // Whoop-Einheiten des Tages einer Plan-Einheit zuordnen
   const cand = v.slots.filter(s => s.unit && !s.skip && !s.whoop);
   if (past && v.wkFree.length) h += '<div class="pn-wkbox"><div class="mu" style="font-size:12.5px">Whoop-Einheiten ' + dayWord(k) + ' – antippen, wozu sie gehören:</div>' + v.wkFree.map(w => '<div class="pn-wkrow"><span>⌚ ' + esc(wkText(w)) + '</span>' + (cand.length ? '<div class="chips">' + cand.map(s => '<button type="button" class="chip" data-a="wset" data-k="' + k + '" data-w="' + esc(w.id) + '" data-u="' + esc(s.unit.id) + '">→ ' + esc(s.unit.name) + '</button>').join('') + '</div>' : '<span class="mu" style="font-size:12.5px">keine offene Einheit</span>') + '</div>').join('') + '</div>';
@@ -199,19 +204,90 @@ function overview() {
   if (S.seeded) h += compact() ? '<div class="pn-info">Dein Startplan ist noch nicht übernommen. Im Training prüfen und übernehmen.</div>' : '<div class="pn-info">Das ist dein Startplan aus deinen Angaben. Noch nicht gespeichert. Prüf ihn kurz und übernimm ihn, dann gilt er ab heute.<div class="btns"><button type="button" class="primary" data-a="adopt">Startplan übernehmen</button><button type="button" data-a="edit">Erst anpassen</button></div></div>';
   h += weekBar();
   const F = S.whoopWait ? null : P.facts(S.whoop, t), zn = F && F.rec != null ? P.zone(F.rec, S.set.rules.a) : null;
-  const vs = [], mins = []; for (let i = 0; i < 7; i++) { const v = viewAt(P.addDays(t, i)); vs.push(v); mins.push(v.slots.reduce((n, x) => n + (x.unit && !x.skip ? (x.min != null ? x.min : x.unit.min || P.slotMin(x)) : 0), 0)) }
+  const vs = [], mins = []; for (let i = 0; i < 7; i++) { const v = viewAt(P.addDays(t, i)); vs.push(v); mins.push(v.slots.reduce((n, x) => n + (x.unit && !x.skip ? (x.min != null ? x.min : x.unit.min || P.slotMin(x)) : 0), 0) + v.own.reduce((n, o) => n + (o.min || (o.whoop && o.whoop.min) || 0), 0)) }
   const maxMin = Math.max(60, ...mins);
   h += '<div class="pn-days">';
   for (let i = 0; i < 7; i++) {
     const k = P.addDays(t, i), v = vs[i], isOpen = open === k, live = v.slots.filter(x => x.unit && !x.skip);
-    const cols = live.map(x => 'rgb(' + kst(x.unit.kind)[0] + ')'), stripe = cols.length ? (cols.length === 1 ? cols[0] : 'linear-gradient(' + cols.map((c, j) => c + ' ' + (j * 100 / cols.length) + '% ' + ((j + 1) * 100 / cols.length) + '%').join(',') + ')') : 'transparent';
-    const hard = live.some(x => x.unit.hard), st = i === 0 && !S.whoopWait ? strainOn(k) : null;
+    const cols = live.map(x => 'rgb(' + kst(x.unit.kind)[0] + ')').concat(v.own.map(o => 'rgb(' + kst(o.kind)[0] + ')')), stripe = cols.length ? (cols.length === 1 ? cols[0] : 'linear-gradient(' + cols.map((c, j) => c + ' ' + (j * 100 / cols.length) + '% ' + ((j + 1) * 100 / cols.length) + '%').join(',') + ')') : 'transparent';
+    const hard = live.some(x => x.unit.hard) || v.own.some(o => o.load && o.load.hard), st = i === 0 && !S.whoopWait ? strainOn(k) : null;
     const load = mins[i] ? '<span class="pn-load" title="Belastung"><i style="width:' + Math.round(mins[i] / maxMin * 100) + '%" class="' + (hard ? 'hard' : 'easy') + '"></i></span><small class="pn-lt">' + (st != null ? 'Strain ' + r1(st) + ' · ' : '') + '≈ ' + mins[i] + ' min' + (hard ? ' · hart' : '') + '</small>' : (st != null ? '<small class="pn-lt">Strain ' + r1(st) + '</small>' : '');
     h += '<div class="pn-day' + (isOpen ? ' open' : '') + (i === 0 ? ' today' : '') + (i === 0 && zn ? ' zoned' : '') + '" data-day="' + k + '" style="--stripe:' + stripe + (i === 0 && zn ? ';--zone:' + ZONE_RGB[zn] : '') + '"><button type="button" class="pn-dh" data-a="dopen" data-k="' + k + '" aria-expanded="' + isOpen + '"><span class="pn-dw"><b>' + (i === 0 ? 'Heute' : i === 1 ? 'Morgen' : P.WD[P.wdOf(k)]) + '</b><small>' + (i < 2 ? P.WD[P.wdOf(k)] + ' ' : '') + k.slice(8, 10) + '.' + k.slice(5, 7) + '.</small></span><span class="pn-mid"><span class="pn-sum">' + daySum(v) + '</span>' + load + '</span><span class="pn-chev" aria-hidden="true">' + (isOpen ? '▾' : '▸') + '</span></button>' + (isOpen ? dayPanel(k) : '') + '</div>';
   }
   h += '</div>';
   if (!S.seeded && S.cur.from) h += '<div class="mu pn-foot">Plan gilt seit ' + fmtD(S.cur.from) + ' · ' + S.versions.length + ' ' + (S.versions.length === 1 ? 'Version' : 'Versionen') + ' · Einheit antippen zeigt die Übungen</div>';
   return h;
+}
+
+/* ---------- Eigene Einheit (frei eingetragen, z. B. Hyrox) ---------- */
+const SPORT_OF = { kraft: 'Kraft', iso: 'Isometrie', z2: 'Rad', lauf: 'Lauf', sport: 'Fußball', hiit: 'HIIT', mobil: 'Yoga', prae: 'Sonstiges', sonst: 'Sonstiges' };   // Art -> Sportart im Training-Logbuch
+const LOADCLS = ['l0', 'l1', 'l2', 'l3'];
+function ownNames() {   // frühere eigene Einheiten als schnelle Vorschläge (neueste zuerst)
+  const m = new Map();
+  Object.keys(S.days).sort().reverse().forEach(k => (S.days[k].own || []).forEach(o => { const key = o.n.toLowerCase(); if (!m.has(key)) m.set(key, o) }));
+  return [...m.values()].slice(0, 6);
+}
+function ownBlock(v, k) {
+  let h = '';
+  v.own.forEach(o => {
+    const L = o.load;
+    h += '<div class="pn-slot pn-own" style="--k:' + kst(o.kind)[0] + '"><div class="pn-urow"><b><span class="pn-ico" aria-hidden="true">' + kst(o.kind)[1] + '</span> ' + esc(o.n) + '</b><span class="pn-xtra">eigene</span>' +
+      '<span class="mu pn-meta">' + esc([o.min ? o.min + ' min' : (o.whoop && o.whoop.min ? o.whoop.min + ' min' : ''), o.rpe ? 'Anstrengung ' + o.rpe : '', o.whoop ? '⌚ ' + o.whoop.sport : '', o.log ? 'im Logbuch' : ''].filter(Boolean).join(' · ')) + '</span></div>' +
+      (L ? '<div class="pn-loadtxt ' + LOADCLS[L.i] + '"><b>Belastung: ' + L.level + '</b> <span class="mu">' + esc(L.text) + '</span></div>' : '') +
+      '<div class="pn-row"><button type="button" class="txt" data-a="odel" data-k="' + k + '" data-o="' + esc(o.id) + '">„' + esc(o.n) + '“ entfernen</button></div></div>';
+  });
+  if (S.ownForm !== k) return h + '<div class="pn-row"><button type="button" class="chip" data-a="oopen" data-k="' + k + '">+ Eigene Einheit (z. B. Hyrox)</button></div>';
+  const D = S.ownDraft, rec = ownNames(), L = P.ownLoad({ min: D.min || (D.wh && ((v.wk.find(w => w.id === D.wh) || {}).min)) || null, rpe: D.rpe, strain: D.wh ? (v.wk.find(w => w.id === D.wh) || {}).strain : null });
+  h += '<div class="pn-ownf" data-k="' + k + '"><b>Eigene Einheit ' + dayWord(k) + '</b>' +
+    (rec.length ? '<div class="chips">' + rec.map(o => '<button type="button" class="chip" data-a="ofill" data-k="' + k + '" data-n="' + esc(o.n) + '" data-kind="' + o.kind + '" data-min="' + (o.min || '') + '">' + kst(o.kind)[1] + ' ' + esc(o.n) + '</button>').join('') + '</div>' : '') +
+    '<div class="pn-row"><input type="text" class="pn-grow" maxlength="40" placeholder="Name, z. B. Hyrox" data-of="n" value="' + esc(D.n) + '" aria-label="Name der Einheit"></div>' +
+    '<div class="pn-row"><select data-of="kind" aria-label="Art">' + P.KINDS.map(x => '<option value="' + x.id + '"' + (x.id === D.kind ? ' selected' : '') + '>' + kst(x.id)[1] + ' ' + esc(x.name) + '</option>').join('') + '</select>' +
+    '<input type="number" inputmode="numeric" min="1" max="600" placeholder="Minuten" data-of="min" value="' + (D.min || '') + '" aria-label="Dauer in Minuten" style="width:110px"></div>' +
+    '<div class="mu pn-d">Anstrengung (1 = ganz locker, 10 = maximal)</div><div class="seg pn-rpe" role="group" aria-label="Anstrengung">' + [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(r => '<button type="button" data-a="orpe" data-k="' + k + '" data-r="' + r + '" aria-pressed="' + (D.rpe === r) + '">' + r + '</button>').join('') + '</div>' +
+    (v.wkFree.length || D.wh ? '<div class="mu pn-d">Von Whoop aufgezeichnet? Antippen, dann zählen Strain und Dauer von Whoop (und nichts doppelt im Logbuch):</div><div class="chips">' + v.wk.filter(w => v.wkFree.includes(w) || w.id === D.wh).map(w => '<button type="button" class="chip' + (w.id === D.wh ? ' on' : '') + '" aria-pressed="' + (w.id === D.wh) + '" data-a="owh" data-k="' + k + '" data-w="' + esc(w.id) + '">⌚ ' + esc(wkText(w)) + '</button>').join('') + '</div>' : '') +
+    '<div class="pn-loadtxt ' + (L ? LOADCLS[L.i] : '') + '" data-oload="' + k + '">' + (L ? '<b>Belastung: ' + L.level + '</b> <span class="mu">' + esc(L.text) + '</span>' : '<span class="mu">Belastung erscheint, sobald Dauer und Anstrengung da sind.</span>') + '</div>' +
+    (!D.wh ? '<div class="mu pn-d">Ohne Whoop-Aufzeichnung kommt die Einheit zusätzlich ins Training-Logbuch (Form, Belastung, Wochenziel).</div>' : '') +
+    '<div class="btns"><button type="button" class="primary" data-a="osave" data-k="' + k + '">Speichern</button><button type="button" data-a="ocancel" data-k="' + k + '">Abbrechen</button></div></div>';
+  return h;
+}
+function ownPreview(k) {
+  const el = document.querySelector('#planCard [data-oload="' + k + '"]'); if (!el) return;
+  const v = viewAt(k), D = S.ownDraft, w = D.wh ? v.wk.find(x => x.id === D.wh) || {} : {}, L = P.ownLoad({ min: D.min || w.min || null, rpe: D.rpe, strain: D.wh ? w.strain : null });
+  el.className = 'pn-loadtxt ' + (L ? LOADCLS[L.i] : ''); el.innerHTML = L ? '<b>Belastung: ' + L.level + '</b> <span class="mu">' + esc(L.text) + '</span>' : '<span class="mu">Belastung erscheint, sobald Dauer und Anstrengung da sind.</span>';
+}
+/* Training-Logbuch: im Training über die Seite selbst (LBTrainingLog), sonst direkt in training/acts_JJJJ */
+async function logAdd(o) {
+  if (window.LBTrainingLog) return await window.LBTrainingLog.add(o);
+  const t = o.date === todayKey() ? Date.now() : Date.parse(o.date + 'T17:00:00Z'), id = 'm' + t.toString(36) + Math.random().toString(36).slice(2, 6), ref = fs.doc(S.base + '/training/acts_' + new Date(t).getUTCFullYear());
+  const snap = await ref.get(), list = ((snap.exists && (snap.data() || {}).list) || []).slice();
+  list.push({ i: id, t, r: o.sport, n: o.name || '', k: null, s: Math.round(o.min * 60), h: null, m: null, e: null, c: null, g: null, q: null, p: null, x: o.rpe || null, w: null, o: null, f: null, no: null, ok: null });
+  await ref.set({ list: JSON.parse(JSON.stringify(list)) }); return id;
+}
+async function logRemove(id, date) {
+  if (!id) return; if (window.LBTrainingLog) return await window.LBTrainingLog.remove(id);
+  for (const y of [date.slice(0, 4), String(+date.slice(0, 4) + 1), String(+date.slice(0, 4) - 1)]) {
+    const ref = fs.doc(S.base + '/training/acts_' + y), snap = await ref.get(); if (!snap.exists) continue;
+    const list = (snap.data() || {}).list || []; if (!list.some(a => a.i === id)) continue;
+    await ref.set({ list: list.filter(a => a.i !== id) }); return;
+  }
+}
+async function ownSave(k) {
+  const D = S.ownDraft, v = viewAt(k), w = D.wh ? v.wk.find(x => x.id === D.wh) : null, n = String(D.n || '').trim();
+  const min = D.min || (w && w.min) || null;
+  if (!n) { S.tmsg[k] = 'Bitte einen Namen eintragen (z. B. Hyrox).'; tsay(k); return }
+  if (!min) { S.tmsg[k] = 'Bitte die Dauer in Minuten eintragen.'; tsay(k); return }
+  if (!w && !D.rpe) { S.tmsg[k] = 'Bitte die Anstrengung (1–10) antippen – daraus schätzt das Board die Belastung.'; tsay(k); return }
+  const o = { id: P.uid('o'), n, kind: D.kind || 'sonst', min, rpe: D.rpe || null };
+  if (w) { o.wh = w.id; if (w.strain != null) o.strain = w.strain }
+  else { S.tmsg[k] = 'trägt ins Logbuch ein …'; tsay(k); try { o.log = await logAdd({ date: k, sport: SPORT_OF[o.kind] || 'Sonstiges', name: n, min, rpe: o.rpe }) } catch (e) { S.tmsg[k] = 'Logbuch: nicht eingetragen (' + errText(e) + ') – im Plan trotzdem gespeichert.' } }
+  const d = P.cleanDay(S.days[k] || {}); d.own.push(o); S.days[k] = P.cleanDay(d); S.ownForm = null; S.ownDraft = null;
+  saveDay(k, true); draw();
+}
+async function ownDel(k, id) {
+  const d = P.cleanDay(S.days[k] || {}), o = d.own.find(x => x.id === id); if (!o) return;
+  if (!confirm('„' + o.n + '“ ' + dayWord(k) + ' entfernen?' + (o.log ? ' Der Eintrag im Training-Logbuch wird auch gelöscht.' : ''))) return;
+  if (o.log) { try { await logRemove(o.log, k) } catch (e) { S.tmsg[k] = 'Logbuch-Eintrag nicht gelöscht: ' + errText(e); tsay(k) } }
+  d.own = d.own.filter(x => x.id !== id); S.days[k] = P.cleanDay(d); saveDay(k, true); draw();
 }
 
 /* ---------- Bearbeiten ---------- */
@@ -328,6 +404,13 @@ function dayAct(a, b) {
   S.days[k] = P.cleanDay(t); saveDay(k); draw(); S.pop = null;
 }
 function act(a, b) {
+  if (a === 'oopen') { S.ownForm = b.dataset.k; S.ownDraft = { n: '', kind: 'hiit', min: null, rpe: null, wh: '' }; draw(); const f = document.querySelector('#planCard [data-of=n]'); if (f) f.focus(); return }
+  if (a === 'ocancel') { S.ownForm = null; S.ownDraft = null; draw(); return }
+  if (a === 'ofill') { Object.assign(S.ownDraft, { n: b.dataset.n, kind: b.dataset.kind || S.ownDraft.kind, min: S.ownDraft.min || (+b.dataset.min || null) }); draw(); return }
+  if (a === 'orpe') { S.ownDraft.rpe = +b.dataset.r; draw(); return }
+  if (a === 'owh') { S.ownDraft.wh = S.ownDraft.wh === b.dataset.w ? '' : b.dataset.w; draw(); return }
+  if (a === 'osave') { if (S.seeded) return; b.disabled = true; ownSave(b.dataset.k).finally(() => { b.disabled = false }); return }
+  if (a === 'odel') { ownDel(b.dataset.k, b.dataset.o); return }
   if (DAY_ACTS.includes(a)) return dayAct(a, b);
   const p = S.draft, d = +b.dataset.d, si = +b.dataset.s, i = +b.dataset.i, u = S.unit && p && P.unitById(p, S.unit);
   switch (a) {
@@ -382,6 +465,7 @@ function bind() {
   });
   host.addEventListener('input', e => {
     const t = e.target;
+    if (t.dataset.of && S.ownDraft) { const f = t.dataset.of; S.ownDraft[f] = f === 'min' ? (t.value === '' ? null : Math.max(1, Math.min(600, Math.round(+t.value) || 0)) || null) : t.value; ownPreview(S.ownForm); return }   // eigene Einheit: ohne Neuzeichnen (Fokus bleibt)
     if (t.dataset.un) {   // Notiz zu einer erledigten Einheit
       const k = t.dataset.k, d = P.cleanDay(S.days[k] || {}); (d.units[t.dataset.un] = d.units[t.dataset.un] || {}).note = t.value; S.days[k] = d; saveDay(k); return;
     }

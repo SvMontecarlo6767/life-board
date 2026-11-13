@@ -9,7 +9,7 @@ function script(src){if(!loaded[src])loaded[src]=new Promise((res,rej)=>{const s
 const berlin=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin'}).format(new Date());
 const berlinHour=()=>+new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Berlin',hour:'2-digit',hourCycle:'h23'}).format(new Date());
 const ZCOL={g:[78,227,160],y:[255,193,90],r:[255,106,92]};
-const KCOL={kraft:[255,154,92],iso:[127,227,255],z2:[79,209,197],lauf:[94,230,168],sport:[232,220,80],mobil:[111,168,255],prae:[181,140,255],sonst:[143,166,189]};   // wie KSTY in plan.js
+const KCOL={kraft:[255,154,92],iso:[127,227,255],z2:[79,209,197],lauf:[94,230,168],sport:[232,220,80],hiit:[255,112,196],mobil:[111,168,255],prae:[181,140,255],sonst:[143,166,189]};   // wie KSTY in plan.js
 const memo={};
 const once=(k,f)=>memo[k]||(memo[k]=f().catch(e=>{delete memo[k];throw e}));
 function user(){return new Promise(res=>{try{const off=auth.onAuthStateChanged(u=>{try{off()}catch(e){}res(u||null)})}catch(e){res(null)}})}
@@ -24,7 +24,7 @@ function recovery(){return once('rec',async()=>{
 })}
 /* Training: Woche Mo–So und heute */
 function week(){return once('week',async()=>{
-  const u=await user();if(!u)return null;if(!window.PlanCore)await script('plan-core.js?v=6');
+  const u=await user();if(!u)return null;if(!window.PlanCore)await script('plan-core.js?v=7');
   const P=window.PlanCore,base='users/'+u.uid,q=await fs.collection(base+'/plan').get(),vs=[],days={},hist={};
   q.docs.forEach(d=>{const x=d.data()||{};if(/^v_\d{4}-\d{2}-\d{2}$/.test(d.id))vs.push(Object.assign(P.clean(x),{from:d.id.slice(2),at:x.at||0}));else if(/^t_\d{4}-\d{2}-\d{2}$/.test(d.id)){hist[d.id.slice(2)]=x;days[d.id.slice(2)]=P.cleanDay(x)}});
   const versions=P.sortVersions(vs),t=P.berlinKey(Date.now());

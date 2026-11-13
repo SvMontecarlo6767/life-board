@@ -94,7 +94,7 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 .days{display:flex;gap:4px}.days button{min-height:36px;min-width:36px;padding:0 6px;font-size:13px}.days button[aria-pressed=true]{background:var(--ac);color:#fff;border-color:var(--ac)}
 .gh{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px}.gh small{color:var(--mu)}
 .presets button{min-height:36px;padding:4px 12px;font-size:14px;border-radius:99px}
-</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><script>/* Warp-Ankunft (lb-warp.js): Inhalt erst zeigen, wenn die Ankunft startet */try{var lo=JSON.parse(localStorage.getItem('lb_ui')||'{}'),lw=JSON.parse(sessionStorage.getItem('lb_warp')||'null');if(lw&&Date.now()-lw.t<4000&&lo.theme!=='jungle'&&!lo.perf&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('lb-arrive')}catch(e){}</script><link rel="stylesheet" href="theme.css?v=11"><link rel="stylesheet" href="plan.css?v=3">
+</style><script>try{var t=JSON.parse(localStorage.getItem('lb_ui')||'{}').theme;if(t&&t!=='cockpit')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script><script>/* Warp-Ankunft (lb-warp.js): Inhalt erst zeigen, wenn die Ankunft startet */try{var lo=JSON.parse(localStorage.getItem('lb_ui')||'{}'),lw=JSON.parse(sessionStorage.getItem('lb_warp')||'null');if(lw&&Date.now()-lw.t<4000&&lo.theme!=='jungle'&&!lo.perf&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('lb-arrive')}catch(e){}</script><link rel="stylesheet" href="theme.css?v=11"><link rel="stylesheet" href="plan.css?v=4">
 </head><body><div class="wrap">
 <div class="top">
   <div><a href="index.html" class="mu" style="text-decoration:none">← Life Board</a><h1>☀️ Check-in</h1></div>
@@ -146,8 +146,8 @@ details summary{cursor:pointer;color:var(--ac);min-height:36px;display:flex;alig
 <script src="day.js"></script>
 <script src="journal-core.js"></script>
 <script src="whoop-cache.js"></script>
-<script src="plan-core.js?v=6"></script>
-<script src="plan.js?v=7"></script>
+<script src="plan-core.js?v=7"></script>
+<script src="plan.js?v=8"></script>
 <script src="push-client.js"></script>
 <script>
 (async function(){
@@ -422,5 +422,5 @@ async function boot(){
 boot().catch(e=>showMsg('Fehler: '+esc(errText(e)),true));
 })();
 </script>
-<script src="theme.js?v=26"></script>
+<script src="theme.js?v=27"></script>
 </body></html>
