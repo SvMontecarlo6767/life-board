@@ -96,7 +96,6 @@ html[data-hub3d] #tiles{display:none}
 .h3-arrow.p{left:6px}.h3-arrow.n{right:6px}
 @media(max-width:600px){.h3-arrow{display:none}}
 /* ---- Bühne: Hologramm-Boden, Orbit-Ring, Projektor-Lichtkegel, Spiegelung, Schweben ---- */
-@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
 .h3-stage{height:calc(var(--h3h,430px) + 56px);animation:h3Bob 6s ease-in-out infinite}
 .h3-floor{position:absolute;left:50%;top:calc(var(--h3h,430px) - 40px);width:calc(var(--h3w,320px) * 2.3);height:calc(var(--h3w,320px) * 2.3);margin-left:calc(var(--h3w,320px) * -1.15);
   transform:translateY(-50%) rotateX(80deg);pointer-events:none;z-index:1;border-radius:50%;
@@ -106,19 +105,19 @@ html[data-hub3d] #tiles{display:none}
 .h3-floor::after{inset:4%;border:1px dashed rgb(var(--c) / .5);box-shadow:none;animation:h3Spin 30s linear infinite}
 .h3-beam{position:absolute;left:50%;top:40px;width:calc(var(--h3w,320px) * 1.05);height:calc(var(--h3h,430px) - 60px);margin-left:calc(var(--h3w,320px) * -.525);pointer-events:none;z-index:2;
   background:linear-gradient(to top,rgb(var(--c) / .26),rgb(var(--c) / .06) 55%,transparent);clip-path:polygon(32% 100%,68% 100%,100% 0,0 0);filter:blur(6px);animation:h3Beam 3.2s ease-in-out infinite;transition:background .6s}
-.h3-rim{position:absolute;inset:0;border-radius:inherit;padding:2px;pointer-events:none;opacity:0;transition:opacity .4s;
-  background:conic-gradient(from var(--ang),transparent 0 55%,rgb(var(--c)) 72%,#fff 78%,rgb(var(--c)) 84%,transparent 100%);
+.h3-rim{position:absolute;inset:0;border-radius:inherit;padding:2px;pointer-events:none;opacity:0;transition:opacity .4s;overflow:hidden;
   -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
-.h3c.front .h3-rim{opacity:1;animation:h3Ang 3.6s linear infinite}
-.h3-scan{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .4s;
-  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 4px),linear-gradient(to bottom,transparent 0,rgb(var(--c) / .16) 48%,transparent 52%) 0 -120%/100% 60% no-repeat}
-.h3c.front .h3-scan{opacity:1;animation:h3Scan 4.5s linear infinite}
+.h3-rim i{position:absolute;left:50%;top:50%;width:230%;aspect-ratio:1;margin:-115% 0 0 -115%;background:conic-gradient(transparent 0 55%,rgb(var(--c)) 72%,#fff 78%,rgb(var(--c)) 84%,transparent 100%)}
+.h3c.front .h3-rim{opacity:1}.h3c.front .h3-rim i{animation:h3Rot 3.6s linear infinite}   /* nur drehen (Grafikchip), nichts neu malen */
+.h3-scan{position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;transition:opacity .4s;overflow:hidden;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 4px)}
+.h3-scan b{position:absolute;left:0;right:0;top:-45%;height:45%;background:linear-gradient(to bottom,transparent 0,rgb(var(--c) / .16) 48%,transparent 52%)}
+.h3c.front .h3-scan{opacity:1}.h3c.front .h3-scan b{animation:h3ScanT 4.5s linear infinite}
 .h3c.front .h3-obj svg{animation:h3Float 5s ease-in-out infinite}
 /* ---- Kopf: Begrüßung, Datum, Uhr ---- */
 .h3-hero{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;padding:0 clamp(14px,4vw,32px);margin:2px 0 4px}
 .h3-hero small{display:block;font:700 11px var(--font-ui,system-ui);letter-spacing:.24em;text-transform:uppercase;color:rgb(var(--c));opacity:.9;transition:color .6s}
 .h3-hero b{display:block;font:700 clamp(22px,6.4vw,34px)/1.1 var(--font-hud,system-ui);letter-spacing:.05em;text-transform:uppercase;color:#fff;
-  background:linear-gradient(100deg,#fff 30%,rgb(var(--c)) 50%,#fff 70%) 0 0/250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:h3Shine 5s ease-in-out infinite;filter:drop-shadow(0 0 14px rgb(var(--c) / .45))}
+  background:linear-gradient(100deg,#fff 30%,rgb(var(--c)) 50%,#fff 70%) 0 0/250% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;background-position:50% 0;filter:drop-shadow(0 0 14px rgb(var(--c) / .45))}
 .h3-clock{text-align:right;flex:none}
 .h3-clock b{font-size:clamp(26px,7.4vw,40px);letter-spacing:.06em;font-variant-numeric:tabular-nums}
 html[data-hub3d=on] #hub .top h1{font-size:13px;letter-spacing:.32em;opacity:.75;text-shadow:none;margin:0}
@@ -127,10 +126,9 @@ html[data-hub3d=on] #hub .top .sub{font-size:12px;margin:2px 0 6px}
 .h3-obj.has3d::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.035) 0 1px,transparent 1px 3px);box-shadow:inset 0 0 0 1px rgb(var(--c) / .35),inset 0 0 30px rgb(var(--c) / .18)}
 @keyframes h3Bob{50%{transform:translateY(-7px)}}
 @keyframes h3Beam{50%{opacity:.55}}
-@keyframes h3Ang{to{--ang:360deg}}
-@keyframes h3Scan{to{background-position:0 0,0 260%}}
+@keyframes h3Rot{to{transform:rotate(360deg)}}
+@keyframes h3ScanT{to{transform:translateY(330%)}}
 @keyframes h3Float{50%{transform:translateY(-6px) scale(1.04)}}
-@keyframes h3Shine{0%,100%{background-position:100% 0}50%{background-position:0 0}}
 @keyframes h3Spin{to{transform:rotate(360deg)}}
 @keyframes h3SpinY{50%{transform:scaleX(.35)}}
 @keyframes h3Drift{50%{transform:rotate(6deg) scale(1.04)}}
@@ -162,7 +160,7 @@ function build(){
   '<div class="h3-stage"><div class="h3-floor" aria-hidden="true"></div><div class="h3-beam" aria-hidden="true"></div>'+CARDS.map((c,i)=>{
     const col=c.rgb().join(' '),tag=c.off?'div':'a',href=c.off?'':' href="'+esc(hrefOf(c.href))+'"';
     return '<'+tag+' class="h3c'+(c.off?' off':'')+'" data-i="'+i+'" data-id="'+c.id+'"'+href+' draggable="false"'+(c.off?' aria-disabled="true"':'')+' style="--c:'+col+'">'+
-      '<span class="h3-rim"></span><span class="h3-scan"></span><div class="h3-head"><span class="h3-k">'+esc(c.k)+'</span><span class="h3-tag" hidden></span></div>'+
+      '<span class="h3-rim"><i></i></span><span class="h3-scan"><b></b></span><div class="h3-head"><span class="h3-k">'+esc(c.k)+'</span><span class="h3-tag" hidden></span></div>'+
       '<div class="h3-obj" aria-hidden="true"></div><div class="h3-v"></div><div class="h3-l"></div><div class="h3-s"></div><span class="h3-go">'+(c.off?'':'Öffnen ›')+'</span></'+tag+'>';
   }).join('')+'</div>'+arrow('p','Vorherige Karte','M15 5l-7 7 7 7')+arrow('n','Nächste Karte','M9 5l7 7-7 7')+
   '<div class="h3-dots" role="tablist" aria-label="Karten">'+CARDS.map((c,i)=>'<button type="button" role="tab" aria-label="'+esc(c.k)+'" data-i="'+i+'" style="--c:'+c.rgb().join(' ')+'"><i></i></button>').join('')+'</div>';
@@ -182,11 +180,11 @@ function layout(){
     el.style.transform='translate3d('+x.toFixed(1)+'px,0,'+z.toFixed(1)+'px) rotateY('+(a*180/Math.PI).toFixed(2)+'deg) scale('+sc.toFixed(3)+')';
     const vis=ar<1.85;
     el.style.opacity=vis?(ar<1?1-ar*.3:Math.max(0,.7-(ar-1)*.85)).toFixed(3):'0';   // nur Deckkraft ändern: läuft auf der Grafikkarte, kein Neuzeichnen
-    el.style.visibility=vis?'visible':'hidden';
-    el.style.zIndex=String(200+Math.round(c*100));
+    const vv=vis?'visible':'hidden';if(el.style.visibility!==vv)el.style.visibility=vv;
+    const zi=String(200+Math.round(c*100));if(el.style.zIndex!==zi)el.style.zIndex=zi;
     el.style.pointerEvents=ar<1.15?'auto':'none';
     el.classList.toggle('front',i===fi&&ar<.5);
-    const ob=objs[CARDS[i].id];if(ob){ob.setVisible(ar<1.25);ob.spin(vel*2.2)}
+    const ob=objs[CARDS[i].id];if(ob){ob.setVisible(ar<1.25);ob.setFront(ar<.5);ob.spin(vel*2.2)}
     el.setAttribute('tabindex',i===fi?'0':'-1');
   });
   if(fi!==front){const was=front;front=fi;onFront();if(was>=0&&spinning&&window.LBUI)LBUI.sound('tap')}

@@ -1,7 +1,8 @@
 /* Life Board – Service Worker. Zweck: App-Start auch bei schlechtem Netz.
-   Strategie: Netz zuerst (damit Änderungen sofort ankommen), nur bei Fehler/Offline der zuletzt gespeicherte Stand.
+   Strategie: Seiten und Dateien ohne Versionsnummer: Netz zuerst (damit Änderungen sofort ankommen), nur bei Fehler/Offline der
+   zuletzt gespeicherte Stand. Skripte/Styles mit ?v=… (keine Seiten): aus dem Speicher, wenn vorhanden (die Nummer steigt bei jeder Änderung).
    Gecacht wird nur die eigene Seite (HTML, Skripte, Styles, Icons) – nie Firebase, den Worker oder andere Anbieter. */
-const CACHE = 'lb-shell-v30';
+const CACHE = 'lb-shell-v31';
 const SHELL = ['index.html', 'recovery.html', 'training.html', 'calendar.html', 'checkin.html', 'muster.html', 'journal-core.js', 'insights-core.js', 'theme.css', 'theme.js', 'fb.js', 'day.js', 'heute-labels.json', 'bg3d.js', 'hud-viz.js', 'whoop-row.js', 'whoop-cache.js', 'push-client.js', 'sleep-lever.js', 'graph-stats.js', 'graph-full.js', 'sleep-card.js', 'calendar-core.js', 'calendar-store.js', 'training-core.js', 'training-text.js', 'training-viz.js', 'training-gym.js', 'training-multi.js', 'training.js', 'plan-core.js', 'plan.js', 'plan.css', 'vendor/three.min.js', 'vendor/chart.umd.min.js', 'lb-chart.js', 'lb-spark.js', 'lb-bg.js', 'lb-space.js', 'lb-hub3d.js', 'lb-account.js', 'lb-warp.js', 'lb-data.js', 'lb-obj3d.js', 'lb-fx.js', 'vendor/tsparticles.slim.bundle.min.js', 'vendor/vanta.net.min.js', 'vendor/three.r134.min.js', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/apple-touch-icon.png'];
 const SDK = /^https:\/\/www\.gstatic\.com\/firebasejs\//; // Firebase-Bibliothek: nötig, damit die Seiten offline überhaupt starten
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => Promise.allSettled(SHELL.map(u => c.add(new Request(u, { cache: 'reload' }))))).then(() => self.skipWaiting())) });
@@ -13,6 +14,9 @@ self.addEventListener('fetch', e => {
   if (u.origin === location.origin && !/\.(html|js|css|png|webmanifest|json)$/.test(u.pathname) && !u.pathname.endsWith('/')) return;
   e.respondWith((async () => {
     const c = await caches.open(CACHE);
+    // Dateien mit Versionsnummer (?v=…) ändern sich nie unter derselben Adresse: direkt aus dem Speicher (schnellere Seitenwechsel).
+    // Neue Versionen kommen trotzdem sofort an, weil die Seiten dann eine neue Nummer verlinken.
+    if (u.origin === location.origin && u.searchParams.has('v') && !/\.html$/.test(u.pathname) && r.mode !== 'navigate') { const hit = await c.match(r); if (hit) return hit }
     try {
       // eigene Seiten/Skripte immer beim Server nachfragen (304 = unverändert), damit neue Versionen sofort ankommen
       const res = await fetch(u.origin === location.origin ? new Request(r.url, { cache: 'no-cache', credentials: 'same-origin' }) : r);

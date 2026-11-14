@@ -278,3 +278,10 @@ html[data-hud].lb-arrive{background:#02050c}
 html[data-hud].lb-arrive body,html[data-hud].lb-arrive.lb-ready body{opacity:0;animation:lbArrSafe .01s 1.2s forwards}   /* Sicherung: spätestens nach 1,2 s sichtbar */
 @keyframes lbArrSafe{to{opacity:1}}
 html[data-hud].lb-arrived.lb-ready body{animation:none}
+
+/* ================= Flüssigkeit: Weltraum läuft (html[data-space], gesetzt von lb-space.js) =================
+   Live-Unschärfe hinter Karten müsste bei bewegtem Hintergrund in jedem Bild neu gerechnet werden (teuer auf dem iPhone).
+   Stattdessen satteres Glas – sieht fast gleich aus, läuft deutlich ruhiger. Navigation und Leisten behalten ihre Unschärfe. */
+html[data-hud][data-space]{--glass:rgba(9,18,32,.82);--glass2:rgba(14,27,46,.9)}
+html[data-hud][data-space] .card,html[data-hud][data-space] .tile,html[data-hud][data-space] #bk,html[data-hud][data-space] #wh,html[data-hud][data-space] .ov .box,html[data-hud][data-space] details.hudbox{-webkit-backdrop-filter:none;backdrop-filter:none}
+html[data-hud][data-space] #lb-set{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}

@@ -226,7 +226,7 @@ function loadScript(src){return new Promise((res,rej)=>{const s=document.createE
 let bgStarted=false;
 async function bg(){
   if(bgStarted||S.perf)return;bgStarted=true;
-  try{await loadScript('lb-bg.js?v=7')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
+  try{await loadScript('lb-bg.js?v=8')}catch(e){bgStarted=false}   // wählt je Design den Hintergrund (Vanta, tsParticles oder Klassik 3D)
 }
 /* ---------- Start ---------- */
 const API={TABS,THEMES,setTheme,get settings(){return S},setSetting,onSettings:f=>listeners.push(f),sound,countUp,
@@ -240,7 +240,7 @@ function start(){
   // Cockpit bei voller Leistung: Zahlen zählen hoch, Graphen zeichnen sich (lb-fx.js); 3D-Objekte auf den Hub-Karten (lb-data.js + lb-obj3d.js)
   let fx3=false;const fx=()=>{if(fx3||root.getAttribute('data-theme')==='jungle'||S.perf||matchMedia('(prefers-reduced-motion: reduce)').matches)return;fx3=true;
     loadScript('lb-fx.js?v=2').catch(()=>{});
-    if(document.getElementById('hub')&&typeof auth!=='undefined')loadScript('lb-data.js?v=3').then(()=>loadScript('lb-obj3d.js?v=2')).catch(()=>{})};
+    if(document.getElementById('hub')&&typeof auth!=='undefined')loadScript('lb-data.js?v=3').then(()=>loadScript('lb-obj3d.js?v=3')).catch(()=>{})};
   fx();listeners.push(()=>fx());window.addEventListener('lb-theme',fx);
   requestAnimationFrame(()=>root.classList.add('lb-ready'));
   setTimeout(reveal,60);

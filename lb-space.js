@@ -140,7 +140,11 @@ function create(el,opts){
   /* Nebel: bildschirmfüllendes Rechteck */
   const nebU={uRes:{value:new T.Vector2(1,1)},uTime:{value:0},uA:{value:new T.Color()},uB:{value:new T.Color()},uZ:{value:new T.Color()},uOff:{value:new T.Vector2()},uDense:{value:.7},uTurb:{value:0},uGlow:{value:0},uWarp:{value:0}};
   const neb=new T.Mesh(new T.PlaneGeometry(2,2),new T.ShaderMaterial({uniforms:nebU,vertexShader:NEB_V,fragmentShader:NEB_F,depthWrite:false,depthTest:false}));
-  neb.frustumCulled=false;neb.renderOrder=-10;scene.add(neb);
+  neb.frustumCulled=false;const nebScene=new T.Scene();nebScene.add(neb);
+  // Nebel ist weich: in halber Auflösung rechnen (sieht gleich aus, spart viel Grafikleistung = flüssiger), dann hinter alles legen
+  const rt=new T.WebGLRenderTarget(4,4,{depthBuffer:false,stencilBuffer:false});let nebDiv=2;
+  const bgq=new T.Mesh(new T.PlaneGeometry(2,2),new T.ShaderMaterial({uniforms:{tMap:{value:rt.texture}},vertexShader:NEB_V,fragmentShader:'precision mediump float;uniform sampler2D tMap;varying vec2 vUv;void main(){gl_FragColor=texture2D(tMap,vUv);}',depthWrite:false,depthTest:false}));
+  bgq.frustumCulled=false;bgq.renderOrder=-10;scene.add(bgq);
   /* Sterne: drei Schichten Tiefe in einer Wolke, fliegen langsam heran */
   const N=small?1700:2600,DEPTH=1500,pos=new Float32Array(N*3),col=new Float32Array(N*3),siz=new Float32Array(N),ph=new Float32Array(N);
   const PAL=[[1,1,1],[.78,.88,1],[1,.93,.8],[.7,.8,1]];
@@ -207,28 +211,30 @@ function create(el,opts){
   target();for(const k in tgt)now[k]=Array.isArray(tgt[k])?tgt[k].slice():tgt[k];
   function step(dt){
     const k=1-Math.exp(-dt*1.6);
-    for(const n in tgt){if(Array.isArray(tgt[n]))now[n]=now[n].map((v,i)=>lerp(v,tgt[n][i],k));else now[n]=lerp(now[n],tgt[n],k)}
-    nebU.uA.value.setRGB(...now.A);nebU.uB.value.setRGB(...now.B);nebU.uZ.value.setRGB(...now.Z);
+    for(const n in tgt){const a=tgt[n];if(Array.isArray(a)){const b=now[n];for(let i=0;i<a.length;i++)b[i]+=(a[i]-b[i])*k}else now[n]=lerp(now[n],a,k)}   // ohne neue Arrays je Bild
+    const A=now.A,B=now.B,Z=now.Z,Ar=now.Arm,Co=now.Core,Du=now.Dust;nebU.uA.value.setRGB(A[0],A[1],A[2]);nebU.uB.value.setRGB(B[0],B[1],B[2]);nebU.uZ.value.setRGB(Z[0],Z[1],Z[2]);
     nebU.uDense.value=now.dense;nebU.uTurb.value=now.turb;nebU.uGlow.value=now.glow;starU.uTw.value=now.tw;
-    galU.uArm.value.setRGB(...now.Arm);galU.uCore.value.setRGB(...now.Core);galU.uGlow.value=now.glow;
-    core1.material.color.setRGB(...now.Core);disk.material.color.setRGB(...now.Arm.map(v=>v*.9));core2.material.color.setRGB(...now.Arm);core3.material.color.setRGB(1,.97,.9);dustU.uCol.value.setRGB(...now.Dust);
+    galU.uArm.value.setRGB(Ar[0],Ar[1],Ar[2]);galU.uCore.value.setRGB(Co[0],Co[1],Co[2]);galU.uGlow.value=now.glow;
+    core1.material.color.setRGB(Co[0],Co[1],Co[2]);disk.material.color.setRGB(Ar[0]*.9,Ar[1]*.9,Ar[2]*.9);core2.material.color.setRGB(Ar[0],Ar[1],Ar[2]);core3.material.color.setRGB(1,.97,.9);dustU.uCol.value.setRGB(Du[0],Du[1],Du[2]);
   }
   /* ---------- Größe; Galaxie hinter der Bildmitte ---------- */
-  let W=0,H=0,hhG=1,hwG=1,dG=520;
+  let W=0,H=0,hhG=1,hwG=1,dG=520;const V2=new T.Vector2();
+  let dirty=true;const onRs=()=>{dirty=true};addEventListener('resize',onRs);let ro=null;try{ro=new ResizeObserver(onRs);ro.observe(el)}catch(e){}
   function resize(){
+    if(!dirty)return;dirty=false;   // nur bei Größenänderung messen (kein Layout-Lesen in jedem Bild)
     let w=el.clientWidth||innerWidth,h=el.clientHeight||innerHeight;const sm=Math.max(screen.width||w,screen.height||h,800);w=Math.min(w,sm);h=Math.min(h,sm);   // nie größer als der Bildschirm (z. B. bei Ganzseiten-Aufnahmen)
     if(w===W&&h===H)return;W=w;H=h;
     R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
     const d=520,hh=d*Math.tan(cam.fov*Math.PI/360),hw=hh*cam.aspect,r=Math.max(hw*1.8,hh*(w<h?1.12:1.3));
     gal.position.set(0,-hh*.06,-d);gal.scale.setScalar(r);hhG=hh;hwG=hw;dG=d;   // Kern etwa hinter der Bildschirmmitte (dort stehen im Hub die Karten)
-    const b=R.getDrawingBufferSize(new T.Vector2());nebU.uRes.value.copy(b);
+    const b=R.getDrawingBufferSize(V2),rw=Math.max(2,Math.round(b.x/nebDiv)),rh=Math.max(2,Math.round(b.y/nebDiv));rt.setSize(rw,rh);nebU.uRes.value.set(rw,rh);
   }
   /* ---------- Kamera: langsame Fahrt, leichte Parallaxe beim Scrollen, optional Geräteneigung ---------- */
   let tiltX=0,tiltY=0;const onTilt=e=>{if(!(window.LBUI&&LBUI.settings.tilt))return;tiltX=Math.max(-1,Math.min(1,(e.gamma||0)/35));tiltY=Math.max(-1,Math.min(1,((e.beta||45)-45)/35))};
   addEventListener('deviceorientation',onTilt,{passive:true});
   /* ---------- Schleife ---------- */
   const pre=[];let okSet=false;
-  let raf=0,last=0,t=0,travel=0,alive=true,warp=0,warpT=0,frames=0,fpsT0=0,tuned=false,spin=window.__lbSpin||0,spinT=spin,ramp=10,decay=6;
+  let raf=0,last=0,t=0,travel=0,alive=true,warp=0,warpT=0,spin=window.__lbSpin||0,spinT=spin,ramp=10,decay=6;
   function frame(ms){
     raf=0;if(!alive||document.hidden)return;
     const dt=last?Math.min(.05,(ms-last)/1000):.016;last=ms;t+=dt;
@@ -250,21 +256,32 @@ function create(el,opts){
       const dir=Math.random()<.5?-1:1,ang=dir*(.35+Math.random()*.35),sp=hhG*(1.1+Math.random()*.8);
       s.m.position.set((Math.random()*1.4-.7)*hwG,hhG*(.25+Math.random()*.6),-dG);s.v.set(-Math.cos(ang)*dir*sp,-Math.abs(Math.sin(ang))*sp,0);
       s.m.rotation.z=Math.atan2(s.v.y,s.v.x);s.m.scale.set(hhG*(.22+Math.random()*.18),hhG*.006,1);s.t=0;s.life=.7+Math.random()*.5;s.m.visible=true}}
-    shoot.forEach(s=>{if(!s.m.visible)return;s.t+=dt;const k=s.t/s.life;if(k>=1){s.m.visible=false;return}s.m.position.addScaledVector(s.v,dt);s.m.material.opacity=Math.sin(k*Math.PI)*.9});
+    for(const s of shoot){if(!s.m.visible)continue;s.t+=dt;const k=s.t/s.life;if(k>=1){s.m.visible=false;continue}s.m.position.addScaledVector(s.v,dt);s.m.material.opacity=Math.sin(k*Math.PI)*.9}
     for(const f of pre){try{f(dt,t,R)}catch(e){}}   // 3D-Objekte (lb-obj3d.js) mit demselben Renderer
+    R.setRenderTarget(rt);R.render(nebScene,cam);R.setRenderTarget(null);
     R.render(scene,cam);
     if(!okSet){okSet=true;try{localStorage.setItem('lb_space_ok','1')}catch(e){}}
-    // einmalig: läuft es zäh, Auflösung senken (nie den Hintergrund wechseln)
-    if(!tuned){if(!fpsT0)fpsT0=ms+1200;else if(ms>fpsT0){frames++;if(ms-fpsT0>2500){tuned=true;const fps=frames*1000/(ms-fpsT0);if(fps<38&&pr>1){pr=1;R.setPixelRatio(pr);starU.uPR.value=galU.uPR.value=dustU.uPR.value=pr;W=0}}}}
+    govern(ms);
     raf=requestAnimationFrame(frame);
   }
-  const run=()=>{if(!raf&&alive&&!document.hidden){last=0;raf=requestAnimationFrame(frame)}};
+  /* Qualität laufend anpassen: ruckelt es (Bildzeit im Schnitt über ~19 ms), Auflösung eine Stufe senken; läuft es lange
+     flüssig (unter ~13 ms), wieder eine Stufe hoch. Stufen: Pixelratio und Nebel-Auflösung. */
+  const LV=[[Math.min(window.devicePixelRatio||1,2),2],[1.5,2],[1.25,3],[1,3]];let lv=0,acc=0,cnt=0,since=0,good=0;
+  function setLv(i){lv=Math.max(0,Math.min(LV.length-1,i));const p=Math.min(LV[lv][0],window.devicePixelRatio||1);nebDiv=LV[lv][1];
+    if(p!==pr){pr=p;R.setPixelRatio(pr);starU.uPR.value=galU.uPR.value=dustU.uPR.value=pr}W=0;dirty=true}
+  function govern(ms){
+    if(!since){since=ms;return}const ft=ms-since;since=ms;if(ft>250)return;   // Pausen (Tab weg) nicht mitzählen
+    acc+=ft;cnt++;if(cnt<45)return;const avg=acc/cnt;acc=0;cnt=0;
+    if(avg>19&&lv<LV.length-1){setLv(lv+1);good=0}
+    else if(avg<13.5&&lv>0){if(++good>=6){setLv(lv-1);good=0}}else good=0;
+  }
+  const run=()=>{if(!raf&&alive&&!document.hidden){last=0;since=0;raf=requestAnimationFrame(frame)}};
   const vis=()=>{if(document.hidden){cancelAnimationFrame(raf);raf=0}else run()};
   document.addEventListener('visibilitychange',vis);
   const onTint=e=>{cur.tint=e&&e.detail||null;target()};
   window.addEventListener('lb-tint',onTint);
   const onSpin=e=>{spinT=+e.detail||0;run()};window.addEventListener('lb-spin',onSpin);if(window.__lbTint)cur.tint=window.__lbTint;target();
-  const onLost=e=>{try{e.preventDefault()}catch(x){}alive=false;window.dispatchEvent(new Event('lb-space-gone'));cancelAnimationFrame(raf);raf=0;if(opts.onFail)opts.onFail()};
+  const onLost=e=>{try{e.preventDefault()}catch(x){}alive=false;root.removeAttribute('data-space');window.dispatchEvent(new Event('lb-space-gone'));cancelAnimationFrame(raf);raf=0;if(opts.onFail)opts.onFail()};
   cv.addEventListener('webglcontextlost',onLost,false);
   readZone(z=>{if(z!==cur.zone){cur.zone=z;target()}});
   // Ankunft nach einem Warp: Sterne laufen aus (Zeitstempel von lb-warp.js)
@@ -277,10 +294,10 @@ function create(el,opts){
     get zone(){return cur.zone},
     pre(f){pre.push(f);run()},
     warp(sec,rgb,soft){warpT=Math.max(warpT,sec||.6);ramp=soft?2.2:10;decay=soft?2.4:6;if(rgb)strU.uTint.value.setRGB(rgb[0]/255,rgb[1]/255,rgb[2]/255);run()},
-    destroy(){alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',vis);window.removeEventListener('lb-tint',onTint);window.removeEventListener('lb-spin',onSpin);removeEventListener('deviceorientation',onTilt);
-      try{lg.dispose();streaks.material.dispose();sg.dispose();gg.dispose();dg.dispose();neb.geometry.dispose();[neb,stars,galaxy,dust,core1,core2,core3,disk].forEach(m=>m.material.dispose());disk.geometry.dispose();shoot.forEach(s=>{s.m.geometry.dispose();s.m.material.dispose()});R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api)LBSpace.current=null;window.dispatchEvent(new Event('lb-space-gone'))}
+    destroy(){alive=false;cancelAnimationFrame(raf);document.removeEventListener('visibilitychange',vis);window.removeEventListener('lb-tint',onTint);window.removeEventListener('lb-spin',onSpin);removeEventListener('deviceorientation',onTilt);removeEventListener('resize',onRs);try{ro&&ro.disconnect()}catch(e){}
+      try{rt.dispose();bgq.geometry.dispose();bgq.material.dispose();lg.dispose();streaks.material.dispose();sg.dispose();gg.dispose();dg.dispose();neb.geometry.dispose();[neb,stars,galaxy,dust,core1,core2,core3,disk].forEach(m=>m.material.dispose());disk.geometry.dispose();shoot.forEach(s=>{s.m.geometry.dispose();s.m.material.dispose()});R.dispose()}catch(e){}if(window.LBSpace&&LBSpace.current===api){LBSpace.current=null;root.removeAttribute('data-space')}window.dispatchEvent(new Event('lb-space-gone'))}
   };
-  window.LBSpace.current=api;
+  window.LBSpace.current=api;root.setAttribute('data-space','');
   setTimeout(()=>window.dispatchEvent(new Event('lb-space-ready')),0);
   return api;
 }

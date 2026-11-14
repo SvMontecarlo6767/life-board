@@ -153,11 +153,13 @@ function mount(el,type,data,opt){
   el.innerHTML='';el.append(cv);
   const scene=new T.Scene(),cam=new T.PerspectiveCamera(opt.fov||38,1,.1,50);cam.position.set(0,0,opt.dist||4.6);
   const o=BUILD[type](data);scene.add(o.g);
-  const it={el,cv,ctx:cv.getContext('2d'),scene,cam,o,type,vis:true,rx:0,ry:0,vx:0,vy:.0,spin:0,big:!!opt.big,blank:0};
+  const it={front:!!opt.big,el,cv,ctx:cv.getContext('2d'),scene,cam,o,type,vis:true,rx:0,ry:0,vx:0,vy:.0,spin:0,big:!!opt.big,blank:0};
   if(opt.big)interact(it);
   items.add(it);
+  it.w=cv.clientWidth;it.h=cv.clientHeight;
+  if('ResizeObserver' in window){it.ro=new ResizeObserver(es=>{const r=es[0].contentRect;it.w=r.width;it.h=r.height});it.ro.observe(cv)}else addEventListener('resize',()=>{it.w=cv.clientWidth;it.h=cv.clientHeight});
   if('IntersectionObserver' in window){it.io=new IntersectionObserver(es=>es.forEach(e=>{it.inView=e.isIntersecting}));it.io.observe(cv)}else it.inView=true;
-  return{set(d){o.set(d)},fx(){o.fx();try{LBUI.sound('ok')}catch(e){}},remove(){items.delete(it);try{it.io&&it.io.disconnect()}catch(e){}cv.remove()},setVisible(v){it.vis=v},spin(v){it.spin=v},it};
+  return{set(d){o.set(d)},setFront(v){it.front=!!v},fx(){o.fx();try{LBUI.sound('ok')}catch(e){}},remove(){items.delete(it);try{it.io&&it.io.disconnect();it.ro&&it.ro.disconnect()}catch(e){}cv.remove()},setVisible(v){it.vis=v},spin(v){it.spin=v},it};
 }
 function interact(it){
   const c=it.cv;c.style.touchAction='pan-y';c.style.cursor='grab';let P=null;
@@ -169,21 +171,24 @@ function interact(it){
   const up=()=>{if(P&&!P.moved&&performance.now()-P.t<400){it.o.fx();try{LBUI.sound('ok')}catch(e){}}P=null};
   c.addEventListener('pointerup',up);c.addEventListener('pointercancel',()=>{P=null});
 }
-let rt=null,buf=null;
+let rt=null,buf=null,TMP=null,FRAME=0;
 function draw(dt,t,R){
   if(!items.size)return;
-  const size=R.getDrawingBufferSize(new T.Vector2()),pr=R.getPixelRatio(),full=R.getSize(new T.Vector2()),cc=R.getClearColor(new T.Color()),ca=R.getClearAlpha();
+  if(!TMP)TMP={a:new T.Vector2(),b:new T.Vector2(),c:new T.Color()};   // einmal anlegen, nicht in jedem Bild (keine Mini-Hänger)
+  const size=R.getDrawingBufferSize(TMP.a),pr=R.getPixelRatio(),full=R.getSize(TMP.b),cc=R.getClearColor(TMP.c),ca=R.getClearAlpha();FRAME++;
   R.setClearColor(0x000000,1);   // schwarz + mix-blend-mode:screen am Canvas = durchsichtig auf der Karte
   for(const it of items){
     if(!it.vis||it.inView===false||!it.cv.isConnected)continue;
-    const w=it.cv.clientWidth,h=it.cv.clientHeight;if(w<4||h<4)continue;
+    if(!it.front&&(FRAME&1)){it.skipDt=(it.skipDt||0)+dt;continue}   // seitliche Karten: jedes zweite Bild (die vordere immer)
+    const idt=dt+(it.skipDt||0);it.skipDt=0;
+    const w=it.w,h=it.h;if(w<4||h<4)continue;   // Größe aus dem ResizeObserver (kein Layout-Lesen pro Bild)
     const pw=Math.min(Math.round(w*pr),size.x),ph=Math.min(Math.round(h*pr),size.y);
     if(it.cv.width!==pw||it.cv.height!==ph){it.cv.width=pw;it.cv.height=ph}
     it.cam.aspect=w/h;it.cam.updateProjectionMatrix();
     // Drehen mit dem Finger / Schwung, sonst langsam von selbst
-    it.vy*=Math.exp(-dt*2.2);it.vx*=Math.exp(-dt*2.2);it.ry+=(it.vy+it.spin+.18)*dt;it.rx+=it.vx*dt;it.rx*=Math.exp(-dt*.8);it.spin*=Math.exp(-dt*3);
+    it.vy*=Math.exp(-idt*2.2);it.vx*=Math.exp(-idt*2.2);it.ry+=(it.vy+it.spin+.18)*idt;it.rx+=it.vx*idt;it.rx*=Math.exp(-idt*.8);it.spin*=Math.exp(-idt*3);
     it.o.g.rotation.y=it.ry;it.o.g.rotation.x=it.rx;
-    it.o.update(dt,t);
+    it.o.update(idt,t);
     if(!it.rt){
       R.setScissorTest(true);R.setViewport(0,0,pw/pr,ph/pr);R.setScissor(0,0,pw/pr,ph/pr);R.clear();R.render(it.scene,it.cam);
       it.ctx.clearRect(0,0,pw,ph);it.ctx.drawImage(R.domElement,0,size.y-ph,pw,ph,0,0,pw,ph);
