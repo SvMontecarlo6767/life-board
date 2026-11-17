@@ -127,7 +127,7 @@ function whoopDay(w) {
   else if (sl && sl.start && sl.end) sleepH = r1((Date.parse(sl.end) - Date.parse(sl.start)) / 36e5);
   return {
     recovery: rs ? { score: r1(rs.recovery_score), hrv_ms: r1(rs.hrv_rmssd_milli), ruhepuls: r1(rs.resting_heart_rate), spo2: r1(rs.spo2_percentage) } : null,
-    schlaf: sl ? { stunden: sleepH, leistung_prozent: r1(ss && ss.sleep_performance_percentage), effizienz_prozent: r1(ss && ss.sleep_efficiency_percentage), ins_bett: sl.start, aufgewacht: sl.end } : null,
+    schlaf: sl ? { stunden: sleepH, leistung_prozent: r1(ss && ss.sleep_performance_percentage), effizienz_prozent: r1(ss && ss.sleep_efficiency_percentage), atemfrequenz_pro_min: r1(ss && ss.respiratory_rate), ins_bett: sl.start, aufgewacht: sl.end } : null,
     strain: cs ? r1(cs.strain) : null,
     schritte: (w.cycle && w.cycle.steps) ?? null,
     workouts: (w.workouts || []).map(x => ({ sport: x.sport, start: x.start, minuten: x.start && x.end ? Math.round((Date.parse(x.end) - Date.parse(x.start)) / 6e4) : null, strain: x.score ? r1(x.score.strain) : null, puls_durchschnitt: x.score ? r1(x.score.average_heart_rate) : null, puls_max: x.score ? r1(x.score.max_heart_rate) : null }))
@@ -166,8 +166,8 @@ const learnQs = env => listCol(env, 'questions', ['stage', 'due', 'reps', 'pageI
 
 // ---------- Tagestabelle: Whoop + Check-in + Gym in einer Zeile pro Tag ----------
 const MAX_RANGE = 400;
-const COLS = ['rec', 'hrv', 'rhr', 'sleep_h', 'sleep_perf', 'bed', 'strain', 'steps', 'wk_n', 'wk_min', 'mood', 'energy', 'stress', 'alc', 'sick', 'goals_pct', 'gym', 'gym_min', 'gym_sets', 'gym_vol', 'gym_rpe'];
-const LEGEND = 'rec=Recovery %, hrv=HRV ms, rhr=Ruhepuls, sleep_h=Schlafstunden, sleep_perf=Schlafleistung %, bed=Einschlafzeit als Uhrzeit (24.5 = 0:30 Uhr), strain=Tagesbelastung 0-21, steps=Schritte, wk_n/wk_min=Whoop-Workouts Anzahl/Minuten, mood/energy/stress=Check-in 1-5, alc=Alkohol (1/0), sick=krank (1/0), goals_pct=erledigte Tagesziele %, gym=Krafteinheit (1/0), gym_min/gym_sets/gym_vol(kg)/gym_rpe=Gym-Werte. Der Tag wechselt um 4 Uhr. Leer = keine Daten. Recovery, HRV, Ruhepuls und Schlaf gehören zur Nacht VOR dem Datum; strain gehört zum Tag selbst.';
+const COLS = ['rec', 'hrv', 'rhr', 'sleep_h', 'sleep_perf', 'resp', 'bed', 'strain', 'steps', 'wk_n', 'wk_min', 'mood', 'energy', 'stress', 'alc', 'sick', 'goals_pct', 'gym', 'gym_min', 'gym_sets', 'gym_vol', 'gym_rpe'];
+const LEGEND = 'rec=Recovery %, hrv=HRV ms, rhr=Ruhepuls, sleep_h=Schlafstunden, sleep_perf=Schlafleistung %, resp=Atemfrequenz im Schlaf (Atemzüge/min), bed=Einschlafzeit als Uhrzeit (24.5 = 0:30 Uhr), strain=Tagesbelastung 0-21, steps=Schritte, wk_n/wk_min=Whoop-Workouts Anzahl/Minuten, mood/energy/stress=Check-in 1-5, alc=Alkohol (1/0), sick=krank (1/0), goals_pct=erledigte Tagesziele %, gym=Krafteinheit (1/0), gym_min/gym_sets/gym_vol(kg)/gym_rpe=Gym-Werte. Der Tag wechselt um 4 Uhr. Leer = keine Daten. Recovery, HRV, Ruhepuls und Schlaf gehören zur Nacht VOR dem Datum; strain gehört zum Tag selbst.';
 function dayRange(from, to) { const out = []; for (let k = from; k <= to; k = addDays(k, 1)) out.push(k); return out; }
 function checkRange(args, defDays) {
   const today = dayKey();
@@ -188,7 +188,7 @@ function whoopFlat(w) {
   if (!w) return {};
   const d = whoopDay(w), o = {};
   if (d.recovery) { o.rec = d.recovery.score; o.hrv = d.recovery.hrv_ms; o.rhr = d.recovery.ruhepuls; }
-  if (d.schlaf) { o.sleep_h = d.schlaf.stunden; o.sleep_perf = d.schlaf.leistung_prozent; if (w.sleep && w.sleep.start) o.bed = localHour(w.sleep.start, w.sleep.tz); }
+  if (d.schlaf) { o.sleep_h = d.schlaf.stunden; o.sleep_perf = d.schlaf.leistung_prozent; o.resp = d.schlaf.atemfrequenz_pro_min; if (w.sleep && w.sleep.start) o.bed = localHour(w.sleep.start, w.sleep.tz); }
   o.strain = d.strain; o.steps = d.schritte; o.wk_n = d.workouts.length; o.wk_min = d.workouts.reduce((s, x) => s + (x.minuten || 0), 0);
   return o;
 }
@@ -264,7 +264,7 @@ function describe(x, y, lag, xs, ys) {
   return o;
 }
 const TARGETS = ['rec', 'hrv', 'rhr', 'sleep_h', 'sleep_perf', 'mood', 'energy', 'stress'];
-const SAME_FAMILY = [['rec', 'hrv', 'rhr'], ['sleep_h', 'sleep_perf'], ['gym', 'gym_min', 'gym_sets', 'gym_vol', 'gym_rpe'], ['wk_n', 'wk_min']];
+const SAME_FAMILY = [['rec', 'hrv', 'rhr'], ['sleep_h', 'sleep_perf', 'resp'], ['gym', 'gym_min', 'gym_sets', 'gym_vol', 'gym_rpe'], ['wk_n', 'wk_min']];
 const related = (a, b) => SAME_FAMILY.some(f => f.includes(a) && f.includes(b));
 function scan(rows) {
   const out = [];
@@ -282,7 +282,7 @@ function scan(rows) {
 const TOOLS = [
   { name: 'get_today', description: 'Heutiger Stand im Life Board: Whoop (Recovery, Schlaf, Strain, Workouts), Check-in (Stimmung, Tagesziele) und Lernstand. Der Tag wechselt um 4 Uhr.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } },
   { name: 'get_week', description: 'Tagesweiser Verlauf der letzten Tage mit Whoop-Werten und Check-in, dazu Durchschnitte. Standard 7 Tage, höchstens 30.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 30, description: 'Anzahl Tage inklusive heute (Standard 7)' } }, additionalProperties: false } },
-  { name: 'get_range', description: 'Kompakte Tagestabelle (CSV) für einen frei wählbaren Zeitraum bis 400 Tage, eine Zeile pro Tag: Whoop (Recovery, HRV, Ruhepuls, Schlaf, Einschlafzeit, Strain, Schritte, Workouts), Check-in (Stimmung, Energie, Stress, Alkohol, krank, Tagesziele) und Gym. Gut für Fragen über Wochen oder Monate. Mit "columns" lässt sich die Tabelle auf bestimmte Spalten verkleinern.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 400, description: 'Anzahl Tage bis heute (Standard 90)' }, from: { type: 'string', description: 'Startdatum JJJJ-MM-TT (statt days)' }, to: { type: 'string', description: 'Enddatum JJJJ-MM-TT (Standard heute)' }, columns: { type: 'array', items: { type: 'string', enum: COLS }, description: 'nur diese Spalten ausgeben' } }, additionalProperties: false } },
+  { name: 'get_range', description: 'Kompakte Tagestabelle (CSV) für einen frei wählbaren Zeitraum bis 400 Tage, eine Zeile pro Tag: Whoop (Recovery, HRV, Ruhepuls, Schlaf, Atemfrequenz, Einschlafzeit, Strain, Schritte, Workouts), Check-in (Stimmung, Energie, Stress, Alkohol, krank, Tagesziele) und Gym. Gut für Fragen über Wochen oder Monate. Mit "columns" lässt sich die Tabelle auf bestimmte Spalten verkleinern.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 400, description: 'Anzahl Tage bis heute (Standard 90)' }, from: { type: 'string', description: 'Startdatum JJJJ-MM-TT (statt days)' }, to: { type: 'string', description: 'Enddatum JJJJ-MM-TT (Standard heute)' }, columns: { type: 'array', items: { type: 'string', enum: COLS }, description: 'nur diese Spalten ausgeben' } }, additionalProperties: false } },
   { name: 'get_gym', description: 'Krafteinheiten mit Übungen und Sätzen (Gewicht x Wiederholungen) sowie Bestwerte pro Übung (geschätztes 1-Wiederholungs-Maximum). Mit "exercise" nur Einheiten, die diese Übung enthalten.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 1, maximum: 400, description: 'Zeitraum in Tagen bis heute (Standard 90)' }, exercise: { type: 'string', description: 'Teil des Übungsnamens, z. B. "bank"' } }, additionalProperties: false } },
   { name: 'get_correlations', description: 'Rechnet Zusammenhänge im Worker und liefert nur das Ergebnis, ohne Rohdaten. Ohne x und y: die stärksten Zusammenhänge im Zeitraum (Standard 365 Tage). Mit x und y: ein bestimmtes Paar. lag=1 vergleicht x vom Vortag mit y von heute (z. B. strain gestern gegen Recovery heute). Metriken: ' + COLS.join(', ') + '. Hinweis: Korrelation ist keine Ursache, und bei vielen Paaren sind einzelne Treffer Zufall.', inputSchema: { type: 'object', properties: { days: { type: 'integer', minimum: 14, maximum: 400 }, x: { type: 'string', enum: COLS }, y: { type: 'string', enum: COLS }, lag: { type: 'integer', enum: [0, 1], description: '1 = x vom Vortag' } }, additionalProperties: false } },
   { name: 'get_learning', description: 'Lernstand der Wiederholungsfragen: Stufen 1–4, neue, fällige und überfällige Fragen, aufgeschlüsselt nach Thema.', inputSchema: { type: 'object', properties: {}, additionalProperties: false } }
@@ -306,6 +306,7 @@ async function callTool(env, name, args) {
       durchschnitt: {
         recovery: avg(tage.map(t => t.whoop && t.whoop.recovery && t.whoop.recovery.score)),
         schlaf_stunden: avg(tage.map(t => t.whoop && t.whoop.schlaf && t.whoop.schlaf.stunden)),
+        atemfrequenz: avg(tage.map(t => t.whoop && t.whoop.schlaf && t.whoop.schlaf.atemfrequenz_pro_min)),
         strain: avg(tage.map(t => t.whoop && t.whoop.strain)),
         stimmung: avg(tage.map(t => t.checkin && t.checkin.stimmung && t.checkin.stimmung.stimmung_1_5)),
         workouts_gesamt: tage.reduce((s, t) => s + (t.whoop ? t.whoop.workouts.length : 0), 0)

@@ -72,7 +72,7 @@ const month = todayKey.slice(0, 7);
 kvData.set('m:' + month, JSON.stringify({ [todayKey]: {
   cycle: { score: { strain: 12.34 }, steps: 8000 },
   recovery: { score: { recovery_score: 78, hrv_rmssd_milli: 61.2, resting_heart_rate: 52 } },
-  sleep: { start: '2026-10-27T22:00:00Z', end: '2026-10-28T06:30:00Z', score: { sleep_performance_percentage: 91, stage_summary: { total_in_bed_time_milli: 30600000, total_awake_time_milli: 1800000 } } },
+  sleep: { start: '2026-10-27T22:00:00Z', end: '2026-10-28T06:30:00Z', score: { sleep_performance_percentage: 91, respiratory_rate: 15.234, stage_summary: { total_in_bed_time_milli: 30600000, total_awake_time_milli: 1800000 } } },
   workouts: [{ sport: 'Running', start: '2026-10-28T14:00:00Z', end: '2026-10-28T14:45:00Z', score: { strain: 9.1, average_heart_rate: 150, max_heart_rate: 178 } }]
 } }));
 
@@ -82,11 +82,12 @@ assert.equal(L.stufen[2], 1); assert.equal(L.stufen[4], 1); assert.equal(L.theme
 
 const T = await tool('get_today');
 assert.equal(T.whoop.recovery.score, 78); assert.equal(T.whoop.schlaf.stunden, 8); assert.equal(T.whoop.strain, 12.3);
+assert.equal(T.whoop.schlaf.atemfrequenz_pro_min, 15.2, 'Atemfrequenz');
 assert.equal(T.whoop.workouts[0].minuten, 45); assert.equal(T.checkin.stimmung.stimmung_1_5, 4);
 assert.deepEqual(T.checkin.tagesziele, { erledigt: 1, gesamt: 2 }); assert.equal(T.lernen.ueberfaellig, 1);
 
 const W = await tool('get_week', { days: 3 });
-assert.equal(W.tage.length, 3); assert.equal(W.tage[2].tag, todayKey); assert.equal(W.durchschnitt.recovery, 78); assert.equal(W.durchschnitt.workouts_gesamt, 1);
+assert.equal(W.tage.length, 3); assert.equal(W.tage[2].tag, todayKey); assert.equal(W.durchschnitt.recovery, 78); assert.equal(W.durchschnitt.workouts_gesamt, 1); assert.equal(W.durchschnitt.atemfrequenz, 15.2);
 assert.equal((await tool('get_week', { days: 999 })).tage.length, 30, 'Obergrenze 30');
 assert.equal((await tool('get_week')).tage.length, 7);
 
@@ -108,7 +109,7 @@ for (let i = 0; i < DAYS; i++) {
   (months[k.slice(0, 7)] ||= {})[k] = {
     cycle: { score: { strain }, steps: 5000 + Math.round(rnd() * 5000) },
     recovery: { score: { recovery_score: rec, hrv_rmssd_milli: 40 + rec / 3, resting_heart_rate: 60 - rec / 10 } },
-    sleep: { start: k + 'T21:30:00Z', end: addD(k, 1) + 'T05:30:00Z', tz: '+02:00', score: { sleep_performance_percentage: 80, stage_summary: { total_in_bed_time_milli: 29e6, total_awake_time_milli: 1e6 } } },
+    sleep: { start: k + 'T21:30:00Z', end: addD(k, 1) + 'T05:30:00Z', tz: '+02:00', score: { sleep_performance_percentage: 80, respiratory_rate: 14.8, stage_summary: { total_in_bed_time_milli: 29e6, total_awake_time_milli: 1e6 } } },
     workouts: i % 3 === 0 ? [{ sport: 'Run', start: k + 'T15:00:00Z', end: k + 'T15:30:00Z', score: { strain: 8, average_heart_rate: 150, max_heart_rate: 175 } }] : []
   };
   journalMap[k] = { m: M({ mood: I(3 + (rnd() < 0.5 ? 1 : 0)), energy: I(3) }), alc: B(!!alc) };
@@ -126,6 +127,7 @@ const cols = lines[header].split(',');
 const lastRow = lines[lines.length - 1].split(',');
 assert.equal(lastRow[0], todayKey);
 assert.ok(lastRow[cols.indexOf('rec')] !== '', 'Recovery vorhanden');
+assert.equal(lastRow[cols.indexOf('resp')], '14.8', 'Atemfrequenz-Spalte');
 assert.equal(lastRow[cols.indexOf('bed')], '23.5', 'Einschlafen 21:30 UTC +02:00 = 23:30');
 assert.ok(csv.includes('Der Tag wechselt um 4 Uhr'), 'Legende');
 const small = await raw('get_range', { days: 10, columns: ['rec', 'alc'] });
