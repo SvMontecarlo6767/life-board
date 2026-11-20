@@ -41,7 +41,19 @@ ck('Schlafbedarf: zwei Kurven + Fakten',(await pg.$$eval('#gfLayers [aria-presse
 await pg.click('#gfLayers [data-l=debt]');ck('Ebene zuschaltbar',(await pg.$$eval('#gfLayers [aria-pressed=true]',x=>x.length))===3);
 if(shots)await pg.screenshot({path:shots+'/full-need.png'});await closeFull(pg);
 await openFull(pg,'#c-eff');ck('Effizienz/Konsistenz: Fakten',/Recovery bei Konsistenz/.test(await pg.textContent('#gfStats')));await closeFull(pg);
-await openFull(pg,'#c-scatter');txt=await pg.textContent('#gfStats');ck('Belastung→Erholung: Auswertung',/Pro \+1 Strain/.test(txt)&&/Recovery nach Strain/.test(txt));
+await openFull(pg,'#c-scatter');txt=await pg.textContent('#gfStats');ck('Belastung→Erholung: Auswertung',/Pro \+1 Strain/.test(txt)&&/Recovery nach Strain/.test(txt)&&/Am besten verkraftet/.test(txt));
+{const n90=await pg.$$eval('#gfStage circle.gfs-dot',x=>x.length);ck('Streudiagramm: eigenes Vollbild statt Kopie',(await pg.$$('#gf .gf-stage.clone')).length===0&&n90>=50,n90);
+ ck('Streudiagramm: Zeitraum-Knöpfe',(await pg.$$eval('#gfRanges [data-r]',x=>x.map(b=>b.textContent))).join()==='30 Tage,3 Monate');
+ await pg.tap('#gfRanges [data-r="30"]');await pg.waitForTimeout(300);const n30=await pg.$$eval('#gfStage circle.gfs-dot',x=>x.length);ck('Zeitraum 30 Tage: weniger Punkte',n30>=25&&n30<=30&&n30<n90,n30);
+ ck('Zeitraum im Untertitel',/30 Tage/.test(await pg.textContent('#gfSub')));
+ await pg.tap('#gfLayers [data-o="prev"]');await pg.waitForTimeout(200);ck('Zeitraum davor einblendbar',(await pg.$$('#gfStage circle.gfs-prev')).length>=20);
+ await pg.tap('#gfLayers [data-o="bk"]');ck('Ø je Bereich einblendbar',(await pg.$$('#gfStage line.gfs-bk')).length>=2);
+ const c=await pg.$eval('#gfStage circle.gfs-dot:last-of-type',e=>{const r=e.getBoundingClientRect();return{x:r.x+r.width/2,y:r.y+r.height/2}});
+ await pg.touchscreen.tap(c.x,c.y);await pg.waitForTimeout(200);const tip=await pg.textContent('#gf .gf-tip').catch(()=>'');ck('Punkt antippen zeigt Tag',/Strain am Vortag/.test(tip)&&/HRV/.test(tip),tip);
+ ck('Datum per Jarvis anspringen',await pg.evaluate(()=>GraphFull.gotoDate(GraphFull.state().win[2].date).ok)&&!!await pg.$('#gf .gf-tip'));
+ ck('Optionen behalten Zustand beim Zeitraumwechsel',await pg.tap('#gfRanges [data-r="90"]').then(()=>pg.$$eval('#gfLayers [aria-pressed=true]',x=>x.length))===4);
+ ck('Achse unten sichtbar',await pg.evaluate(()=>{const f=document.querySelector('#gfFrame').getBoundingClientRect();return f.bottom<=innerHeight+1||document.querySelector('#gfBody').scrollHeight>document.querySelector('#gfBody').clientHeight}));
+ ck('Kein Seitwärtsscroll',await pg.evaluate(()=>document.querySelector('#gfBody').scrollWidth<=document.querySelector('#gfBody').clientWidth+1));}
 if(shots)await pg.screenshot({path:shots+'/full-scatter.png'});await closeFull(pg);
 await pg.click('#c-workouts tr.wo');await pg.waitForSelector('.wov');txt=await pg.textContent('.wov');
 ck('Workout-Details',/Pulszonen/.test(txt)&&/Recovery am Morgen danach/.test(txt)&&/Einheiten insgesamt/.test(txt));

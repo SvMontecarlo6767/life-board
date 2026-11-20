@@ -68,6 +68,7 @@ Der Tagesüberblick (`news.html`, Worker-Route `/news`, Morgen-Push „📰 Dein
 
 ## Graph-Vollbild
 - `graph-full.js`: `layers` (Kurven ein-/ausschalten und vergleichen), `stack` (gestapelte Säulen mit Verteilung), `facts`/`note` (Kennzahlen und Erklärtext, auch für vergrößerte Kopien). Test: `node tools/browser/test_full.mjs`.
+- `graph-scatter.js`: eigener Vollbild-Modus für Streudiagramme (`mode:'scatter'`, eingehängt über `GraphFull.registerMode`). Genutzt für „Belastung gestern, Erholung heute“: Zeitraum 30 Tage / 3 Monate / 1 Jahr / Alles, Punkte in Recovery-Zonenfarbe (blasser = länger her), Trendlinie, Zonen, Ø je Strain-Bereich, Vergleich mit dem Zeitraum davor, Antippen/Wischen zeigt den Tag mit HRV, Ruhepuls und Schlaf. Nur Anzeige, keine neuen Daten. Test: `node tools/browser/test_full.mjs` (mit `W=1194 H=834` für iPad quer, `W=390 H=844` fürs Handy).
 
 ## App auf dem iPad
 Safari → Teilen → **Zum Home-Bildschirm**. `manifest.webmanifest`, Symbole in `icons/` und `sw.js` (Service Worker: Netz zuerst, nur bei Ausfall die zuletzt geladene Seite; Firebase, Worker und Co. werden nie zwischengespeichert). Daten kommen weiterhin aus Firestore, brauchen also Netz. Seiten: Netz zuerst; Skripte/Styles mit `?v=`: aus dem Speicher (siehe „Hinweis zu Versionsnummern“). Der Cache-Name in `sw.js` steigt bei jeder Veröffentlichung.

@@ -11,7 +11,7 @@
 'use strict';
 const GS=root.GraphStats,doc=document;
 const NS='http://www.w3.org/2000/svg';
-const REG=new Map();            // id -> {cfg, host:()=>el, btn}
+const REG=new Map(),MODES={};   // MODES: eigene Vollbild-Modi aus Zusatzmodulen (z. B. graph-scatter.js)            // id -> {cfg, host:()=>el, btn}
 let AUTO_N=0,OPEN=null;
 const WDL=['So','Mo','Di','Mi','Do','Fr','Sa'];
 const MON=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
@@ -225,18 +225,19 @@ function open(id,o){
   S.stage=S.$('#gfStage');S.frame=S.$('#gfFrame');
   // Kontext für Jarvis: nur gelesene, vom Board berechnete Werte
   root.LB_PAGE_CONTEXT=()=>{let p='';try{p=S.prevCtx?String(S.prevCtx()||''):''}catch(x){}return p+'\n'+graphContext(S)};
-  if(S.clone){buildClone(S)}else{buildSeries(S,o)}
+  if(S.clone){buildClone(S)}else if(cfg.mode&&MODES[cfg.mode]){MODES[cfg.mode](S,o,KIT)}else{buildSeries(S,o)}
   // Schließen
   S.$('#gfX').onclick=()=>close();
   S.keyH=ev=>{if(ev.key==='Escape')close()};doc.addEventListener('keydown',S.keyH);
   bindSwipeClose(S);
-  S.ro=root.ResizeObserver?new ResizeObserver(()=>{if(S.closed||!S.ready)return;clearTimeout(S.rt);S.rt=setTimeout(()=>{if(!S.clone)drawChart(S,false)},60)}):null;
+  S.ro=root.ResizeObserver?new ResizeObserver(()=>{if(S.closed||!S.ready)return;clearTimeout(S.rt);S.rt=setTimeout(()=>{if(S.redraw)S.redraw();else if(!S.clone)drawChart(S,false)},60)}):null;
   if(S.ro)S.ro.observe(S.stage);
   animateIn(S);
   return true;
 }
 function rangeLabel(S){const r=GS.RANGES.find(x=>x.id===S.rangeId);return (r?r.label:'')+' ('+dd(S.from)+(S.from.slice(0,4))+' bis '+dd(S.to)+S.to.slice(0,4)+')'}
 function graphContext(S){
+  if(S.context)return S.context();
   if(S.clone)return 'GRAPH-VOLLBILD: '+(S.cfg.title||'Graph')+' (vergrößerte Ansicht ohne Statistik).';
   const st=S.stats;let t='GRAPH-VOLLBILD (vom Board berechnet, nicht neu rechnen): '+GS.describe(S.cfg.title||'Graph',S.cfg.unit,S.cfg.digits,st,(GS.RANGES.find(x=>x.id===S.rangeId)||{}).label||'');
   if(S.marker){const p=S.series.find(q=>q.date===S.marker.date);t+=' Markierter Tag: '+S.marker.date+(p?' Wert '+fmtNum(p.value,S.cfg.digits)+(S.cfg.unit?' '+S.cfg.unit.trim():''):' keine Daten')+'.'}
@@ -624,9 +625,11 @@ function runPending(){
     if(e&&e.cfg.series&&(typeof e.cfg.series!=='function'||GS.clean(e.cfg.series()).length)){clearInterval(iv);try{sessionStorage.removeItem(PEND)}catch(x){}open(p.id,p.o);return}
     if(n>60){clearInterval(iv);try{sessionStorage.removeItem(PEND)}catch(x){}}},500);
 }
+const KIT={h,esc,svgEl,fmtNum,nice,longDate,dd,still,toast:(S,t)=>toast(S,t),renderFacts:(S,b,c,T)=>renderFacts(S,b,c,T)};
 const api={attach,auto,open,close:()=>close(),openByName,list:()=>[...REG.values()].map(e=>({id:e.cfg.id,title:e.cfg.title,clone:!!e.cfg.clone})),CATALOG,refresh:placeAll,
-  setRange(id){const S=OPEN;if(!S||S.clone)return{ok:false,err:'Es ist kein Graph offen.'};if(!S.ranges.find(r=>r.id===String(id)))return{ok:false,err:'Diesen Zeitraum gibt es für die Daten nicht.'};setRange(S,String(id),true);return{ok:true}},
-  gotoDate(date){const S=OPEN;if(!S||S.clone)return{ok:false,err:'Es ist kein Graph offen.'};if(!/^\d{4}-\d\d-\d\d$/.test(date))return{ok:false,err:'Das Datum verstehe ich nicht.'};
+  registerMode(name,fn){MODES[name]=fn},
+  setRange(id){const S=OPEN;if(S&&S.setRangeX)return S.setRangeX(id)?{ok:true}:{ok:false,err:'Diesen Zeitraum gibt es für die Daten nicht.'};if(!S||S.clone)return{ok:false,err:'Es ist kein Graph offen.'};if(!S.ranges.find(r=>r.id===String(id)))return{ok:false,err:'Diesen Zeitraum gibt es für die Daten nicht.'};setRange(S,String(id),true);return{ok:true}},
+  gotoDate(date){const S=OPEN;if(S&&S.gotoX)return S.gotoX(date)?{ok:true}:{ok:true,none:true};if(!S||S.clone)return{ok:false,err:'Es ist kein Graph offen.'};if(!/^\d{4}-\d\d-\d\d$/.test(date))return{ok:false,err:'Das Datum verstehe ich nicht.'};
     if(!S.byDate.has(date)){toast(S,'Am '+dd(date)+' keine Daten');S.marker={date};S.tip=true;pick(S,date);return{ok:true,none:true}}
     pick(S,date);return{ok:true}},
   get isOpen(){return !!OPEN},get current(){return OPEN?{id:OPEN.cfg.id,title:OPEN.cfg.title,range:OPEN.rangeId,marker:OPEN.marker&&OPEN.marker.date}:null},state:()=>OPEN};

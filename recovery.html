@@ -575,16 +575,19 @@ function attachFull(){
         {l:'Recovery bei Konsistenz < 80 %',v:lo.length?fmtN(mean(lo.map(r=>r.rec)),0)+' %':'–',s:lo.length+' Tage'}]},
     note:'Effizienz = geschlafene Zeit ÷ Zeit im Bett. Konsistenz vergleicht deine Einschlaf- und Aufwachzeiten mit den Vortagen – je regelmäßiger, desto höher.'});
   // Belastung gestern -> Erholung heute (Streudiagramm, vergrößert mit Auswertung)
-  GraphFull.attach('#c-scatter',{id:'scatter',title:'Belastung gestern, Erholung heute',clone:true,cloneEl:()=>$('c-scatter').querySelector('svg'),sub:'Jeder Punkt ist ein Tag: Strain am Vortag (waagerecht) und Recovery am Morgen (senkrecht)',
-    facts:()=>{const {dates}=slice(),pts=[];dates.forEach(d=>{const r=by.get(d),p=by.get(isoDay(Date.parse(d+'T12:00:00Z')-864e5));if(r&&p&&r.rec!=null&&p.strain!=null)pts.push({x:p.strain,y:r.rec})});
-      if(pts.length<5)return[{l:'Daten',v:pts.length+' Tage',s:'Für eine Auswertung braucht es mindestens 5 Tage.',wide:true}];
-      const mx=mean(pts.map(p=>p.x)),my=mean(pts.map(p=>p.y));let sxy=0,sxx=0,syy=0;pts.forEach(p=>{sxy+=(p.x-mx)*(p.y-my);sxx+=(p.x-mx)**2;syy+=(p.y-my)**2});
-      const r=sxx&&syy?sxy/Math.sqrt(sxx*syy):0,slope=sxx?sxy/sxx:0;
-      const bk=[[0,10,'unter 10'],[10,14,'10–14'],[14,18,'14–18'],[18,22,'ab 18']].map(([a,b,l])=>{const q=pts.filter(p=>p.x>=a&&p.x<b);return{l,n:q.length,m:mean(q.map(p=>p.y))}});
-      return[{l:'Zusammenhang',v:(Math.abs(r)<0.2?'kaum':Math.abs(r)<0.4?'schwach':Math.abs(r)<0.6?'mittel':'stark'),s:'r = '+fmtN(r,2)+' über '+pts.length+' Tage',small:true},
-        {l:'Pro +1 Strain gestern',v:(slope>=0?'+':'−')+fmtN(Math.abs(slope),1)+' %',s:'Recovery am nächsten Morgen (Trendlinie)'},
-        {l:'Recovery nach Strain …',v:'',wide:true,s:'<div class="gf-rows">'+bk.map(b=>'<div><span>'+b.l+'</span><b>'+(b.m!=null?fmtN(b.m,0)+' %':'–')+' <span style="opacity:.6">('+b.n+' Tage)</span></b></div>').join('')+'</div>'}]},
-    note:'Viele Faktoren beeinflussen die Recovery (Schlaf, Alkohol, Stress, Krankheit). Der Strain vom Vortag ist nur einer davon – ein schwacher Zusammenhang ist normal. Hohe Belastung bei guter Recovery am Folgetag zeigt, dass du sie gut verkraftest.'});
+  GraphFull.attach('#c-scatter',{id:'scatter',mode:'scatter',title:'Belastung gestern, Erholung heute',range:'90',
+    points:()=>{const out=[];ALL.forEach(r=>{const p=by.get(isoDay(Date.parse(r.date+'T12:00:00Z')-864e5));if(r.rec!=null&&p&&p.strain!=null)out.push({date:r.date,x:p.strain,y:r.rec})});return out},
+    x:{label:'Strain am Vortag',short:'Strain',digits:1,fixed:[0,21]},y:{label:'Recovery am Morgen',short:'Recovery',unit:'%',digits:0,fixed:[0,100]},
+    zones:[{min:67,max:100,name:'Grün (ab 67 %)',color:'var(--ok,#4ee3a0)'},{min:34,max:66.999,name:'Gelb (34–66 %)',color:'var(--mid,#ffc15a)'},{min:0,max:33.999,name:'Rot (unter 34 %)',color:'var(--low,#ff6a5c)'}],
+    buckets:[[0,10,'unter 10'],[10,14,'10–14'],[14,18,'14–18'],[18,99,'ab 18']],
+    info:d=>{const r=by.get(d)||{},p=by.get(isoDay(Date.parse(d+'T12:00:00Z')-864e5))||{},o=['Belastung am '+longD(p.date||d).replace(/^\w+, /,'')+(p.workouts?' · '+p.workouts+' Workout'+(p.workouts>1?'s':''):'')];
+      if(r.hrv!=null)o.push('HRV '+fmtN(r.hrv,0)+' ms · Ruhepuls '+fmtN(r.rhr,0));if(r.asleep!=null)o.push('Schlaf davor '+hm(r.asleep)+(r.perf!=null?' · '+fmtN(r.perf,0)+' %':''));return o},
+    facts:ctx=>{const P=ctx.points||[];if(P.length<5)return[];const hi=P.filter(p=>p.x>=14),lo=P.filter(p=>p.x<10);
+      const best=hi.slice().sort((a,b)=>b.y-a.y)[0],worst=P.slice().sort((a,b)=>a.y-b.y)[0],g=q=>q.filter(p=>p.y>=67).length;
+      return[{l:'Grüne Morgen nach Strain ≥ 14',v:hi.length?Math.round(g(hi)/hi.length*100)+' %':'–',s:hi.length?g(hi)+' von '+hi.length+' Tagen'+(lo.length?' · nach Strain < 10: '+Math.round(g(lo)/lo.length*100)+' %':''):'Keine Tage mit hoher Belastung',cls:hi.length&&g(hi)/hi.length>=.5?'good':''},
+        {l:'Am besten verkraftet',v:best?fmtN(best.y,0)+' %':'–',s:best?'nach Strain '+fmtN(best.x,1)+' · '+longD(best.date):'Keine Tage mit Strain ≥ 14',cls:best?'good':''},
+        {l:'Tiefste Recovery',v:fmtN(worst.y,0)+' %',s:'nach Strain '+fmtN(worst.x,1)+' · '+longD(worst.date),cls:'bad'}]},
+    note:'Jeder Punkt ist ein Morgen: waagerecht der Strain vom Vortag, senkrecht die Recovery. Farbe = Recovery-Zone, blassere Punkte liegen länger zurück. Die Trendlinie zeigt, wie sich die Recovery im Schnitt mit mehr Belastung verändert. Viele Faktoren beeinflussen die Recovery (Schlaf, Alkohol, Stress, Krankheit) – ein schwacher Zusammenhang ist normal. Hohe Belastung mit guter Recovery am Folgetag zeigt, dass du sie gut verkraftest. Tippe auf einen Punkt für Details, „Zeitraum davor“ blendet den Vergleich ein.'});
 }
 const longD=k=>['So','Mo','Di','Mi','Do','Fr','Sa'][new Date(k+'T12:00:00Z').getUTCDay()]+', '+fmtD(k)+k.slice(0,4);
 function renderCharts(){
@@ -639,6 +642,6 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>{if(ALL
   }catch(e){const m=$('msg');m.className='err';m.textContent='Daten konnten nicht geladen werden: '+e.message}
 })();
 </script>
-</main><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=5"></script><script src="theme.js?v=28"></script>
+</main><script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=6"></script><script src="graph-scatter.js?v=1"></script><script src="theme.js?v=28"></script>
 <script src="hud-viz.js?v=1"></script>
 </body></html>
