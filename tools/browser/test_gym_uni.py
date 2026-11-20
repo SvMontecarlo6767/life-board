@@ -105,6 +105,9 @@ def run(p,w,h,tag,theme=None):
     pg.reload(); pg.wait_for_function('window.__trainingReady===true',timeout=20000); pg.wait_for_timeout(500)
     pg.tap('#gymBox [data-a=wst][data-id=wb]'); pg.wait_for_timeout(200)
     ck(t+'Nach Neuladen: Reihenfolge, Einbeinig und Feste Wdh. bleiben',names()==['Pogo Jumps','Split Squats','Nordic Curls'] and pg.get_attribute('#gymBox [data-a=opt][data-f=u][data-n="Split Squats"]','aria-pressed')=='true' and pg.get_attribute('#gymBox [data-a=opt][data-f=f][data-n="Pogo Jumps"]','aria-pressed')=='true')
+    mus=pg.inner_text('#gymBox')
+    ck(t+'Muskelgruppen: Beine aufgeteilt',all(x in mus for x in ['Oberschenkel vorne','Waden']) and 'Beine (Haupt)' not in mus)
+    if shots: pg.locator('#gymBox h3.gh',has_text='Sätze pro Muskelgruppe').scroll_into_view_if_needed(); pg.screenshot(path=f'{shots}/gym_{tag}{"_"+theme if theme else ""}_muskeln.png',full_page=False)
     ck(t+'Keine Seitenfehler',not errs,errs)
     b.close()
 with sync_playwright() as p:

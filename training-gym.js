@@ -6,18 +6,23 @@
 const key = n => String(n || '').toLowerCase().replace(/[^a-zäöüß0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 const e1rm = (w, r) => w > 0 && r > 0 ? (r === 1 ? w : w * (1 + Math.min(r, 12) / 30)) : 0;
 const diOf = k => Math.round(Date.parse(k + 'T12:00:00Z') / 864e5);
-const MUSCLES = ['Brust', 'Rücken', 'Schultern', 'Bizeps', 'Trizeps', 'Beine', 'Gesäß', 'Bauch', 'Waden', 'Andere'];
+const MUSCLES = ['Brust', 'Rücken', 'Schultern', 'Bizeps', 'Trizeps', 'Oberschenkel vorne', 'Oberschenkel hinten', 'Adduktoren', 'Hüftbeuger', 'Gesäß', 'Waden', 'Bauch', 'Andere'];
+const OLD = { Beine: 'Oberschenkel vorne' };   // frühere Gruppe „Beine“ (eigene Zuordnungen werden übernommen)
 /* Muskeln je Übung: h = Hauptmuskel, h2 = zweiter Hauptmuskel (beide zählen den Satz voll), s = Hilfsmuskel (halber Satz).
    Standard nach dem Namen der Übung (erster Treffer zählt), eigene Zuordnung pro Übung in training/settings.muscles. */
 const ROLES = { h: { name: 'Haupt', w: 1 }, h2: { name: '2. Haupt', w: 1 }, s: { name: 'Hilfs', w: 0.5 } };
 const PROFILES = [
   [/wade|calf/, { Waden: 'h' }],
-  [/hip ?thrust|glute|gesäß|hüftstreck/, { Gesäß: 'h', Beine: 's' }],
-  [/jump|sprung|spring|skipping|hops|bounds|plyo/, { Beine: 'h', Waden: 's', Gesäß: 's' }],
-  [/rum[äa]n|rdl|romanian|stiff|gestreckt/, { Beine: 'h', Gesäß: 'h2', Rücken: 's' }],
-  [/kreuzheb|deadlift/, { Rücken: 'h', Gesäß: 'h2', Beine: 's' }],
-  [/leg (curl|extension)|bein(curl|beuger|strecker)|adduktor|abduktor|wandsitz|wall ?sit/, { Beine: 'h' }],
-  [/leg press|beinpresse|kniebeuge|squat|ausfall|lunge|bulgar|hack|step ?up/, { Beine: 'h', Gesäß: 'h2' }],
+  [/pogo|hops|skipping|seilspring|ankle|knöchel/, { Waden: 'h', 'Oberschenkel vorne': 's' }],
+  [/hip ?flexor|hüftbeuger|psoas|knee ?drive|kniehub/, { Hüftbeuger: 'h' }],
+  [/copenhagen|adduktor|adductor/, { Adduktoren: 'h' }],
+  [/abduktor|abductor|hip ?thrust|glute|gesäß|hüftstreck|clam/, { Gesäß: 'h', 'Oberschenkel hinten': 's' }],
+  [/jump|sprung|spring|bounds|plyo/, { 'Oberschenkel vorne': 'h', Gesäß: 's', Waden: 's' }],
+  [/rum[äa]n|rdl|romanian|stiff|gestreckt|good ?morning/, { 'Oberschenkel hinten': 'h', Gesäß: 'h2', Rücken: 's' }],
+  [/kreuzheb|deadlift/, { Rücken: 'h', Gesäß: 'h2', 'Oberschenkel hinten': 's' }],
+  [/reverse ?nordic|leg extension|beinstrecker|wandsitz|wall ?sit|sissy|spanish/, { 'Oberschenkel vorne': 'h' }],
+  [/nordic|leg curl|beincurl|beinbeuger|glute ?ham|ghr|hamstring/, { 'Oberschenkel hinten': 'h' }],
+  [/leg press|beinpresse|kniebeuge|squat|ausfall|lunge|bulgar|hack|step ?up/, { 'Oberschenkel vorne': 'h', Gesäß: 'h2' }],
   [/crunch|plank|seitstütz|unterarmstütz|bauch|sit ?up|beinheben|leg raise|ab ?wheel|russian|hollow|dead ?bug/, { Bauch: 'h' }],
   [/enge?s? bank|close ?grip/, { Trizeps: 'h', Brust: 'h2', Schultern: 's' }],
   [/trizeps|tricep|french|skull|pushdown|kickback/, { Trizeps: 'h' }],
@@ -37,7 +42,7 @@ const PROFILES = [
 // eigene Zuordnungen säubern: {übungsschlüssel: {Muskel: 'h'|'h2'|'s'}}
 function cleanProfiles(o) {
   const out = {}; if (!o || typeof o !== 'object') return out;
-  Object.keys(o).slice(0, 300).forEach(k => { const kk = key(k).slice(0, 60), p = {}; if (!kk || !o[k] || typeof o[k] !== 'object') return; MUSCLES.forEach(m => { if (m !== 'Andere' && ROLES[o[k][m]]) p[m] = o[k][m] }); if (Object.keys(p).length) out[kk] = p });
+  Object.keys(o).slice(0, 300).forEach(k => { const kk = key(k).slice(0, 60), p = {}; if (!kk || !o[k] || typeof o[k] !== 'object') return; const src = Object.assign({}, o[k]); Object.keys(OLD).forEach(m => { if (ROLES[src[m]] && !ROLES[src[OLD[m]]]) src[OLD[m]] = src[m] }); MUSCLES.forEach(m => { if (m !== 'Andere' && ROLES[src[m]]) p[m] = src[m] }); if (Object.keys(p).length) out[kk] = p });
   return out;
 }
 // eigene Workouts: [{id, name, ex:[Übungsnamen]}]
@@ -284,7 +289,7 @@ function muscles() {
   const m = G.A.muscles; if (!m.length) return '';
   const mx = Math.max.apply(null, m.map(x => Math.max(x.w1, x.avg4)).concat([1]));
   return '<h3 class="gh">Sätze pro Muskelgruppe</h3><div class="sub" style="margin-bottom:6px">Letzte 7 Tage gegen deinen Schnitt der 4 Wochen davor. Haupt- und zweite Hauptmuskeln zählen einen Satz voll, Hilfsmuskeln einen halben. Zuordnung bei jeder Übung unter 💪 änderbar.</div>' +
-    m.map(x => '<div class="hb"><span style="width:84px">' + x.m + '</span><div class="bar"><i style="width:' + (x.w1 / mx * 100).toFixed(0) + '%"></i></div><b style="width:auto;min-width:96px" title="' + (x.s1 ? 'davon ' + fmtW(x.s1) + ' als Hilfsmuskel' : '') + '">' + fmtW(x.w1) + ' (Ø ' + nf(x.avg4, 1) + ')</b></div>').join('');
+    m.map(x => '<div class="hb"><span style="width:104px;line-height:1.2">' + x.m + '</span><div class="bar"><i style="width:' + (x.w1 / mx * 100).toFixed(0) + '%"></i></div><b style="width:auto;min-width:96px" title="' + (x.s1 ? 'davon ' + fmtW(x.s1) + ' als Hilfsmuskel' : '') + '">' + fmtW(x.w1) + ' (Ø ' + nf(x.avg4, 1) + ')</b></div>').join('');
 }
 /* Muskeln einer Übung: Zeile mit Zuordnung, auf Tippen die Auswahl Haupt / 2. Haupt / Hilfs je Muskelgruppe */
 function musLine(name, at) {

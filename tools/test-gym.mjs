@@ -3,7 +3,7 @@ import G from '../training-gym.js';
 let fail = 0; const ok = (c, n) => { console.log((c ? 'ok     ' : 'FEHLER ') + n); if (!c) fail++ };
 const S = (id, date, plan, ex) => ({ id, date, t: Date.parse(date + 'T17:00:00Z'), min: 60, rpe: 7, plan, ex: ex.map(([n, s]) => ({ n, s: s.map(([w, r]) => ({ w, r })) })) });
 ok(Math.abs(G.e1rm(100, 5) - 116.67) < .01 && G.e1rm(100, 1) === 100 && G.e1rm(0, 10) === 0, 'e1RM (Epley) und Sonderfälle');
-ok(G.muscle('Bankdrücken') === 'Brust' && G.muscle('Schrägbankdrücken Kurzhantel') === 'Brust' && G.muscle('Klimmzüge') === 'Rücken' && G.muscle('Kniebeuge') === 'Beine' && G.muscle('Beinbeuger') === 'Beine' && G.muscle('Bizepscurls') === 'Bizeps' && G.muscle('Trizepsdrücken') === 'Trizeps' && G.muscle('Seitheben') === 'Schultern' && G.muscle('Wadenheben') === 'Waden' && G.muscle('Hip Thrust') === 'Gesäß' && G.muscle('Plank') === 'Bauch' && G.muscle('Rumänisches Kreuzheben') === 'Beine' && G.muscle('Kreuzheben') === 'Rücken' && G.muscle('Enges Bankdrücken') === 'Trizeps' && G.muscle('Gartenarbeit') === 'Andere', 'Muskelgruppen nach Übungsname');
+ok(G.muscle('Bankdrücken') === 'Brust' && G.muscle('Schrägbankdrücken Kurzhantel') === 'Brust' && G.muscle('Klimmzüge') === 'Rücken' && G.muscle('Kniebeuge') === 'Oberschenkel vorne' && G.muscle('Beinbeuger') === 'Oberschenkel hinten' && G.muscle('Bizepscurls') === 'Bizeps' && G.muscle('Trizepsdrücken') === 'Trizeps' && G.muscle('Seitheben') === 'Schultern' && G.muscle('Wadenheben') === 'Waden' && G.muscle('Hip Thrust') === 'Gesäß' && G.muscle('Plank') === 'Bauch' && G.muscle('Rumänisches Kreuzheben') === 'Oberschenkel hinten' && G.muscle('Kreuzheben') === 'Rücken' && G.muscle('Enges Bankdrücken') === 'Trizeps' && G.muscle('Gartenarbeit') === 'Andere', 'Muskelgruppen nach Übungsname');
 ok(G.key('  Bank-Drücken!! ') === 'bank drücken', 'Übungsnamen werden normalisiert');
 const c = G.cleanSession({ ex: [{ n: ' Bank ', s: [{ w: '82,5', r: '8' }, { w: '80', r: '' }, { w: 'x', r: '5' }, { w: '5000', r: '5' }] }, { n: '', s: [{ w: 1, r: 1 }] }, { n: 'Leer', s: [] }] });
 ok(c.ex.length === 1 && c.ex[0].n === 'Bank' && c.ex[0].s.length === 2 && c.ex[0].s[0].w === 82.5 && c.ex[0].s[1].w === 0, 'Eingaben werden bereinigt (Komma, leere/ungültige Sätze)');
@@ -21,8 +21,8 @@ ok(A.sessions[0].id === '3' && A.n28 === 2, 'Einheiten neueste zuerst, 28-Tage-Z
 const mu = Object.fromEntries(A.muscles.map(m => [m.m, m]));
 ok(mu['Brust'].w1 === 1 && mu['Brust'].avg4 === 0.5 && mu['Schultern'].w1 === 1.5 && mu['Schultern'].s1 === 0.5 && mu['Trizeps'].w1 === 0.5, 'Sätze je Muskelgruppe: Haupt voll, Hilfs halb (' + JSON.stringify(mu['Schultern']) + ')');
 const mk = Object.fromEntries(G.analyze([S('k', '2026-10-14', 'Beine', [['Kniebeuge', [[100, 5], [100, 5]]]])], '2026-10-15').muscles.map(m => [m.m, m.w1]));
-ok(mk['Beine'] === 2 && mk['Gesäß'] === 2, 'Zweiter Hauptmuskel zählt voll (Kniebeuge: Beine + Gesäß)');
-ok(G.profileText(G.profile('Bankdrücken')) === 'Brust (Haupt) · Schultern, Trizeps (Hilfs)' && G.muscle('Liegestütze') === 'Brust' && G.muscle('Seitstütz') === 'Bauch' && G.muscle('Box Jumps') === 'Beine' && G.muscle('Wandsitz') === 'Beine', 'Standard-Zuordnung inkl. Hilfsmuskeln, Isometrie und Sprünge');
+ok(mk['Oberschenkel vorne'] === 2 && mk['Gesäß'] === 2, 'Zweiter Hauptmuskel zählt voll (Kniebeuge: Oberschenkel vorne + Gesäß)');
+ok(G.profileText(G.profile('Bankdrücken')) === 'Brust (Haupt) · Schultern, Trizeps (Hilfs)' && G.muscle('Liegestütze') === 'Brust' && G.muscle('Seitstütz') === 'Bauch' && G.muscle('Box Jumps') === 'Oberschenkel vorne' && G.muscle('Wandsitz') === 'Oberschenkel vorne', 'Standard-Zuordnung inkl. Hilfsmuskeln, Isometrie und Sprünge');
 const own = G.cleanProfiles({ 'Bank-Drücken': { Brust: 'h', Schultern: 'h2', Quatsch: 'h', Trizeps: 'x' }, leer: {}, 'x': 5 });
 ok(JSON.stringify(own) === JSON.stringify({ 'bank drücken': { Brust: 'h', Schultern: 'h2' } }), 'Eigene Zuordnung wird gesäubert (' + JSON.stringify(own) + ')');
 const A2 = G.analyze(hist, '2026-10-15', { 'bankdrücken': { Brust: 'h', Schultern: 'h2' } }), mu2 = Object.fromEntries(A2.muscles.map(m => [m.m, m]));
@@ -86,11 +86,20 @@ ok(!/NaN|undefined/.test(JSON.stringify(I)), 'Erkenntnisse ohne NaN');
   ok(po.fix && G.hint(po) === '' && G.hint(A3.byKey.get('split squats')) !== '', 'Feste Wiederholungen: kein Steigerungs-Vorschlag');
   ok(sq.uni && sq.side.l.n === 14 && sq.side.r.n === 14 && sq.side.l.r === 126 && sq.side.r.r === 133, 'Links gegen rechts: Sätze und Wiederholungen je Seite (' + JSON.stringify(sq.side) + ')');
   const mb = Object.fromEntries(A3.muscles.map(m => [m.m, m.w1])), mb0 = Object.fromEntries(G.analyze(pog, td).muscles.map(m => [m.m, m.w1]));
-  ok(mb0['Beine'] - mb['Beine'] === 2, 'Einbeinig: links + rechts zählt als ein Satz pro Muskelgruppe');
+  ok(mb0['Oberschenkel vorne'] - mb['Oberschenkel vorne'] === 2, 'Einbeinig: links + rechts zählt als ein Satz pro Muskelgruppe');
   ok(G.setStr(pog[0].ex[1].s) === 'L 20×10, R 20×10, L 20×8, R 20×9', 'Sätze mit Seite als Text');
   let err = null, pr = null; try { pr = G.prsOf(pog, SS('n', dk(T0, 41), [['Pogo Jumps', [[0, 20]]]]), dk(T0, 41), opt) } catch (e) { err = e }
   ok(!err && pr.length === 0, 'Körpergewicht mit gleichen Wdh.: Speichern stürzt nicht ab, kein Rekord' + (err ? ' – ' + err.message : ''));
   let err2 = null; try { G.prsOf(pog, SS('n', dk(T0, 41), [['Pogo Jumps', [[0, 20]]]]), dk(T0, 41)) } catch (e) { err2 = e }
   ok(!err2, 'Auch ohne Optionen kein Absturz bei Körpergewicht');
+}
+// Beine aufgeteilt: vorne, hinten, Adduktoren, Hüftbeuger; alte eigene Zuordnung „Beine“ wird übernommen
+{
+  const m = n => G.muscle(n);
+  ok(m('Nordic Curls') === 'Oberschenkel hinten' && m('Reverse Nordics') === 'Oberschenkel vorne' && m('Pogo Jumps') === 'Waden' && m('Copenhagen Plank') === 'Adduktoren' && m('Hip Flexor Drive') === 'Hüftbeuger' && m('Hip Flexor Raise') === 'Hüftbeuger'
+    && m('Bulgarian Split Squats') === 'Oberschenkel vorne' && m('Split Squat Jumps') === 'Oberschenkel vorne' && m('Einbeiniges Wandsitzen') === 'Oberschenkel vorne' && m('Split Squat Holds') === 'Oberschenkel vorne' && m('Wadenheben') === 'Waden' && m('Beinheben') === 'Bauch',
+    'Beine aufgeteilt: ' + ['Nordic Curls', 'Reverse Nordics', 'Pogo Jumps', 'Copenhagen Plank', 'Hip Flexor Drive', 'Bulgarian Split Squats', 'Beinheben'].map(n => n + '=' + m(n)).join(', '));
+  const own = G.cleanProfiles({ 'Mein Squat': { Beine: 'h', Gesäß: 's' }, 'Zwei': { Beine: 's', 'Oberschenkel vorne': 'h' } });
+  ok(JSON.stringify(own) === JSON.stringify({ 'mein squat': { 'Oberschenkel vorne': 'h', 'Gesäß': 's' }, 'zwei': { 'Oberschenkel vorne': 'h' } }), 'Alte eigene Zuordnung „Beine“ wird zu „Oberschenkel vorne“ (' + JSON.stringify(own) + ')');
 }
 console.log(fail ? '\nFEHLER: ' + fail : '\nalles ok'); process.exit(fail ? 1 : 0);
