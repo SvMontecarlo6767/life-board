@@ -72,4 +72,25 @@ for (let i = 0; i < 16; i++) { const d = dk(T0, 3 * i); nr[d] = i % 2 ? 80 : 45;
 const IN = G.insights(G.analyze(ns, dk(T0, 50)), nr, dk(T0, 50));
 ok(IN.zone.ready && Math.abs(IN.zone.t || 0) < 2, 'Zonen: zufällige Schwankung ergibt keine Aussage (t ' + (IN.zone.t || 0).toFixed(2) + ')');
 ok(!/NaN|undefined/.test(JSON.stringify(I)), 'Erkenntnisse ohne NaN');
+// Einbeinig, feste Wiederholungen, Körpergewicht ohne Absturz
+{
+  const SS = (id, date, ex) => ({ id, date, t: Date.parse(date + 'T17:00:00Z'), min: 45, rpe: 6, plan: 'Beine', ex: ex.map(([n, s]) => ({ n, s: s.map(([w, r, sd]) => sd ? { w, r, sd } : { w, r }) })) });
+  const pog = []; for (let k = 0; k < 7; k++) pog.push(SS('p' + k, dk(T0, k * 6), [['Pogo Jumps', [[0, 20], [0, 20]]], ['Split Squats', [[20, 10, 'l'], [20, 10, 'r'], [20, 8, 'l'], [20, 9, 'r']]]]));
+  const td = dk(T0, 40), opt = G.cleanExopt({ 'Pogo Jumps': { f: true }, 'Split-Squats': { u: 1, x: 5 }, leer: {} });
+  ok(JSON.stringify(opt) === JSON.stringify({ 'pogo jumps': { f: 1 }, 'split squats': { u: 1 } }), 'Optionen je Übung werden gesäubert (' + JSON.stringify(opt) + ')');
+  const c2 = G.cleanSession({ ex: [{ n: 'Split Squats', s: [{ w: '20', r: '10', sd: 'l' }, { w: '20', r: '10', sd: 'x' }] }] });
+  ok(c2.ex[0].s[0].sd === 'l' && !('sd' in c2.ex[0].s[1]), 'Seite pro Satz bleibt beim Bereinigen (nur l/r)');
+  const ohne = G.insights(G.analyze(pog, td), {}, td), mit = G.insights(G.analyze(pog, td, null, opt), {}, td);
+  ok(ohne.plateau.some(p => p.name === 'Pogo Jumps') && !mit.plateau.some(p => p.name === 'Pogo Jumps') && !mit.trend.some(t => t.name === 'Pogo Jumps'), 'Feste Wiederholungen: kein Plateau, kein Wdh-Trend');
+  const A3 = G.analyze(pog, td, null, opt), po = A3.byKey.get('pogo jumps'), sq = A3.byKey.get('split squats');
+  ok(po.fix && G.hint(po) === '' && G.hint(A3.byKey.get('split squats')) !== '', 'Feste Wiederholungen: kein Steigerungs-Vorschlag');
+  ok(sq.uni && sq.side.l.n === 14 && sq.side.r.n === 14 && sq.side.l.r === 126 && sq.side.r.r === 133, 'Links gegen rechts: Sätze und Wiederholungen je Seite (' + JSON.stringify(sq.side) + ')');
+  const mb = Object.fromEntries(A3.muscles.map(m => [m.m, m.w1])), mb0 = Object.fromEntries(G.analyze(pog, td).muscles.map(m => [m.m, m.w1]));
+  ok(mb0['Beine'] - mb['Beine'] === 2, 'Einbeinig: links + rechts zählt als ein Satz pro Muskelgruppe');
+  ok(G.setStr(pog[0].ex[1].s) === 'L 20×10, R 20×10, L 20×8, R 20×9', 'Sätze mit Seite als Text');
+  let err = null, pr = null; try { pr = G.prsOf(pog, SS('n', dk(T0, 41), [['Pogo Jumps', [[0, 20]]]]), dk(T0, 41), opt) } catch (e) { err = e }
+  ok(!err && pr.length === 0, 'Körpergewicht mit gleichen Wdh.: Speichern stürzt nicht ab, kein Rekord' + (err ? ' – ' + err.message : ''));
+  let err2 = null; try { G.prsOf(pog, SS('n', dk(T0, 41), [['Pogo Jumps', [[0, 20]]]]), dk(T0, 41)) } catch (e) { err2 = e }
+  ok(!err2, 'Auch ohne Optionen kein Absturz bei Körpergewicht');
+}
 console.log(fail ? '\nFEHLER: ' + fail : '\nalles ok'); process.exit(fail ? 1 : 0);

@@ -38,8 +38,8 @@ function dedupe(list) {
   const byT = new Map(); [...m.values()].sort((a, b) => a.t - b.t).forEach(a => { const k = Math.round(a.t / 60000) + '|' + Math.round((a.km || 0) * 10); const p = byT.get(k); if (!p || (a.hr && !p.hr)) byT.set(k, a) });
   return [...byT.values()].sort((a, b) => a.t - b.t);
 }
-const gCompact = s => ({ i: s.id, d: s.date, t: s.t, m: s.min, x: s.rpe, n: s.note || '', p: s.plan || '', w: s.link || null, k: s.skip && s.skip.length ? s.skip : undefined, e: s.ex.map(e => ({ n: e.n, s: e.s.map(x => ({ w: x.w, r: x.r })) })) });
-const gExpand = o => ({ id: o.i, date: o.d, t: o.t, min: o.m, rpe: o.x, note: o.n || '', plan: o.p || '', link: o.w || null, skip: Array.isArray(o.k) ? o.k : [], ex: (o.e || []).map(e => ({ n: e.n, s: (e.s || []).map(x => ({ w: x.w, r: x.r })) })) });
+const gCompact = s => ({ i: s.id, d: s.date, t: s.t, m: s.min, x: s.rpe, n: s.note || '', p: s.plan || '', w: s.link || null, k: s.skip && s.skip.length ? s.skip : undefined, e: s.ex.map(e => ({ n: e.n, s: e.s.map(x => x.sd ? { w: x.w, r: x.r, sd: x.sd } : { w: x.w, r: x.r }) })) });
+const gExpand = o => ({ id: o.i, date: o.d, t: o.t, min: o.m, rpe: o.x, note: o.n || '', plan: o.p || '', link: o.w || null, skip: Array.isArray(o.k) ? o.k : [], ex: (o.e || []).map(e => ({ n: e.n, s: (e.s || []).map(x => x.sd === 'l' || x.sd === 'r' ? { w: x.w, r: x.r, sd: x.sd } : { w: x.w, r: x.r }) })) });
 async function saveGym() {
   const by = {}; GYM.forEach(s => { const y = s.date.slice(0, 4); (by[y] = by[y] || []).push(gCompact(s)) });
   for (const y of Object.keys(by)) { await fs.doc(base + '/training/gym_' + y).set({ list: JSON.parse(JSON.stringify(by[y])) }); GYEARS.add(y) }
@@ -50,7 +50,7 @@ async function addGym(o) {
   const t = o.date === now.key ? Date.now() : C.localToMs(y, m, d, 18, 0, 0);
   const linked = o.link && ACTS.find(a => a.id === o.link);
   const s = { id: 'x' + t.toString(36) + Math.random().toString(36).slice(2, 6), date: o.date, t: linked ? linked.t : t, min: o.min, rpe: o.rpe, note: o.note, plan: o.plan, ex: o.ex, skip: (o.skip || []).slice(0, 30), link: linked ? linked.id : null };
-  const prs = G.prsOf(GYM, s, todayKey());
+  const prs = G.prsOf(GYM, s, todayKey(), ST.exopt);
   const keepG = GYM.slice(), keepA = ACTS.map(a => Object.assign({}, a));
   GYM = GYM.concat([s]);
   if (linked) { linked.ok = true; if (!linked.rpe) linked.rpe = s.rpe; if (!linked.focus && s.plan) linked.focus = s.plan; if (!['Kraft', 'Isometrie', 'Plyometrie'].includes(linked.sport)) { linked.sp = 'Kraft'; linked.sport = 'Kraft' } }   // gehört zu einer Whoop-Einheit: nicht doppelt zählen
@@ -65,7 +65,7 @@ async function updateGym(id, o) {
   const t = o.date === old.date ? old.t : (o.date === now.key ? Date.now() : C.localToMs(y, m, d, 18, 0, 0));
   const s = Object.assign({}, old, { date: o.date, t: old.link ? old.t : t, min: o.min, rpe: o.rpe, note: o.note, plan: o.plan, ex: o.ex, skip: (o.skip || []).slice(0, 30) });
   const keepG = GYM.slice(), keepA = ACTS.map(a => Object.assign({}, a));
-  const others = GYM.filter(x => x.id !== id), prs = G.prsOf(others, s, todayKey());
+  const others = GYM.filter(x => x.id !== id), prs = G.prsOf(others, s, todayKey(), ST.exopt);
   GYM = others.concat([s]);
   const ga = ACTS.find(a => a.id === 'g' + id); if (ga) { ga.sec = s.min * 60; ga.rpe = s.rpe; ga.name = s.plan || 'Gym'; ga.t = s.t }
   const wa = s.link && ACTS.find(a => a.id === s.link); if (wa) { wa.rpe = s.rpe; if (s.plan) wa.focus = s.plan }
@@ -108,7 +108,7 @@ function show(which) { $('setup').hidden = which !== 'setup'; $('content').hidde
 function homeOnboard() { const o = $('onboard'), g = $('setup').querySelector('.g'); if (o && g && o.parentNode !== g) g.prepend(o) }
 let stvInit = false;
 function multiCtx() {
-  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, update: updateGym, remove: removeGym, muscles: ST.muscles || {}, setMuscles: async m => { ST.muscles = m; await saveSettings() }, rec: WREC, workouts: ST.workouts || [], setWorkouts: async w => { ST.workouts = w; await saveSettings() } }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
+  return { st: ST, todayKey: todayKey(), say, noAnim, importNode: $('onboard'), add: addAct, remove: removeAct, complete: completeAct, gym: { sessions: GYM, today: todayKey(), save: addGym, update: updateGym, remove: removeGym, muscles: ST.muscles || {}, setMuscles: async m => { ST.muscles = m; await saveSettings() }, rec: WREC, workouts: ST.workouts || [], setWorkouts: async w => { ST.workouts = w; await saveSettings() }, exopt: ST.exopt || {}, setExopt: async o => { ST.exopt = o; await saveSettings() } }, saveProfile: async o => { Object.assign(ST, o); await saveSettings(); renderAll() } };
 }
 function renderMulti() {
   show('multi'); say(''); window.TrainingMulti.render($('mcontent'), R, multiCtx());

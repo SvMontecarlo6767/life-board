@@ -164,6 +164,16 @@ button.txt.gmus{display:block;text-align:left;font-size:12.5px;min-height:32px!i
 .gwsave,.gwr{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}.gwsave input,.gwr input{min-width:140px}
 .gwr{border-top:1px solid rgb(var(--acc)/.18);padding-top:8px}.gwr .gsm{flex-basis:100%;margin:0}
 .gs{display:grid;grid-template-columns:24px 1fr 1fr 40px;gap:8px;align-items:center;margin:6px 0}.gs span{color:var(--muted);text-align:center}
+.gs.u{grid-template-columns:56px 1fr 1fr 40px}
+.gsd{min-height:44px;border-radius:12px;border:1px solid var(--border);font:inherit;font-weight:700;font-size:14px;cursor:pointer;touch-action:manipulation;color:var(--ink);padding:0}
+.gsd.l{background:rgba(90,170,255,.18);border-color:rgba(90,170,255,.55)}.gsd.r{background:rgba(255,150,90,.18);border-color:rgba(255,150,90,.55)}
+.gord{display:inline-flex;gap:4px;margin-right:8px;flex:none}.gxh>b{flex:1;min-width:0}
+.gdrag,.gmv{min-width:40px;min-height:40px;border-radius:10px;border:1px solid var(--border);background:rgba(150,200,255,.06);color:var(--ink);font:inherit;font-size:15px;cursor:pointer;padding:0;touch-action:manipulation}
+.gdrag{touch-action:none;cursor:grab;font-size:18px}.gmv:disabled{opacity:.3;cursor:default}
+.gx.gdragging{position:relative;z-index:5;box-shadow:0 10px 30px rgba(0,0,0,.45);opacity:.95}
+.gx.gins-b{box-shadow:0 -4px 0 rgb(var(--acc,120 200 255))}.gx.gins-a{box-shadow:0 4px 0 rgb(var(--acc,120 200 255))}
+.gopt{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 2px}.gopt .chip{min-height:36px;font-size:13px}
+.gside{border:1px solid var(--border);border-radius:14px;padding:10px 12px;margin:8px 0;background:rgba(6,12,22,.35)}
 .gs input{min-height:44px;border-radius:12px;border:1px solid var(--border);background:rgba(6,12,22,.6);color:var(--ink);padding:0 12px;font:inherit;font-size:16px;width:100%;box-sizing:border-box}
 .gadd{display:flex;gap:8px;margin:12px 0}.gadd button{flex:none}.gadd input,.gwsave input,.gwr input{flex:1;min-width:0;min-height:44px;border-radius:12px;border:1px solid var(--border);background:rgba(6,12,22,.6);color:var(--ink);padding:0 12px;font:inherit;font-size:16px}
 .gprs{background:rgb(var(--acc)/.14);border:1px solid rgb(var(--acc)/.45);border-radius:14px;padding:10px 12px;margin:12px 0;font-size:14px}
@@ -343,9 +353,9 @@ html[data-perf] .flash,html[data-perf] .cur::after{animation:none}
 <script src="training-core.js?v=3"></script>
 <script src="training-text.js?v=1"></script>
 <script src="training-viz.js?v=3"></script>
-<script src="training-gym.js?v=9"></script>
+<script src="training-gym.js?v=10"></script>
 <script src="training-multi.js?v=6"></script>
-<script src="training.js?v=10"></script>
+<script src="training.js?v=11"></script>
 <script src="plan-core.js?v=7"></script>
 <script src="plan.js?v=8"></script>
 <script src="graph-stats.js?v=2"></script><script src="graph-full.js?v=6"></script><script src="theme.js?v=28"></script>
