@@ -102,4 +102,13 @@ ok(!/NaN|undefined/.test(JSON.stringify(I)), 'Erkenntnisse ohne NaN');
   const own = G.cleanProfiles({ 'Mein Squat': { Beine: 'h', Gesäß: 's' }, 'Zwei': { Beine: 's', 'Oberschenkel vorne': 'h' } });
   ok(JSON.stringify(own) === JSON.stringify({ 'mein squat': { 'Oberschenkel vorne': 'h', 'Gesäß': 's' }, 'zwei': { 'Oberschenkel vorne': 'h' } }), 'Alte eigene Zuordnung „Beine“ wird zu „Oberschenkel vorne“ (' + JSON.stringify(own) + ')');
 }
+{ // Varianten im Workout (z. B. Incline Curls oder Hammer Curls)
+  const W = G.cleanWorkouts([{ id: 'wp', name: 'Pull', ex: ['Klimmzüge', 'Incline Curls'], alt: { 'Incline Curls': ['Hammer Curls', ' hammer curls ', 'Incline Curls', ''], 'Fremd': ['X'], 'Klimmzüge': 'kaputt' } }, { id: 'wq', name: 'Ohne', ex: ['A'] }]);
+  ok(JSON.stringify(W[0].alt) === JSON.stringify({ 'Incline Curls': ['Hammer Curls'] }) && !('alt' in W[1]), 'Varianten werden gesäubert (doppelt, leer, fremd, kaputt) (' + JSON.stringify(W) + ')');
+  const g = G.slotOf('hammer curls', W[0].alt);
+  ok(g && g.slot === 'Incline Curls' && g.opts.join() === 'Incline Curls,Hammer Curls' && G.slotOf('Klimmzüge', W[0].alt) === null, 'Variante findet ihre Übung im Workout');
+  const by = G.analyze([S('a', '2026-11-01', 'Pull', [['Incline Curls', [[12, 10]]]]), S('b', '2026-11-08', 'Pull', [['Hammer Curls', [[14, 10]]]])], '2026-11-10').byKey;
+  ok(G.pickVariant(['Incline Curls', 'Hammer Curls'], by) === 'Incline Curls' && G.pickVariant(['Incline Curls', 'Hammer Curls', 'Spider Curls'], by) === 'Spider Curls', 'Abwechselnd: die am längsten her ist (nie gemacht zuerst)');
+  ok(by.get('incline curls').best.w === 12 && by.get('hammer curls').best.w === 14, 'Fortschritt je Variante getrennt');
+}
 console.log(fail ? '\nFEHLER: ' + fail : '\nalles ok'); process.exit(fail ? 1 : 0);

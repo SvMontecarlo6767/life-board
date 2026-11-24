@@ -45,10 +45,27 @@ function cleanProfiles(o) {
   Object.keys(o).slice(0, 300).forEach(k => { const kk = key(k).slice(0, 60), p = {}; if (!kk || !o[k] || typeof o[k] !== 'object') return; const src = Object.assign({}, o[k]); Object.keys(OLD).forEach(m => { if (ROLES[src[m]] && !ROLES[src[OLD[m]]]) src[OLD[m]] = src[m] }); MUSCLES.forEach(m => { if (m !== 'Andere' && ROLES[src[m]]) p[m] = src[m] }); if (Object.keys(p).length) out[kk] = p });
   return out;
 }
-// eigene Workouts: [{id, name, ex:[Übungsnamen]}]
+// eigene Workouts: [{id, name, ex:[Übungsnamen], alt?:{Übung im Workout: [Varianten]}}]
 function cleanWorkouts(list) {
-  return (Array.isArray(list) ? list : []).filter(w => w && String(w.name || '').trim()).slice(0, 30).map((w, i) => ({ id: String(w.id || 'w' + i).slice(0, 20), name: String(w.name).trim().slice(0, 40), ex: [...new Set((Array.isArray(w.ex) ? w.ex : []).map(n => String(n || '').trim().slice(0, 60)).filter(Boolean))].slice(0, 20) }));
+  return (Array.isArray(list) ? list : []).filter(w => w && String(w.name || '').trim()).slice(0, 30).map((w, i) => {
+    const o = { id: String(w.id || 'w' + i).slice(0, 20), name: String(w.name).trim().slice(0, 40), ex: [...new Set((Array.isArray(w.ex) ? w.ex : []).map(n => String(n || '').trim().slice(0, 60)).filter(Boolean))].slice(0, 20) };
+    const alt = cleanAlt(w.alt, o.ex); if (Object.keys(alt).length) o.alt = alt;
+    return o;
+  });
 }
+/* Varianten: eine Übung im Workout lässt sich abwechselnd durch eine andere ersetzen (z. B. Incline Curls oder Hammer Curls).
+   Gespeichert wird immer unter dem echten Übungsnamen, der Fortschritt zählt also je Variante getrennt. */
+function cleanAlt(alt, ex) {
+  const out = {}; if (!alt || typeof alt !== 'object') return out;
+  ex.forEach(n => { const v = alt[n]; if (!Array.isArray(v)) return; const seen = new Set([key(n)]), l = [];
+    v.forEach(x => { x = String(x || '').trim().slice(0, 60); if (x && !seen.has(key(x)) && l.length < 3) { seen.add(key(x)); l.push(x) } });
+    if (l.length) out[n] = l });
+  return out;
+}
+// zu welcher Übung im Workout gehört dieser Name (selbst oder als Variante)?
+function slotOf(n, alt) { const k = key(n); for (const s of Object.keys(alt || {})) { const opts = [s].concat(alt[s]); if (opts.some(x => key(x) === k)) return { slot: s, opts } } return null }
+// abwechseln: die Variante, die am längsten her ist (nie gemacht = zuerst)
+function pickVariant(opts, byKey) { let best = opts[0], bd = null; opts.forEach(n => { const o = byKey && byKey.get(key(n)), d = (o && o.lastDate) || ''; if (bd === null || d < bd) { bd = d; best = n } }); return best }
 // Optionen je Übung: {übungsschlüssel: {u:1 (einbeinig/einseitig, Seite pro Satz), f:1 (feste Wiederholungen: kein Plateau, kein Steigerungs-Vorschlag)}}
 function cleanExopt(o) {
   const out = {}; if (!o || typeof o !== 'object') return out;
@@ -179,7 +196,7 @@ function insights(A, rec, today) {
 const fmtW = w => (Math.round(w * 100) / 100).toString().replace('.', ',');
 const setStr = s => s.map(x => (x.sd ? x.sd.toUpperCase() + ' ' : '') + (x.w ? fmtW(x.w) + '×' : '') + x.r).join(', ');
 
-const Core = { cleanExopt, optOf, key, e1rm, muscle, profile, defaultProfile, profileText, cleanProfiles, cleanWorkouts, insights, ROLES, MUSCLES, cleanSession, sessStats, analyze, prsOf, hint, fmtW, setStr, num };
+const Core = { cleanAlt, slotOf, pickVariant, cleanExopt, optOf, key, e1rm, muscle, profile, defaultProfile, profileText, cleanProfiles, cleanWorkouts, insights, ROLES, MUSCLES, cleanSession, sessStats, analyze, prsOf, hint, fmtW, setStr, num };
 root.TrainingGymCore = Core;
 if (typeof module !== 'undefined' && module.exports) module.exports = Core;
 if (typeof window === 'undefined') return;
@@ -188,13 +205,35 @@ if (typeof window === 'undefined') return;
 const V = window.TrainingViz, esc = V.esc, DRAFT_KEY = 'lb_gym_draft';
 const $ = id => document.getElementById(id);
 const nf = (v, d) => window.TrainingCore.fmt.num(v, d || 0);
-const G = { ctx: null, host: null, draft: null, A: null, sel: null, rest: null, msg: '', prs: null, openId: null, mEdit: null, wEdit: false };
+const G = { ctx: null, host: null, draft: null, A: null, sel: null, rest: null, msg: '', prs: null, openId: null, mEdit: null, wEdit: false, vEdit: null };
 
 function loadDraft() { try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); if (d && Array.isArray(d.ex)) return d } catch (e) {} return null }
 function saveDraft() { try { if (G.draft) localStorage.setItem(DRAFT_KEY, JSON.stringify(G.draft)); else localStorage.removeItem(DRAFT_KEY) } catch (e) {} }
-function newDraft(plan, names, wid) {
+function newDraft(plan, names, wid, alt, keep) {
   const d = { plan: plan || '', wid: wid || null, start: Date.now(), date: G.ctx.today, ex: [], min: '', rpe: 7, note: '' };
-  (names || []).forEach(n => addEx(d, n)); return d;
+  (names || []).forEach(n => addSlot(d, n, alt, keep)); return d;
+}
+// Übung aus einem Workout: hat sie Varianten, kommt die dran, die am längsten her ist (keep = genau diesen Namen nehmen, z. B. „Wie zuletzt“)
+function addSlot(d, n, alt, keep) {
+  const g = slotOf(n, alt);
+  if (!g || d.ex.some(x => x.slot === g.slot)) return addEx(d, n);
+  addEx(d, keep ? n : pickVariant(g.opts, G.A.byKey)); const x = d.ex[d.ex.length - 1]; x.slot = g.slot; x.alts = g.opts;
+}
+const exNames = d => d.ex.map(e => e.slot || e.n);
+function exAlt(d) { const alt = {}; d.ex.forEach(e => { if (e.alts && e.alts.length > 1) alt[e.slot || e.n] = e.alts.filter(x => key(x) !== key(e.slot || e.n)) }); return alt }
+function switchVariant(e, v) {   // Sätze der bisherigen Variante merken, die neue mit ihren Werten vom letzten Mal vorbelegen
+  e.keep = e.keep || {}; e.keep[key(e.n)] = e.s;
+  const t = { ex: [] }; addEx(t, v); e.n = t.ex[0].n; e.s = e.keep[key(v)] || t.ex[0].s; delete e.keep[key(v)];
+  if (uniOf(e.n)) sides(e);
+}
+async function persistAlt(d, oldSlot, e, ok) {   // Variante im verknüpften Workout speichern
+  const w = d.wid && G.ctx.workouts.find(x => x.id === d.wid);
+  if (!w) return setMsg(ok + ' Gilt für diese Einheit – „Als Workout speichern“ merkt sie sich.');
+  const i = w.ex.findIndex(n => key(n) === key(oldSlot));
+  if (i < 0) return setMsg(ok + ' „Änderungen ins Workout übernehmen“ speichert sie im Workout.');
+  const slot = e.slot || e.n, ex = w.ex.slice(), alt = Object.assign({}, w.alt || {}); delete alt[w.ex[i]]; ex[i] = slot;
+  if (e.alts && e.alts.length > 1) alt[slot] = e.alts.filter(x => key(x) !== key(slot));
+  await saveWorkouts(G.ctx.workouts.map(x => x.id === w.id ? Object.assign({}, x, { ex, alt }) : x), ok + ' Im Workout „' + w.name + '“ gespeichert.');
 }
 function addEx(d, name) {
   name = String(name || '').trim(); if (!name) return;
@@ -227,6 +266,7 @@ function draw() {
   const A = G.A, d = G.draft;
   let h = '<h2>Gym-Logbuch</h2><div class="sub">Übungen, Sätze und Gewichte. Das Board merkt sich, was du zuletzt gemacht hast.</div>';
   if (G.prs && G.prs.length) h += '<div class="gprs" role="status">🏆 <b>Neue Rekorde:</b> ' + G.prs.map(p => esc(p.n) + ' (' + p.kind + ': ' + (p.w ? fmtW(p.w) + ' kg × ' : '') + p.r + ')').join(' · ') + '</div>';
+  if (!d) G.vEdit = null;
   h += d ? editor(d) : starter();
   h += '<div class="msg" id="gMsg" aria-live="polite">' + esc(G.msg) + '</div>';
   if (!d && G.saved && A.sessions.some(x => x.id === G.saved)) h += '<div class="btns"><button type="button" data-a="editS" data-id="' + esc(G.saved) + '">✎ Doch noch ändern (z. B. Übung vergessen)</button></div>';
@@ -251,7 +291,7 @@ function editor(d) {
     if (e.skip) { h += '<div class="gx skip" data-i="' + i + '"><div class="gxh"><b>' + esc(e.n) + '</b><span class="mu">heute ausgelassen</span><button type="button" class="txt" data-a="skip" data-i="' + i + '">Doch machen</button></div></div>'; return }
     const uni = uniOf(e.n), fix = fixOf(e.n), last = d.ex.length - 1;
     h += '<div class="gx" data-i="' + i + '"><div class="gxh"><span class="gord"><button type="button" class="gdrag" data-i="' + i + '" aria-label="' + esc(e.n) + ' verschieben (ziehen)" title="Ziehen zum Verschieben">⠿</button><button type="button" class="gmv" data-a="mv" data-i="' + i + '" data-d="-1" aria-label="' + esc(e.n) + ' nach oben"' + (i ? '' : ' disabled') + '>▲</button><button type="button" class="gmv" data-a="mv" data-i="' + i + '" data-d="1" aria-label="' + esc(e.n) + ' nach unten"' + (i < last ? '' : ' disabled') + '>▼</button></span><b>' + esc(e.n) + '</b><span><button type="button" class="txt" data-a="skip" data-i="' + i + '" title="Heute nicht gemacht – bleibt im Workout">Auslassen</button> <button type="button" class="txt" data-a="rmx" data-i="' + i + '" aria-label="Übung ' + esc(e.n) + ' entfernen">✕</button></span></div>' + musLine(e.n, 'e' + i) +
-      '<div class="gopt"><button type="button" class="chip' + (uni ? ' on' : '') + '" data-a="opt" data-f="u" data-n="' + esc(e.n) + '" aria-pressed="' + uni + '" title="Jeder Satz bekommt eine Seite: links oder rechts">' + (uni ? '✓ ' : '') + '🦵 Einbeinig</button><button type="button" class="chip' + (fix ? ' on' : '') + '" data-a="opt" data-f="f" data-n="' + esc(e.n) + '" aria-pressed="' + fix + '" title="Immer gleich viele Wiederholungen: keine Plateau-Meldung, kein Steigerungs-Vorschlag">' + (fix ? '✓ ' : '') + '= Feste Wdh.</button></div>' +
+      '<div class="gopt"><button type="button" class="chip' + (uni ? ' on' : '') + '" data-a="opt" data-f="u" data-n="' + esc(e.n) + '" aria-pressed="' + uni + '" title="Jeder Satz bekommt eine Seite: links oder rechts">' + (uni ? '✓ ' : '') + '🦵 Einbeinig</button><button type="button" class="chip' + (fix ? ' on' : '') + '" data-a="opt" data-f="f" data-n="' + esc(e.n) + '" aria-pressed="' + fix + '" title="Immer gleich viele Wiederholungen: keine Plateau-Meldung, kein Steigerungs-Vorschlag">' + (fix ? '✓ ' : '') + '= Feste Wdh.</button><button type="button" class="chip' + (G.vEdit === i ? ' on' : '') + '" data-a="valt" data-i="' + i + '" aria-pressed="' + (G.vEdit === i) + '" title="Abwechselnd eine andere Übung an dieser Stelle, z. B. Hammer Curls statt Incline Curls">⇄ Variante</button></div>' + varLine(e, i) +
       (o && o.last ? '<div class="mu gsm">Letztes Mal (' + window.TrainingCore.fmt.date(o.lastDate) + '): ' + esc(setStr(o.last)) + (hint(o) ? ' · Idee: ' + esc(hint(o)) : '') + '</div>' : '<div class="mu gsm">Neu – noch keine Vergleichswerte.</div>') +
       '<div class="gsets">' + e.s.map((x, j) => '<div class="gs' + (uni ? ' u' : '') + '">' + (uni ? '<button type="button" class="gsd ' + (x.sd || 'l') + '" data-a="side" data-i="' + i + '" data-j="' + j + '" aria-label="Satz ' + (j + 1) + ': ' + (x.sd === 'r' ? 'rechts' : 'links') + ' – tippen zum Wechseln">' + (j + 1) + ' ' + (x.sd === 'r' ? 'R' : 'L') + '</button>' : '<span>' + (j + 1) + '</span>') + '<input type="text" inputmode="decimal" placeholder="kg" aria-label="Gewicht Satz ' + (j + 1) + '" data-i="' + i + '" data-j="' + j + '" data-f="w" value="' + esc(x.w) + '"><input type="text" inputmode="numeric" placeholder="Wdh" aria-label="Wiederholungen Satz ' + (j + 1) + '" data-i="' + i + '" data-j="' + j + '" data-f="r" value="' + esc(x.r) + '"><button type="button" class="txt" data-a="rms" data-i="' + i + '" data-j="' + j + '" aria-label="Satz ' + (j + 1) + ' entfernen">–</button></div>').join('') + '</div>' +
       '<button type="button" class="chip" data-a="adds" data-i="' + i + '">+ Satz</button></div>';
@@ -266,6 +306,14 @@ function editor(d) {
     '<label for="gNote">Notiz (optional)</label><input id="gNote" type="text" maxlength="120" value="' + esc(d.note) + '" placeholder="z. B. Schulter zwickt"></div>' +
     '<div class="btns"><button type="button" class="primary" id="gSave">' + (d.edit ? 'Änderungen speichern' : 'Einheit speichern') + '</button><button type="button" id="gDrop">' + (d.edit ? 'Abbrechen' : 'Verwerfen') + '</button></div></div>';
   return h;
+}
+function varLine(e, i) {   // Auswahl der Variante (nur wenn es welche gibt) und Bearbeiten (⇄ Variante)
+  let h = '';
+  if (e.alts && e.alts.length > 1) h += '<div class="gvar"><span class="mu gsm">Heute:</span><div class="chips" role="group" aria-label="Variante wählen">' + e.alts.map((v, k) => { const o = G.A.byKey.get(key(v)), on = key(v) === key(e.n); return '<button type="button" class="chip' + (on ? ' on' : '') + '" data-a="var" data-i="' + i + '" data-v="' + k + '" aria-pressed="' + on + '" title="' + (o && o.lastDate ? 'Zuletzt am ' + window.TrainingCore.fmt.date(o.lastDate) : 'Noch nie gemacht') + '">' + (on ? '✓ ' : '') + esc(v) + '</button>' }).join('') + '</div></div>';
+  if (G.vEdit !== i) return h;
+  h += '<div class="gvared"><div class="mu gsm">Varianten wechseln sich an dieser Stelle ab. Beim Start ist die dran, die am längsten her ist. Jede wird für sich gezählt (eigener Fortschritt und Rekorde).</div>';
+  if (e.alts && e.alts.length > 1) h += '<div class="chips">' + e.alts.map(v => key(v) === key(e.n) ? '<span class="chip on">' + esc(v) + '</span>' : '<button type="button" class="chip" data-a="vdel" data-i="' + i + '" data-n="' + esc(v) + '" aria-label="Variante ' + esc(v) + ' entfernen">' + esc(v) + ' ✕</button>').join('') + '</div>';
+  return h + '<div class="gadd"><input id="gVar" list="gList" type="text" maxlength="60" placeholder="Variante, z. B. Hammer Curls" aria-label="Variante zu ' + esc(e.n) + '"><button type="button" data-a="vadd" data-i="' + i + '">Hinzufügen</button></div></div>';
 }
 function progress() {
   const A = G.A, o = A.byKey.get(G.sel);
@@ -378,8 +426,8 @@ function bind() {
   host.onclick = async e => {
     const b = e.target.closest('[data-a]'); if (!b) return; const a = b.dataset.a, i = +b.dataset.i, j = +b.dataset.j;
     if (a === 'empty') { G.prs = null; G.msg = ''; G.draft = newDraft('', []); saveDraft(); draw(); return }
-    if (a === 'wst') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w) return; G.prs = null; G.msg = ''; G.draft = newDraft(w.name, w.ex, w.id); saveDraft(); draw(); return }
-    if (a === 'again') { const l = G.A.sessions[0]; const w = G.ctx.workouts.find(x => x.name === l.plan); G.prs = null; G.msg = ''; G.draft = newDraft(l.plan, l.ex.map(x => x.n).concat(l.skip || []), w ? w.id : null); saveDraft(); draw(); return }
+    if (a === 'wst') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w) return; G.prs = null; G.msg = ''; G.draft = newDraft(w.name, w.ex, w.id, w.alt); saveDraft(); draw(); return }
+    if (a === 'again') { const l = G.A.sessions[0]; const w = G.ctx.workouts.find(x => x.name === l.plan); G.prs = null; G.msg = ''; G.draft = newDraft(l.plan, l.ex.map(x => x.n).concat(l.skip || []), w ? w.id : null, w && w.alt, true); saveDraft(); draw(); return }
     if (a === 'wedit') { G.wEdit = !G.wEdit; draw(); return }
     if (a === 'wren') { const inp = host.querySelector('[data-wn="' + b.dataset.id + '"]'), nm = inp && inp.value.trim(); if (!nm) return setMsg('Bitte einen Namen eingeben.', true); await saveWorkouts(G.ctx.workouts.map(w => w.id === b.dataset.id ? Object.assign({}, w, { name: nm }) : w), 'Umbenannt.'); return }
     if (a === 'wdel') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w || !confirm('Workout „' + w.name + '“ löschen? Deine gespeicherten Einheiten bleiben.')) return; await saveWorkouts(G.ctx.workouts.filter(x => x.id !== w.id), 'Workout gelöscht.'); return }
@@ -399,13 +447,25 @@ function bind() {
     if (a === 'mreset') { const c = Object.assign({}, G.ctx.muscles); delete c[G.mEdit.k]; await saveMuscles(c); return }
     if (!d) return;
     if (a === 'qadd') { addEx(d, b.dataset.n) }
-    else if (a === 'wload') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w) return; w.ex.forEach(n => addEx(d, n)); d.wid = w.id; d.plan = w.name }
+    else if (a === 'wload') { const w = G.ctx.workouts.find(x => x.id === b.dataset.id); if (!w) return; w.ex.forEach(n => addSlot(d, n, w.alt)); d.wid = w.id; d.plan = w.name }
     else if (a === 'skip') { d.ex[i].skip = !d.ex[i].skip }
+    else if (a === 'var') { const e = d.ex[i], v = e.alts && e.alts[+b.dataset.v]; if (!v || key(v) === key(e.n)) return; switchVariant(e, v) }
+    else if (a === 'valt') { G.vEdit = G.vEdit === i ? null : i }
+    else if (a === 'vadd') {
+      const e = d.ex[i], inp = $('gVar'), v = inp ? inp.value.trim().slice(0, 60) : ''; if (!v) return setMsg('Bitte den Namen der Variante eingeben.', true);
+      const opts = e.alts || [e.n]; if (opts.some(x => key(x) === key(v))) return setMsg(v + ' ist schon dabei.', true); if (opts.length >= 4) return setMsg('Höchstens 4 Varianten pro Übung.', true);
+      const old = e.slot || e.n; e.slot = old; e.alts = opts.concat([v]); G.vEdit = null; saveDraft(); draw(); await persistAlt(d, old, e, 'Variante „' + v + '“ hinzugefügt.'); return;
+    }
+    else if (a === 'vdel') {
+      const e = d.ex[i], v = b.dataset.n; if (!e.alts || key(v) === key(e.n)) return; const old = e.slot || e.n;
+      e.alts = e.alts.filter(x => key(x) !== key(v)); if (key(e.slot) === key(v)) e.slot = e.alts[0]; if (e.alts.length < 2) { delete e.alts; delete e.slot }
+      saveDraft(); draw(); await persistAlt(d, old, e, 'Variante „' + v + '“ entfernt.'); return;
+    }
     else if (a === 'mv') { if (!moveEx(d, i, i + (+b.dataset.d))) return }
     else if (a === 'side') { const x = d.ex[i].s[j]; x.sd = x.sd === 'r' ? 'l' : 'r' }
-    else if (a === 'wnew') { const nm = ($('gWName').value || '').trim(); if (!nm) return setMsg('Gib dem Workout einen Namen.', true); const names = d.ex.map(e => e.n); if (!names.length) return setMsg('Füg zuerst Übungen hinzu.', true); const id = 'w' + Date.now().toString(36); d.wid = id; d.plan = nm; saveDraft(); await saveWorkouts(G.ctx.workouts.filter(w => w.name.toLowerCase() !== nm.toLowerCase()).concat([{ id, name: nm, ex: names }]), 'Workout „' + nm + '“ gespeichert – ab jetzt oben antippbar.'); return }
-    else if (a === 'wupd') { const names = d.ex.map(e => e.n); if (!names.length) return setMsg('Ein Workout braucht mindestens eine Übung.', true); await saveWorkouts(G.ctx.workouts.map(w => w.id === d.wid ? Object.assign({}, w, { ex: names }) : w), 'Workout aktualisiert.'); return }
-    else if (a === 'rmx') { if (d.ex[i].s.some(x => x.w || x.r) && !confirm(d.ex[i].n + ' entfernen?')) return; d.ex.splice(i, 1) }
+    else if (a === 'wnew') { const nm = ($('gWName').value || '').trim(); if (!nm) return setMsg('Gib dem Workout einen Namen.', true); const names = exNames(d); if (!names.length) return setMsg('Füg zuerst Übungen hinzu.', true); const id = 'w' + Date.now().toString(36); d.wid = id; d.plan = nm; saveDraft(); await saveWorkouts(G.ctx.workouts.filter(w => w.name.toLowerCase() !== nm.toLowerCase()).concat([{ id, name: nm, ex: names, alt: exAlt(d) }]), 'Workout „' + nm + '“ gespeichert – ab jetzt oben antippbar.'); return }
+    else if (a === 'wupd') { const names = exNames(d); if (!names.length) return setMsg('Ein Workout braucht mindestens eine Übung.', true); await saveWorkouts(G.ctx.workouts.map(w => w.id === d.wid ? Object.assign({}, w, { ex: names, alt: exAlt(d) }) : w), 'Workout aktualisiert.'); return }
+    else if (a === 'rmx') { if (d.ex[i].s.some(x => x.w || x.r) && !confirm(d.ex[i].n + ' entfernen?')) return; d.ex.splice(i, 1); G.vEdit = null }
     else if (a === 'adds') { const p = d.ex[i].s[d.ex[i].s.length - 1], n = { w: p ? p.w : '', r: p ? p.r : '' }; if (uniOf(d.ex[i].n)) n.sd = p && p.sd === 'l' ? 'r' : 'l'; d.ex[i].s.push(n) }
     else if (a === 'rms') { d.ex[i].s.splice(j, 1); if (!d.ex[i].s.length) d.ex[i].s.push({ w: '', r: '' }) }
     saveDraft(); draw();
@@ -438,6 +498,7 @@ function bind() {
 }
 /* Reihenfolge: ▲/▼ oder am Griff ⠿ ziehen (Finger, Stift, Maus). Mit einem Workout verknüpft: „Änderungen ins Workout übernehmen“ speichert die Reihenfolge. */
 function moveEx(d, from, to) {
+  G.vEdit = null;
   if (to < 0 || to >= d.ex.length || from === to) return false;
   const [x] = d.ex.splice(from, 1); d.ex.splice(to, 0, x);
   if (d.wid) G.msg = 'Reihenfolge geändert – „Änderungen ins Workout übernehmen“ speichert sie fürs nächste Mal.';
@@ -468,11 +529,11 @@ function start(o) {
   G.prs = null; G.msg = '';
   const ws = (G.ctx && G.ctx.workouts) || [], w = ws.find(x => x.name.toLowerCase() === String(o.plan || '').toLowerCase());
   const plan = Array.isArray(o.ex) ? o.ex.filter(e => e && String(e.n || '').trim()) : null;
-  G.draft = newDraft(w ? w.name : (o.plan || ''), w ? w.ex : plan ? plan.map(e => e.n) : [], w ? w.id : null);
+  G.draft = newDraft(w ? w.name : (o.plan || ''), w ? w.ex : plan ? plan.map(e => e.n) : [], w ? w.id : null, w && w.alt);
   if (plan) {
     const by = new Map(plan.map(e => [key(e.n), e]));
-    G.draft.ex.forEach(x => { const e = by.get(key(x.n)); if (!e) return; if (e.skip) x.skip = true; const n = Math.round(+e.sets); if (n > 0 && n <= 20) { while (x.s.length < n) x.s.push(Object.assign({}, x.s[x.s.length - 1] || { w: '', r: '' })); x.s.length = n } });
-    if (w) plan.forEach(e => { if (!G.draft.ex.some(x => key(x.n) === key(e.n))) { addEx(G.draft, e.n); const x = G.draft.ex[G.draft.ex.length - 1]; if (e.skip) x.skip = true } });
+    G.draft.ex.forEach(x => { const e = by.get(key(x.n)) || by.get(key(x.slot || '')); if (!e) return; if (e.skip) x.skip = true; const n = Math.round(+e.sets); if (n > 0 && n <= 20) { while (x.s.length < n) x.s.push(Object.assign({}, x.s[x.s.length - 1] || { w: '', r: '' })); x.s.length = n } });
+    if (w) plan.forEach(e => { if (!G.draft.ex.some(x => key(x.n) === key(e.n) || key(x.slot || '') === key(e.n))) { addEx(G.draft, e.n); const x = G.draft.ex[G.draft.ex.length - 1]; if (e.skip) x.skip = true } });
   }
   G.draft.date = o.date; G.draft.min = o.min ? String(o.min) : ''; G.draft.start = plan ? Date.now() : null; G.draft.link = o.link || null; if (o.rpe) G.draft.rpe = o.rpe;
   if (!w && plan && plan.length && o.plan && G.ctx && G.ctx.setWorkouts) {
